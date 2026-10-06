@@ -737,8 +737,15 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   /** Tap the orb to nudge back to listening when idle. */
   const tapOrb = useCallback(() => {
     if (closedRef.current || showVoices || micMutedRef.current) return;
-    if (stateRef.current === 'idle') setState('listening');
-  }, [showVoices, setState]);
+    if (!recognitionRef.current) {
+      startRecognition();
+      return;
+    }
+    if (stateRef.current === 'idle') {
+      setState('listening');
+      startRecognition();
+    }
+  }, [showVoices, setState, startRecognition]);
 
   return (
     <div className={`cleo-v2${closing ? ' closing' : ''}`}>
@@ -747,8 +754,14 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
         <div
           ref={orbRef}
           className={`cleo-orb2 st-${vState}${micMuted ? ' st-muted' : ''}`}
-          role="img"
-          aria-label="Voice assistant"
+          role="button"
+          tabIndex={0}
+          aria-label="Voice assistant — tap to start listening"
+          onPointerDown={() => {
+            if (!closedRef.current && !showVoices && !micMutedRef.current && !recognitionRef.current) {
+              startRecognition();
+            }
+          }}
           onClick={tapOrb}
         >
           <span className="blob b1" />
