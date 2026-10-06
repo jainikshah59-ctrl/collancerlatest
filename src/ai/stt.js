@@ -126,7 +126,6 @@ export function startRealtimeStt({ lang = 'en-IN', onInterim, onFinal, onError }
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
   recognition.lang = lang;
-  try { if ('processLocally' in recognition) recognition.processLocally = true; } catch { /* optional */ }
   const state = { stopped: false, restarting: false, finalText: '', interimText: '' };
   realtime = { recognition, state };
   recognition.onresult = (event) => {
