@@ -69,7 +69,7 @@ const EDGE_WS_URL =
   'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1' +
   '?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 
-const CHUNK_LIMIT = 800;
+const CHUNK_LIMIT = 1150;
 /** Must stay in sync with the server cap in api/edge-tts.js */
 const PROXY_TEXT_CAP = 1200;
 
@@ -516,7 +516,7 @@ function speakViaBrowser(chunks, token, opts, preferFemale) {
       }
       const u = new SpeechSynthesisUtterance(chunks[i]);
       if (voice) u.voice = voice;
-      u.rate = 1.05; u.pitch = 1;
+      u.rate = 1; u.pitch = 1;
       opts.onProgress && opts.onProgress({ chunkIndex: i, charIndex: 0, word: '', text: chunks[i] });
       u.onboundary = (ev) => {
         if (token !== _cancelToken) return;
@@ -574,12 +574,9 @@ export async function speak(text, options = {}) {
     }
   }
 
-  // Microsoft Edge Neural TTS is the product voice. The server proxy is
-  // primary because Microsoft rejects browser-originated Edge WebSocket headers.
-  // Browser speech synthesis is an emergency fallback only.
   const attempts = [
-    () => speakViaProxy(chunks, voiceName, token, opts, prosody),
     () => speakViaEdge(chunks, voiceName, token, opts, prosody),
+    () => speakViaProxy(chunks, voiceName, token, opts, prosody),
     () => speakViaBrowser(chunks, token, opts, isFemaleVoice(options.voice)),
   ];
   let lastError = null;
