@@ -44,13 +44,30 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isOwner(id)
           && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['verificationStatus', 'verified', 'addedToCollancer', 'adminNotes', 'banned']))
+            .hasAny(['verificationStatus', 'verified', 'addedToCollancer', 'adminNotes', 'banned', 'instagram'])
+          && (resource.data.get('instagram', null) == null
+            || !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['handle', 'handleLower', 'pfp', 'followers', 'bio'])))
         || (isAuthed()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating'])
           && request.resource.data.rating >= 0
           && request.resource.data.rating <= 5);
 
       allow delete: if false;
+    }
+
+    /* ---------------- instagram_tokens (server-only via Admin SDK) ----------------
+       Long-lived Instagram tokens. Never readable/writable by clients —
+       the OAuth callback + refresh endpoints use the Admin SDK (bypasses rules). */
+
+    match /instagram_tokens/{uid} {
+      allow read, write: if false;
+    }
+
+    /* ---------------- instagram_oauth_states (server-only CSRF states) ---------------- */
+
+    match /instagram_oauth_states/{state} {
+      allow read, write: if false;
     }
 
     /* ---------------- creatorHandles ---------------- */

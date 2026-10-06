@@ -4,12 +4,14 @@
 import React, { useRef, useState } from 'react';
 import {
   User as UserIcon, ArrowLeft, Camera, AtSign, MapPin, Globe, Youtube,
-  Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Percent,
+  Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Percent, Lock,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
 } from '../lib/firebase.js';
 import { compressImage, uploadToCloudinary } from '../lib/cloudinary.js';
+import { startInstagramConnect } from '../lib/instagram.js';
+import { InstagramConnectBanner, InstagramSyncCard } from './InstagramConnect.jsx';
 import { PLATFORMS, NICHES, CITIES, CATEGORIES, PROMO_TYPES, promoLabel } from '../lib/constants.js';
 import { compact } from '../lib/format.js';
 import {
@@ -63,7 +65,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const uid = creator.id;
-  const handleChanged = normHandle(p.handle) !== (creator.handleLower || normHandle(creator.handle));
+  const igConnected = !!creator.instagram;
+  const handleChanged = !igConnected && normHandle(p.handle) !== (creator.handleLower || normHandle(creator.handle));
 
   const toggleArr = (key, val) => setP((prev) => {
     const arr = prev[key] || [];
@@ -76,7 +79,16 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     if (p.name.trim().length < 2) return setErr('Please enter your display name.');
     if (!handleOk(p.handle)) return setErr('Handle must be 3–30 characters: letters, numbers, dot or underscore.');
     const num = (v) => (v === '' ? 0 : Math.max(0, Math.round(Number(v) || 0)));
-    const profileUpd = {
+    // Instagram-synced details are never written from here — they are managed
+    // by the Instagram account and updated server-side only.
+    const profileUpd = igConnected ? {
+      name: p.name.trim(), platform: p.platform, niche: p.niche, city: p.city,
+      engagement: Number(p.engagement) || 0,
+      avgViews: num(p.avgViews), avgLikes: num(p.avgLikes), reach: num(p.reach),
+      profileLink: p.profileLink.trim(), ytChannel: p.ytChannel.trim(),
+      categories: p.categories, promotionTypes: p.promotionTypes,
+      updatedAt: serverTimestamp(),
+    } : {
       name: p.name.trim(), bio: p.bio.trim(), platform: p.platform, niche: p.niche, city: p.city,
       followers: num(p.followers), engagement: Number(p.engagement) || 0,
       avgViews: num(p.avgViews), avgLikes: num(p.avgLikes), reach: num(p.reach),
@@ -178,25 +190,34 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
 
   return (
     <Page pageKey="creator-profile">
-      <TopBar title="Profile" subtitle={`@${creator.handleLower || normHandle(creator.handle)}`}
+      <TopBar title="Profile" subtitle={igConnected ? `@${creator.instagram.username}` : (creator.handleLower ? `@${creator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
+        {igConnected ? <InstagramSyncCard creator={creator} /> : (
+          <InstagramConnectBanner onConnect={() => {
+            startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
+          }} />
+        )}
         {/* Header card */}
         <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 14 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <Avatar src={creator.pfp} name={creator.name} size={72} className="lg" pro={!!creator.creatorIsPro} />
-              <button onClick={() => photoRef.current?.click()} aria-label="Change profile photo"
-                disabled={busy === 'photo'}
-                style={{
-                  position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: '50%',
-                  border: '2px solid var(--surface)', background: 'var(--avatar-edit-bg)', color: '#fff', cursor: 'pointer',
-                  display: 'grid', placeItems: 'center',
-                }}>
-                <Camera style={{ width: 13, height: 13 }} />
-              </button>
-              <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={(e) => changePhoto(e.target.files?.[0])} />
+              {!igConnected && (
+                <>
+                  <button onClick={() => photoRef.current?.click()} aria-label="Change profile photo"
+                    disabled={busy === 'photo'}
+                    style={{
+                      position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: '50%',
+                      border: '2px solid var(--surface)', background: 'var(--avatar-edit-bg)', color: '#fff', cursor: 'pointer',
+                      display: 'grid', placeItems: 'center',
+                    }}>
+                    <Camera style={{ width: 13, height: 13 }} />
+                  </button>
+                  <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={(e) => changePhoto(e.target.files?.[0])} />
+                </>
+              )}
             </div>
             <div className="cl-grow" style={{ minWidth: 0 }}>
               <div className="cl-row" style={{ gap: 8 }}>
@@ -233,16 +254,28 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   </Field>
                 </div>
                 <div className="cl-grow">
-                  <Field label="Handle" hint={handleChanged ? 'Will be reserved atomically on save' : 'Unique, case-insensitive'}>
+                  <Field label="Handle" hint={igConnected ? 'Synced from Instagram — managed there' : (handleChanged ? 'Will be reserved atomically on save' : 'Unique, case-insensitive')}>
                     <div style={{ position: 'relative' }}>
                       <AtSign style={{ position: 'absolute', left: 13, top: 14, width: 16, height: 16, color: 'var(--faint)' }} />
-                      <Input value={p.handle} onChange={setPField('handle')} placeholder="aarav.creates" style={{ paddingLeft: 38 }} />
+                      <Input value={igConnected ? (creator.instagram.username || '') : p.handle}
+                        onChange={setPField('handle')} placeholder="aarav.creates" style={{ paddingLeft: 38 }}
+                        disabled={igConnected} />
+                      {igConnected && (
+                        <Lock style={{ position: 'absolute', right: 13, top: 15, width: 14, height: 14, color: 'var(--faint)' }} />
+                      )}
                     </div>
                   </Field>
                 </div>
               </div>
-              <Field label="Bio" hint="Minimum 10 characters for a complete profile">
-                <TextArea value={p.bio} onChange={setPField('bio')} placeholder="Fashion + lifestyle creator from Mumbai…" maxLength={300} />
+              <Field label="Bio" hint={igConnected ? 'Synced from Instagram — managed there' : 'Minimum 10 characters for a complete profile'}>
+                <div style={{ position: 'relative' }}>
+                  <TextArea value={igConnected ? (creator.instagram.bio || '') : p.bio}
+                    onChange={setPField('bio')} placeholder="Fashion + lifestyle creator from Mumbai…" maxLength={300}
+                    disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
+                  {igConnected && (
+                    <Lock style={{ position: 'absolute', right: 13, top: 14, width: 14, height: 14, color: 'var(--faint)' }} />
+                  )}
+                </div>
               </Field>
               <div className="cl-row" style={{ gap: 10 }}>
                 <div className="cl-grow">
@@ -269,7 +302,16 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               </div>
               <div className="cl-row" style={{ gap: 10 }}>
                 <div className="cl-grow">
-                  <Field label="Followers"><Input value={p.followers} onChange={setPField('followers')} inputMode="numeric" placeholder="25000" /></Field>
+                  <Field label="Followers" hint={igConnected ? 'Live from Instagram' : undefined}>
+                    <div style={{ position: 'relative' }}>
+                      <Input value={igConnected ? String(creator.instagram.followersCount || '') : p.followers}
+                        onChange={setPField('followers')} inputMode="numeric" placeholder="25000"
+                        disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
+                      {igConnected && (
+                        <Lock style={{ position: 'absolute', right: 13, top: 15, width: 14, height: 14, color: 'var(--faint)' }} />
+                      )}
+                    </div>
+                  </Field>
                 </div>
                 <div className="cl-grow">
                   <Field label="Engagement %"><Input value={p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" /></Field>

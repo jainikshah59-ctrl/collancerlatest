@@ -16,6 +16,8 @@ import {
   BottomNav, Page, useToast, ConfirmDialog, Button, EmptyState, useEffectiveTheme,
 } from '../components/ui.jsx';
 import CreatorAuthScreen from './auth.jsx';
+import { InstagramConnectScreen } from './InstagramConnect.jsx';
+import { needsInstagramSync, refreshInstagram } from '../lib/instagram.js';
 import DashboardPage from './DashboardPage.jsx';
 import VerificationPage from './VerificationPage.jsx';
 import BookingsPage from './BookingsPage.jsx';
@@ -199,6 +201,38 @@ export default function CreatorApp({ onSwitchRole }) {
 
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
 
+  /* ---- Instagram return handling (?ig=connected / ?ig=error=...) ---- */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ig = params.get('ig');
+      if (!ig) return;
+      if (ig === 'connected') toast.ok('Instagram connected — your profile is live.');
+      else if (ig.startsWith('error')) {
+        const reason = decodeURIComponent(ig.slice(6));
+        toast.err(reason && reason !== 'access_denied'
+          ? `Instagram connect failed: ${reason}`
+          : 'Instagram connect was cancelled.');
+      }
+      params.delete('ig');
+      const clean = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash}`;
+      window.history.replaceState(null, '', clean);
+    } catch { /* noop */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---- Instagram live sync: refresh stale data in the background ---- */
+  useEffect(() => {
+    if (!uid || !creator?.instagram || !needsInstagramSync(creator)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const j = await refreshInstagram(false);
+        if (!cancelled && j?.ok && !j.fresh) toast.ok('Instagram data refreshed.');
+      } catch { /* silent — profile still shows cached data */ }
+    })();
+    return () => { cancelled = true; };
+  }, [uid, creator?.instagram?.lastSyncedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---- navigation helpers ---- */
   const go = (p, sub) => {
     if (p === 'profile' && sub) setProfileTab(sub);
@@ -234,6 +268,19 @@ export default function CreatorApp({ onSwitchRole }) {
     );
   }
   if (creatorLoading || !creator) return <Curtain label="Loading your studio…" />;
+
+  /* ---- post-signup step: connect Instagram before entering the studio ---- */
+  if (creator.onboardingStep === 'connect-instagram' && !creator.instagram) {
+    return (
+      <InstagramConnectScreen
+        creatorName={creator.name}
+        onSkip={() => {
+          updateDoc(doc(db(), 'creators', uid), { onboardingStep: 'done', updatedAt: serverTimestamp() })
+            .catch(() => {});
+        }}
+      />
+    );
+  }
 
   const overlayBooking = overlay?.type === 'booking'
     ? bookings.find((b) => b.id === overlay.id) || null
