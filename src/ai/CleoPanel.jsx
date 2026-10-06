@@ -37,8 +37,7 @@ import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
 } from './conversation.js';
 import { speak, stopSpeak, unlockAudio, playVoiceChime, playVoiceCloseChime, VOICE_META } from './voice.js';
-import { preloadStt, sttStatus, transcribePcm } from './stt.js';
-import { ContinuousListener } from './listen.js';
+import { preloadStt } from './stt.js';
 import { compact, inr } from '../lib/format.js';
 
 const VOICE_KEY = 'cleo-voice';
@@ -511,7 +510,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const stateRef = useRef('idle');
   const orbRef = useRef(null);
   const orbPulseRef = useRef(null);
-  const listenerRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const recognitionStartRef = useRef(null);
   const turnSeqRef = useRef(0);
   const speechStartRef = useRef(null);
   const speechEndRef = useRef(null);
@@ -526,8 +526,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   useEffect(() => () => {
     closedRef.current = true;
     turnSeqRef.current += 1;
-    try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
-    listenerRef.current = null;
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+    recognitionRef.current = null;
     stopSpeak();
     try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
   }, []);
@@ -562,7 +562,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     if (closedRef.current || generation !== turnSeqRef.current) return;
     if (!spoken) { setState('listening'); return; }
     setState('speaking');
-    try { listenerRef.current && listenerRef.current.setBargeIn(true); } catch { /* ignore */ }
+    
     speak(spoken, {
       voice: voicePref,
       onProgress: () => {
@@ -573,97 +573,122 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
       },
       onDone: () => {
         if (closedRef.current || generation !== turnSeqRef.current) return;
-        try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
+        
         setOrbScale(1);
         setState('listening');
+        setTimeout(() => recognitionStartRef.current?.(), 0);
       },
     });
   }, [processTranscript, voicePref, setState, setOrbScale]);
 
-  /** VAD ended an utterance. The custom mic is continuous; Whisper handles transcription. */
-  const handleSpeechEnd = useCallback(async (pcm16) => {
-    if (closedRef.current || micMutedRef.current) return;
+  /** Native browser speech recognition: interim transcript is rendered live and
+   * the first final result immediately enters the same brain + TTS pipeline.
+   * This mirrors the proven Collancer voice workflow: no PCM buffering and no
+   * second transcription request before the AI turn starts.
+   */
+  const handleFinalTranscript = useCallback(async (text) => {
+    const q = String(text || '').trim();
+    if (closedRef.current || micMutedRef.current || !q) return;
     const generation = turnSeqRef.current;
     setState('researching');
-
-    let transcript = '';
-    try { transcript = await transcribePcm(pcm16); } catch { transcript = ''; }
-
-    const q = String(transcript || '').trim();
-    const words = q.split(/\s+/).filter(Boolean);
-    if (!q || !words.length || generation !== turnSeqRef.current) {
-      if (!closedRef.current && generation === turnSeqRef.current) setState('listening');
-      return;
-    }
+    setOrbScale(1);
     await runTurn(q, generation);
-  }, [setState, runTurn]);
+  }, [runTurn, setState, setOrbScale]);
 
-  /** Any new speech invalidates the previous answer immediately. */
-  const handleSpeechStart = useCallback(() => {
-    if (closedRef.current || micMutedRef.current) return;
-    const st = stateRef.current;
-    turnSeqRef.current += 1;
-    if (st === 'speaking' || st === 'researching') {
-      stopSpeak();
-      try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
-      setOrbScale(1);
+  const startRecognition = useCallback(() => {
+    if (closedRef.current || micMutedRef.current) return false;
+    const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) {
+      setState('error');
+      return false;
     }
-    if (st === 'listening' || st === 'speaking' || st === 'researching' || st === 'speech-detected') {
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+
+    const recognition = new SR();
+    recognitionRef.current = recognition;
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      if (!closedRef.current && !micMutedRef.current) {
+        setState('listening');
+        setTranscript('');
+        setOrbScale(1);
+      }
+    };
+    recognition.onspeechstart = () => {
+      if (closedRef.current || micMutedRef.current) return;
       setState('speech-detected');
+    };
+    recognition.onspeechend = () => {
+      if (!closedRef.current) setState('researching');
+    };
+
+    recognition.onresult = (event) => {
+      let finalText = '';
+      let interimText = '';
+      for (let i = event.resultIndex || 0; i < event.results.length; i++) {
+        const chunk = String(event.results[i]?.[0]?.transcript || '').trim();
+        if (!chunk) continue;
+        if (event.results[i].isFinal) finalText += ' ' + chunk;
+        else interimText += ' ' + chunk;
+      }
+      const shown = String(finalText || interimText).trim();
+      if (shown) {
+        setTranscript(shown);
+        if (interimText) setState('speech-detected');
+      }
+      if (!finalText) return;
+
+      const clean = finalText.trim();
+      setState('researching');
+      void handleFinalTranscript(clean);
+    };
+
+    recognition.onerror = (event) => {
+      if (closedRef.current || event?.error === 'aborted') return;
+      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+        setState('error');
+      } else {
+        setState('listening');
+      }
+    };
+
+    recognition.onend = () => {
+      if (closedRef.current || micMutedRef.current) return;
+      recognitionRef.current = null;
+    };
+
+    recognitionStartRef.current = startRecognition;
+    try {
+      recognition.start();
+      return true;
+    } catch {
+      recognitionRef.current = null;
+      setState('error');
+      return false;
     }
-  }, [setState, setOrbScale]);
+  }, [handleFinalTranscript, setOrbScale, setState]);
 
-  speechStartRef.current = handleSpeechStart;
-  speechEndRef.current = handleSpeechEnd;
+  // unmount: abort native recognition and all pending speech.
+  useEffect(() => () => {
+    closedRef.current = true;
+    turnSeqRef.current += 1;
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+    recognitionRef.current = null;
+    stopSpeak();
+    try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
+  }, []);
 
-  // Start our custom AudioWorklet microphone only after Whisper is ready.
-  // No browser SpeechRecognition: one persistent getUserMedia stream and no
-  // browser recognition on/off lifecycle or microphone beeps.
+  // Start native recognition as soon as the voice view opens.
   useEffect(() => {
     playVoiceChime();
-    let cancelled = false;
-    (async () => {
-      if (sttStatus() !== 'ready') {
-        setState('warming');
-        try { await preloadStt(); } catch {
-          if (cancelled || closedRef.current) return;
-          setState('error');
-          speak('My listening engine could not start. Please check your connection and try again.', { voice: voicePref });
-          setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 5000);
-          return;
-        }
-      }
-      if (cancelled || closedRef.current) return;
-
-      const listener = new ContinuousListener({
-        onSpeechStart: () => { try { speechStartRef.current && speechStartRef.current(); } catch { /* ignore */ } },
-        onSpeechEnd: (pcm) => { try { speechEndRef.current && speechEndRef.current(pcm); } catch { /* ignore */ } },
-        onLevel: (rms) => {
-          const st = stateRef.current;
-          if (st === 'listening' || st === 'speech-detected') {
-            setOrbScale((1 + Math.min(0.24, rms * 1.6)).toFixed(3));
-          }
-        },
-      });
-      listenerRef.current = listener;
-      try {
-        await listener.start();
-      } catch (e) {
-        if (cancelled || closedRef.current) return;
-        setState('error');
-        const msg = e && e.message === 'mic-unsupported'
-          ? 'Voice input is not supported in this browser. Try Chrome.'
-          : e && e.message === 'mic-blocked'
-            ? 'Microphone access was blocked. Please allow the microphone and try again.'
-            : 'Microphone access was blocked. Please allow the microphone and try again.';
-        speak(msg, { voice: voicePref });
-        setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 6000);
-        return;
-      }
-      if (cancelled || closedRef.current) { try { listener.stop(); } catch { /* ignore */ } return; }
-      setState('listening');
-    })();
-    return () => { cancelled = true; };
+    const timer = setTimeout(() => {
+      if (!closedRef.current) startRecognition();
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -675,15 +700,21 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     const next = !micMutedRef.current;
     micMutedRef.current = next;
     setMicMuted(next);
-    try { listenerRef.current && listenerRef.current.setMuted(next); } catch { /* ignore */ }
-  }, []);
+    if (next) {
+      try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+      setState('idle');
+    } else {
+      setState('listening');
+      setTimeout(() => recognitionStartRef.current?.(), 0);
+    }
+  }, [setState]);
 
   /** Stop = interrupt the assistant's speech, then hear me again. */
   const stopAndListen = useCallback(() => {
     turnSeqRef.current += 1;
     stopSpeak();
 
-    try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
     setOrbScale(1);
     if (!closedRef.current) setState(micMutedRef.current ? 'idle' : 'listening');
   }, [setState, setOrbScale]);
@@ -694,8 +725,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     closedRef.current = true;
     playVoiceCloseChime();
     turnSeqRef.current += 1;
-    try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
-    listenerRef.current = null;
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+    recognitionRef.current = null;
     stopSpeak();
     setOrbScale(1);
     setShowVoices(false);
