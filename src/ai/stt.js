@@ -108,4 +108,3 @@ export async function transcribePcm(pcm16) {
   const res = await callWorker('transcribe', { pcm: pcm16, sampleRate: 16000 }, [pcm16.buffer]);
   return (res && typeof res.text === 'string') ? res.text : '';
 }
-
