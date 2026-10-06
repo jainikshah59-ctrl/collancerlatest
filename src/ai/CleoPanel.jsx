@@ -833,9 +833,6 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
 
   useEffect(() => {
     loadMemory();
-    // Warm up the on-device listening engine while the user is on the AI tab,
-    // so the voice assistant is ready the moment it opens (~40MB, cached after).
-    try { preloadStt().catch(() => {}); } catch { /* ignore */ }
   }, []);
 
   return (
