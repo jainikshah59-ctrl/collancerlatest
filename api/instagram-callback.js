@@ -51,9 +51,14 @@ export default async function handler(req, res) {
     const db = admin.firestore();
 
     // 1. Validate + consume the one-time state record.
+    // TEMP-DIAG (2026-10-06): echo a fingerprint of the received state on
+    // mismatch so we can compare it against Firestore without server logs.
     const stateRef = db.collection('instagram_oauth_states').doc(String(state));
     const stateSnap = await stateRef.get();
-    if (!stateSnap.exists) return go(res, 'error=bad-state');
+    if (!stateSnap.exists) {
+      const got = String(state || '').slice(0, 12) || 'none';
+      return go(res, `error=bad-state-got-${encodeURIComponent(got)}`);
+    }
     const uid = stateSnap.data()?.uid;
     if (!uid) return go(res, 'error=bad-state');
     await stateRef.delete().catch(() => {});
