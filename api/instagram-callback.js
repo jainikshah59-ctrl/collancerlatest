@@ -24,7 +24,15 @@ async function postForm(url, params) {
     body: new URLSearchParams(params).toString(),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error_message || `token exchange failed (${r.status})`);
+  if (!r.ok) {
+    // TEMP-DIAG (2026-10-06): surface Instagram's error so we can tell a bad
+    // client_secret apart from a bad/used code without server logs.
+    const msg = String(j?.error_message || j?.error?.message || `token exchange failed (${r.status})`)
+      .replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
+    const e = new Error(`token-failed: ${msg}`);
+    e.code = 'TOKEN_FAILED_DIAG';
+    throw e;
+  }
   return j;
 }
 
@@ -154,6 +162,7 @@ export default async function handler(req, res) {
     return go(res, 'connected');
   } catch (e) {
     if (e && (e.code === 'NOT_CONFIGURED' || e.code === 'BAD_CONFIG')) return go(res, 'error=server-not-configured');
+    if (e && e.code === 'TOKEN_FAILED_DIAG') return go(res, `error=${encodeURIComponent(e.message)}`); // TEMP-DIAG
     return go(res, 'error=connect-failed');
   }
 }
