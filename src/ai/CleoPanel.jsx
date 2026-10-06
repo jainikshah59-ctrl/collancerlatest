@@ -682,7 +682,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const stopAndListen = useCallback(() => {
     turnSeqRef.current += 1;
     stopSpeak();
-    resetRealtimeStt();
+
     try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
     setOrbScale(1);
     if (!closedRef.current) setState(micMutedRef.current ? 'idle' : 'listening');
