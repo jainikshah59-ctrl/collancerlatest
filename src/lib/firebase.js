@@ -27,21 +27,22 @@ let _auth = null;
 let _db = null;
 let _ready = null;
 
-/** Initialize Firebase once.
- * IMPORTANT: Firebase initialization must not wait for auth persistence/network.
- * Auth state is delivered separately through watchAuth(). */
+/** Initialize Firebase once; resolves when auth is usable. 12s safety timeout. */
 export function ensureFirebase() {
   if (_ready) return _ready;
-  _ready = Promise.resolve().then(() => {
+  _ready = new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve({ auth: _auth, db: _db }); } };
     try {
       _app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
       _auth = getAuth(_app);
       _db = getFirestore(_app);
-      return { auth: _auth, db: _db };
+      // Wait a tick for auth restoration, then resolve regardless.
+      const unsub = onAuthStateChanged(_auth, () => { unsub(); finish(); });
+      setTimeout(finish, 12000);
     } catch (e) {
       console.warn('[firebase] init failed', e);
-      _ready = null;
-      throw e;
+      finish();
     }
   });
   return _ready;
@@ -85,24 +86,8 @@ export async function handleGoogleRedirectResult() {
   try { return await getRedirectResult(_auth); } catch (e) { return null; }
 }
 export function watchAuth(cb) {
-  let unsub = () => {};
-  let cancelled = false;
-  ensureFirebase()
-    .then(() => {
-      if (cancelled) return;
-      if (!_auth) {
-        cb(null);
-        return;
-      }
-      unsub = onAuthStateChanged(_auth, cb);
-    })
-    .catch(() => {
-      if (!cancelled) cb(null);
-    });
-  return () => {
-    cancelled = true;
-    try { unsub(); } catch { /* noop */ }
-  };
+  ensureFirebase().then(() => onAuthStateChanged(_auth, cb));
+  return () => {};
 }
 
 /* ---- Firestore re-exports (single import surface) ---- */
