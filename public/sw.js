@@ -20,6 +20,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // Never cache API calls: OAuth callbacks and other /api/* GETs must always
+  // hit the network (a cached 302-follow response under an old code+state URL
+  // would replay stale results and break one-time flows).
+  if (url.pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(req)
       .then((res) => {

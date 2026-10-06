@@ -34,10 +34,19 @@ export default async function handler(req, res) {
     // One-time state record (CSRF protection) — admin-only collection.
     const state = randomBytes(24).toString('hex');
     const db = getAdmin().firestore();
-    await db.collection('instagram_oauth_states').doc(state).set({
-      uid,
-      createdAt: new Date(),
+    // Invalidate any previous unconsumed states for this uid so a stale
+    // Instagram tab can never be authorized against an old state.
+    const old = await db.collection('instagram_oauth_states').where('uid', '==', uid).get();
+    const batch = db.batch();
+    old.forEach((d) => batch.delete(d.ref));
+    const stateRef = db.collection('instagram_oauth_states').doc(state);
+    batch.set(stateRef, { uid, createdAt: new Date() });
+    // TEMP-DIAG: record the exact dialog params for this state so a later
+    // callback failure can be compared against what was actually issued.
+    batch.set(db.collection('instagram_debug').doc(state), {
+      uid, clientId: appId, redirectUri, createdAt: new Date(),
     });
+    await batch.commit();
 
     const url =
       'https://www.instagram.com/oauth/authorize' +
