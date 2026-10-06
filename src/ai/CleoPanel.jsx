@@ -512,7 +512,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const orbRef = useRef(null);
   const orbPulseRef = useRef(null);
   const listenerRef = useRef(null);
-  const turnSeqRef = useRef(0);
+  const busyRef = useRef(false);
+  const queuedPcmRef = useRef(null);
   const speechStartRef = useRef(null);
   const speechEndRef = useRef(null);
 
@@ -525,7 +526,6 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   // unmount: stop everything (mic stream closed here; Whisper worker stays warm)
   useEffect(() => () => {
     closedRef.current = true;
-    turnSeqRef.current += 1;
     try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
     listenerRef.current = null;
     stopSpeak();
@@ -555,60 +555,82 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     return spoken;
   }, [context, isCreator, liveOn]);
 
-  /** One full turn. A generation id makes every in-flight turn disposable. */
-  const runTurn = useCallback(async (transcript, generation) => {
-    setState('researching');
-    const spoken = await processTranscript(transcript);
-    if (closedRef.current || generation !== turnSeqRef.current) return;
-    if (!spoken) { setState('listening'); return; }
-    setState('speaking');
-    try { listenerRef.current && listenerRef.current.setBargeIn(true); } catch { /* ignore */ }
-    speak(spoken, {
-      voice: voicePref,
-      onProgress: () => {
-        if (generation !== turnSeqRef.current) return;
-        setOrbScale(1.09);
-        try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
-        orbPulseRef.current = setTimeout(() => setOrbScale(1), 120);
-      },
-      onDone: () => {
-        if (closedRef.current || generation !== turnSeqRef.current) return;
-        try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
-        setOrbScale(1);
-        setState('listening');
-      },
-    });
-  }, [processTranscript, voicePref, setState, setOrbScale]);
+  /** One full turn: transcribe done by caller; brain -> speak -> resolve when heard. */
+  const runTurn = useCallback((pcm16, transcript) => new Promise((resolve) => {
+    const finish = (nextState) => {
+      try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
+      setOrbScale(1);
+      // Mute never diverts the state machine: the turn always lands back
+      // in 'listening', muted or not.
+      if (!closedRef.current) setState(nextState);
+      resolve();
+    };
+    (async () => {
+      setState('researching');
+      const spoken = await processTranscript(transcript);
+      if (closedRef.current) { resolve(); return; }
+      if (stateRef.current !== 'researching') { resolve(); return; } // interrupted meanwhile
+      if (!spoken) { finish('listening'); return; }
+      setState('speaking');
+      try { listenerRef.current && listenerRef.current.setBargeIn(true); } catch { /* ignore */ }
+      speak(spoken, {
+        voice: voicePref,
+        onProgress: () => {
+          setOrbScale(1.09);
+          try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
+          orbPulseRef.current = setTimeout(() => setOrbScale(1), 150);
+        },
+        onDone: () => {
+          if (stateRef.current !== 'speaking') { resolve(); return; }
+          finish('listening'); // ChatGPT-style: straight back to listening
+        },
+      });
+    })();
+  }), [processTranscript, voicePref, setState, setOrbScale]);
 
-  /** VAD ended an utterance. The custom mic is continuous; Whisper handles transcription. */
+  /** VAD finished a segment -> transcribe -> turn. Serializes turns; queues one. */
   const handleSpeechEnd = useCallback(async (pcm16) => {
-    if (closedRef.current || micMutedRef.current) return;
-    const generation = turnSeqRef.current;
+    if (closedRef.current) return;
+    if (busyRef.current) { queuedPcmRef.current = pcm16; return; }
+    busyRef.current = true;
+    // Show "researching" for the whole transcription — Whisper takes 1-3s.
     setState('researching');
-
-    let transcript = '';
-    try { transcript = await transcribePcm(pcm16); } catch { transcript = ''; }
-
-    const q = String(transcript || '').trim();
-    const words = q.split(/\s+/).filter(Boolean);
-    if (!q || !words.length || generation !== turnSeqRef.current) {
-      if (!closedRef.current && generation === turnSeqRef.current) setState('listening');
-      return;
+    try {
+      let transcript = '';
+      try {
+        transcript = await transcribePcm(pcm16);
+      } catch { /* STT hiccup — treat as silence */ }
+      if (closedRef.current) { return; }
+      const q = String(transcript || '').trim();
+      // Whisper sometimes emits hallucinations on noise — drop junk.
+      const words = q.split(/\s+/).filter(Boolean);
+      if (!q || words.length === 0) {
+        if (stateRef.current === 'researching' || stateRef.current === 'listening' || stateRef.current === 'speech-detected') setState('listening');
+        return;
+      }
+      await runTurn(pcm16, q);
+    } finally {
+      busyRef.current = false;
+      const queued = queuedPcmRef.current;
+      queuedPcmRef.current = null;
+      if (queued && !closedRef.current && speechEndRef.current) {
+        speechEndRef.current(queued);
+      }
     }
-    await runTurn(q, generation);
   }, [setState, runTurn]);
 
-  /** Any new speech invalidates the previous answer immediately. */
+  /** VAD heard speech start. During 'speaking' this is a barge-in. */
   const handleSpeechStart = useCallback(() => {
     if (closedRef.current || micMutedRef.current) return;
     const st = stateRef.current;
-    turnSeqRef.current += 1;
-    if (st === 'speaking' || st === 'researching') {
+    if (st === 'speaking') {
+      // Barge-in: the user talks over the answer -> stop it now, keep capturing.
+      // The current VAD segment continues; its end becomes the new utterance.
       stopSpeak();
       try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
       setOrbScale(1);
-    }
-    if (st === 'listening' || st === 'speaking' || st === 'researching' || st === 'speech-detected') {
+      setState('listening');
+    } else if (st === 'listening') {
       setState('speech-detected');
     }
   }, [setState, setOrbScale]);
@@ -616,25 +638,22 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   speechStartRef.current = handleSpeechStart;
   speechEndRef.current = handleSpeechEnd;
 
-  // Start our custom AudioWorklet microphone only after Whisper is ready.
-  // No browser SpeechRecognition: one persistent getUserMedia stream and no
-  // browser recognition on/off lifecycle or microphone beeps.
+  // Open: our chime, warm up Whisper, then open ONE continuous mic stream.
   useEffect(() => {
     playVoiceChime();
     let cancelled = false;
     (async () => {
       if (sttStatus() !== 'ready') {
         setState('warming');
-        try { await preloadStt(); } catch {
-          if (cancelled || closedRef.current) return;
-          setState('error');
-          speak('My listening engine could not start. Please check your connection and try again.', { voice: voicePref });
-          setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 5000);
-          return;
-        }
+        try { await preloadStt(); } catch { /* handled below */ }
       }
       if (cancelled || closedRef.current) return;
-
+      if (sttStatus() !== 'ready') {
+        setState('error');
+        speak('My listening engine could not start. Please check your connection and try again.', { voice: voicePref });
+        setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 5000);
+        return;
+      }
       const listener = new ContinuousListener({
         onSpeechStart: () => { try { speechStartRef.current && speechStartRef.current(); } catch { /* ignore */ } },
         onSpeechEnd: (pcm) => { try { speechEndRef.current && speechEndRef.current(pcm); } catch { /* ignore */ } },
@@ -680,9 +699,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
 
   /** Stop = interrupt the assistant's speech, then hear me again. */
   const stopAndListen = useCallback(() => {
-    turnSeqRef.current += 1;
     stopSpeak();
-
     try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
     setOrbScale(1);
     if (!closedRef.current) setState(micMutedRef.current ? 'idle' : 'listening');
@@ -693,7 +710,6 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     if (closedRef.current) return;
     closedRef.current = true;
     playVoiceCloseChime();
-    turnSeqRef.current += 1;
     try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
     listenerRef.current = null;
     stopSpeak();
@@ -833,6 +849,9 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
 
   useEffect(() => {
     loadMemory();
+    // Warm up the on-device listening engine while the user is on the AI tab,
+    // so the voice assistant is ready the moment it opens (~40MB, cached after).
+    try { preloadStt().catch(() => {}); } catch { /* ignore */ }
   }, []);
 
   return (

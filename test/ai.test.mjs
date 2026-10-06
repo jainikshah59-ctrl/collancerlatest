@@ -408,8 +408,8 @@ describe('listen', () => {
   it('Vad barge-in mode raises the bar', () => {
     const vad = new Vad({ onSpeechStart: () => {}, onSpeechEnd: () => {} });
     vad.setBargeIn(true);
-    assert.ok(vad.profile.threshold >= 0.035);
-    assert.ok(vad.profile.confirmMs >= 180);
+    assert.ok(vad.profile.threshold >= 0.05);
+    assert.ok(vad.profile.confirmMs >= 350);
     vad.setBargeIn(false);
     assert.equal(vad.profile.threshold, 0.02);
   });
