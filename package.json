@@ -1,13 +1,12 @@
 {
   "dependencies": {
-    "@huggingface/transformers": "^4.3.0",
     "firebase": "^10.12.0",
     "lucide-react": "^0.469.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ws": "^8.22.0"
   },
-  "description": "Collancer \u2014 creator-brand collaboration platform. WHERE INFLUENCE MEETS INDUSTRY.",
+  "description": "Collancer — creator-brand collaboration platform. WHERE INFLUENCE MEETS INDUSTRY.",
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
     "vite": "^5.2.0"

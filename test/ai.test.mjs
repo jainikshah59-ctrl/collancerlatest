@@ -13,7 +13,6 @@ import {
 } from '../src/ai/conversation.js';
 import { askCreatorAI, profileCompleteness, pricingTierFor, interpretBrief } from '../src/ai/creatorAi.js';
 import { VOICES, VOICE_META, isFemaleVoice } from '../src/ai/voice.js';
-import { computeRms, resampleTo16k, Vad } from '../src/ai/listen.js';
 
 /* ---------- fixtures ---------- */
 
@@ -350,68 +349,6 @@ describe('voice', () => {
     assert.equal(isFemaleVoice('aria'), true);
     assert.equal(isFemaleVoice('christopher'), false);
     assert.equal(isFemaleVoice('guy'), false);
-  });
-});
-
-/* ---------- listen (own listening system: VAD + resampling) ---------- */
-
-describe('listen', () => {
-  it('computeRms measures energy', () => {
-    assert.equal(computeRms(new Float32Array(100)), 0);
-    assert.ok(Math.abs(computeRms(new Float32Array(100).fill(1)) - 1) < 1e-6);
-    assert.ok(Math.abs(computeRms(new Float32Array([3, 4])) - Math.sqrt(12.5)) < 1e-6);
-  });
-  it('resampleTo16k converts sample rates', () => {
-    const src = new Float32Array(4800).fill(0.5);
-    const out = resampleTo16k(src, 48000);
-    assert.equal(out.length, 1600);
-    assert.ok(Math.abs(out[0] - 0.5) < 1e-6);
-    assert.equal(resampleTo16k(src, 16000).length, 4800);
-    assert.equal(resampleTo16k(new Float32Array(0), 48000).length, 0);
-  });
-  it('Vad detects a speech segment and emits 16k PCM', () => {
-    let started = 0, ended = null;
-    const vad = new Vad({
-      onSpeechStart: () => { started++; },
-      onSpeechEnd: (pcm) => { ended = pcm; },
-      silenceMs: 1100, minSpeechMs: 350, confirmMs: 120, threshold: 0.02,
-    });
-    const SR = 16000, step = 20;
-    const quiet = new Float32Array(320).fill(0.001);
-    const loud = new Float32Array(320).fill(0.2);
-    let t = 0;
-    for (let i = 0; i < 25; i++) { vad.push(quiet, t, SR); t += step; }
-    assert.equal(started, 0);
-    for (let i = 0; i < 40; i++) { vad.push(loud, t, SR); t += step; }
-    assert.equal(started, 1);
-    for (let i = 0; i < 65; i++) { vad.push(quiet, t, SR); t += step; }
-    assert.ok(ended instanceof Float32Array);
-    assert.ok(ended.length > 16000 * 1.5, `pcm len ${ended.length}`);
-    assert.ok(ended.length < 16000 * 3, `pcm len ${ended.length}`);
-  });
-  it('Vad discards short blips', () => {
-    let ended = 0;
-    const vad = new Vad({
-      onSpeechStart: () => {},
-      onSpeechEnd: () => { ended++; },
-      silenceMs: 1100, minSpeechMs: 350, confirmMs: 120, threshold: 0.02,
-    });
-    const SR = 16000, step = 20;
-    const quiet = new Float32Array(320).fill(0.001);
-    const loud = new Float32Array(320).fill(0.2);
-    let t = 0;
-    for (let i = 0; i < 25; i++) { vad.push(quiet, t, SR); t += step; }
-    for (let i = 0; i < 7; i++) { vad.push(loud, t, SR); t += step; }
-    for (let i = 0; i < 65; i++) { vad.push(quiet, t, SR); t += step; }
-    assert.equal(ended, 0);
-  });
-  it('Vad barge-in mode raises the bar', () => {
-    const vad = new Vad({ onSpeechStart: () => {}, onSpeechEnd: () => {} });
-    vad.setBargeIn(true);
-    assert.ok(vad.profile.threshold >= 0.05);
-    assert.ok(vad.profile.confirmMs >= 350);
-    vad.setBargeIn(false);
-    assert.equal(vad.profile.threshold, 0.02);
   });
 });
 

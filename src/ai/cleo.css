@@ -654,9 +654,6 @@
 
 /* state reactivity — the orb "wakes up" when engaged */
 .cleo-orb2.st-idle { --drift: 9s; }
-.cleo-orb2.st-warming { --drift: 12s; animation: orb2-warming 2.2s ease-in-out infinite; }
-.cleo-orb2.st-warming .blob, .cleo-orb2.st-warming .swirl, .cleo-orb2.st-warming .swirl2 { opacity: .45; }
-@keyframes orb2-warming { 0%, 100% { filter: brightness(.85); } 50% { filter: brightness(1.18); } }
 .cleo-orb2.st-idle .blob { opacity: .96; }
 .cleo-orb2.st-idle .swirl { opacity: .85; }
 .cleo-orb2.st-idle .swirl2 { opacity: .7; }
