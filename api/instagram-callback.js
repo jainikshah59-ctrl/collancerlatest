@@ -89,7 +89,15 @@ export default async function handler(req, res) {
     const expiresAt = new Date(Date.now() + TOKEN_DAYS * 86400000);
 
     // 3. Instagram profile + account + insights (each best-effort).
-    const me = await graphGet('/me?fields=id,username,account_type,media_count', token);
+    // TEMP-DIAG (2026-10-06): surface /me failure reason (e.g. personal
+    // account instead of Business/Creator) without server logs.
+    let me;
+    try {
+      me = await graphGet('/me?fields=id,username,account_type,media_count', token);
+    } catch (e) {
+      const msg = String(e?.message || 'profile failed').replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
+      return go(res, `error=${encodeURIComponent(`profile-failed: ${msg}`)}`);
+    }
     const igId = me.id;
     if (!igId || !me.username) return go(res, 'error=profile-failed');
     let acct = {};
