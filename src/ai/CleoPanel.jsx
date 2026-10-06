@@ -700,15 +700,21 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     const next = !micMutedRef.current;
     micMutedRef.current = next;
     setMicMuted(next);
-    
-  }, []);
+    if (next) {
+      try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+      setState('idle');
+    } else {
+      setState('listening');
+      setTimeout(() => recognitionStartRef.current?.(), 0);
+    }
+  }, [setState]);
 
   /** Stop = interrupt the assistant's speech, then hear me again. */
   const stopAndListen = useCallback(() => {
     turnSeqRef.current += 1;
     stopSpeak();
 
-    try { recognitionRef.current && recognitionRef.current.setBargeIn(false); } catch { /* ignore */ }
     setOrbScale(1);
     if (!closedRef.current) setState(micMutedRef.current ? 'idle' : 'listening');
   }, [setState, setOrbScale]);
@@ -719,7 +725,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     closedRef.current = true;
     playVoiceCloseChime();
     turnSeqRef.current += 1;
-    try { recognitionRef.current && recognitionRef.current.stop(); } catch { /* ignore */ }
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
     recognitionRef.current = null;
     stopSpeak();
     setOrbScale(1);
