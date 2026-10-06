@@ -678,6 +678,41 @@
   animation: v2-rise .5s .14s cubic-bezier(.22, 1, .36, 1) backwards;
 }
 .cleo-v2.closing .cleo-v2-controls { animation: v2-sink .3s ease-in forwards; }
+
+/* v8 live transcription — fixed glass box under the orb, auto-scrolls */
+.cleo-v2-transcript {
+  height: 104px; flex-shrink: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  margin: 2px 20px 0; padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -2px 6px rgba(0,0,0,.06);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 14px; line-height: 1.55; color: var(--text);
+  animation: v2-rise .5s .08s cubic-bezier(.22, 1, .36, 1) backwards;
+  scrollbar-width: thin;
+}
+.cleo-v2-transcript p { margin: 0; }
+.cleo-v2-transcript-empty { color: var(--muted); font-size: 13px; }
+/* voice Q+A: the asked question sits dimmed above the spoken answer */
+.cleo-v2-tq { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.cleo-v2-ta { font-size: 14px; line-height: 1.55; animation: v2-rise .35s cubic-bezier(.22, 1, .36, 1); }
+.cleo-v2.closing .cleo-v2-transcript { animation: v2-sink .3s ease-in forwards; }
+
+/* mic pill states — glows cyan while listening, green while answering */
+.cleo-vpill-mic.st-listening, .cleo-vpill-mic.st-speech-detected {
+  color: #fff;
+  background: linear-gradient(180deg, #22d3ee, #0891b2);
+  border-color: rgba(34, 211, 238, .6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 14px -2px rgba(34,211,238,.6);
+}
+.cleo-vpill-mic.st-speaking {
+  color: #fff;
+  background: linear-gradient(180deg, #34d399, #059669);
+  border-color: rgba(52, 211, 153, .55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 14px -2px rgba(52,211,153,.55);
+}
 @keyframes v2-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes v2-sink { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(16px); } }
 

@@ -11,11 +11,12 @@
  * output), creator results, profile sheet, booking, error.
  * Voice states: idle, listening, speech-detected, researching, speaking,
  * error. Browser SpeechRecognition (continuous + interim) for maximum speed:
- * the mic starts instantly in the open gesture and stays on (immediate
- * restart on browser auto-stop); streaming partials drive barge-in while the
- * assistant speaks. Answers are spoken (never shown), then it listens again.
- * Mute is software-only (results ignored, mic never cycled). Stop interrupts
- * speech and resumes listening. Close plays our own chime and exits to chat.
+ * Push-to-talk: the mic is OFF until the user taps the mic button, then it
+ * listens; silence auto-submits, the answer is spoken (never shown), and the
+ * mic goes off again. Tapping the mic during speech interrupts the answer
+ * and starts listening. No background mic, no restart beeps.
+ * Mute is software-only (results ignored while listening). Stop halts the
+ * answer and returns to idle. Close plays our own chime and exits to chat.
  * The gear opens a 10-voice picker (5 male / 5 female).
  *
  * Visuals: app Sharp Glass (sharp cards, pill buttons, cyan accent, Lucide
@@ -32,6 +33,7 @@ import {
 import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components/ui.jsx';
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
+import { poolAnswer, isPoolableQuery } from './llmPool.js';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
 import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
@@ -40,6 +42,29 @@ import { speak, stopSpeak, unlockAudio, playVoiceChime, playVoiceCloseChime, VOI
 import { compact, inr } from '../lib/format.js';
 
 const VOICE_KEY = 'cleo-voice';
+
+/**
+ * Merge two transcript pieces, collapsing word-level overlaps.
+ * ("what is" + "what is brand" -> "what is brand", not "what is what is brand".)
+ * Used because Chrome's continuous mode re-sends overlapping finals.
+ */
+function mergeTranscript(base, addition) {
+  base = (base || '').trim();
+  addition = (addition || '').trim();
+  if (!addition) return base;
+  if (!base) return addition;
+  if (addition.startsWith(base)) return addition;
+  if (base.startsWith(addition)) return base;
+  const bw = base.split(/\s+/);
+  const aw = addition.split(/\s+/);
+  const maxN = Math.min(bw.length, aw.length);
+  for (let k = maxN; k >= 1; k--) {
+    if (bw.slice(-k).join(' ') === aw.slice(0, k).join(' ')) {
+      return (base + ' ' + aw.slice(k).join(' ')).trim();
+    }
+  }
+  return base + ' ' + addition;
+}
 
 const SUGGESTIONS = [
   'Find fashion creators under ₹10k',
@@ -263,6 +288,25 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
       verification: context.extra?.verification || null,
     });
     return { answer: res.answer, creators: [], actions: res.actions || [], confidence: 0.8 };
+  }
+  // Free LLM pool = the main answer source when the Live toggle is ON.
+  // The 276-entry brain rides along as grounding context inside the pool call.
+  // Discovery queries + discovery follow-ups stay on the deterministic brain
+  // (real creator data, creator cards, booking actions). If every pool lane
+  // fails, we fall through to the deterministic brain below.
+  if (liveOn && isPoolableQuery(q, loadConvo())) {
+    try {
+      const pooled = await poolAnswer(q);
+      if (pooled && pooled.text) {
+        try {
+          const camp = extractCampaign(q);
+          if (camp.brand || camp.product || camp.budget || camp.niche) {
+            rememberCampaignFacts({ brand: camp.brand, product: camp.product, budget: camp.budget, niche: camp.niche });
+          }
+        } catch { /* ignore */ }
+        return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
+      }
+    } catch { /* fall through to the deterministic brain */ }
   }
   const ctx = {
     creators: context.creators || [],
@@ -519,6 +563,9 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const [micMuted, setMicMuted] = useState(false);
   const [closing, setClosing] = useState(false);
   const [showVoices, setShowVoices] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState(''); // live transcription box
+  const [voiceAnswer, setVoiceAnswer] = useState(''); // spoken answer, shown under the question
+  const transcriptBoxRef = useRef(null);
   const micMutedRef = useRef(false);
   const closedRef = useRef(false);
   const stateRef = useRef('idle');
@@ -526,6 +573,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const orbPulseRef = useRef(null);
   const recogRef = useRef(null);
   const restartTimerRef = useRef(null);
+  const watchdogTimerRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const finalBufferRef = useRef('');
   const turnActiveRef = useRef(false);
@@ -533,6 +581,12 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const lastSpokenRef = useRef('');
   const speakStartRef = useRef(0);
   const lastRestartRef = useRef(0);
+  const sessionLiveRef = useRef(false); // true between onstart and onend
+  const restartCountRef = useRef(0);
+  const restartWindowRef = useRef(0);
+  const lastOnEndRef = useRef(0); // last time the browser ended the session
+  const micWantedRef = useRef(false); // push-to-talk: mic on only when the user asked
+  const sessionBaseRef = useRef(''); // finals from prior sessions this turn (survives restarts)
 
   const setState = useCallback((s) => { stateRef.current = s; setVState(s); }, []);
 
@@ -545,6 +599,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     closedRef.current = true;
     try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
     try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
+    try { clearInterval(watchdogTimerRef.current); } catch { /* ignore */ }
     try { recogRef.current && recogRef.current.stop(); } catch { /* ignore */ }
     recogRef.current = null;
     stopSpeak();
@@ -596,9 +651,13 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
       checkPending();
       return;
     }
+    setVoiceAnswer(spoken); // the answer appears in the box, then gets read aloud
     setState('speaking');
     lastSpokenRef.current = spoken;
     speakStartRef.current = Date.now();
+    // Push-to-talk: mic goes OFF while the answer plays — no restarts,
+    // no beeps. The user taps the mic to interrupt or for the next turn.
+    try { stopMicRef.current(); } catch { /* ignore */ }
     speak(spoken, {
       voice: voicePref,
       onProgress: () => {
@@ -610,9 +669,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
         turnActiveRef.current = false;
         if (stateRef.current !== 'speaking') { checkPending(); return; }
         setOrbScale(1);
-        setState('listening');
+        setState('idle'); // mic stays off until the user taps
         checkPending();
-        // Recognition is still running (continuous) — mic never stopped.
       },
     });
   }, [processTranscript, voicePref, setState, setOrbScale, checkPending]);
@@ -620,8 +678,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
 
   /**
    * Results from the browser mic. Interim = streaming partials (fast!),
-   * final = completed utterance pieces. Debounced: when results stop for
-   * 700ms, the utterance is done -> process it.
+   * final = merged final transcript for this session. Debounced: when
+   * results stop for 500ms, the utterance is done -> process it.
    */
   const handleResult = useCallback((interim, final) => {
     if (closedRef.current || micMutedRef.current) return;
@@ -629,7 +687,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
 
     // Barge-in: the user talks over the answer.
     if (st === 'speaking') {
-      if (Date.now() - speakStartRef.current < 800) return; // let EC settle
+      if (Date.now() - speakStartRef.current < 400) return; // let EC settle
       const text = (final || interim).trim();
       if (!text) return;
       if (isEchoResult(text, lastSpokenRef.current)) return; // speaker leak
@@ -639,8 +697,15 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
       // Fall through: this speech becomes the new utterance.
     }
 
-    if (final) {
-      finalBufferRef.current += (finalBufferRef.current ? ' ' : '') + final.trim();
+    // `final` is the merged final transcript for THIS browser session
+    // (overlaps collapsed). Merge with words from earlier sessions.
+    if (typeof final === 'string' && final) {
+      finalBufferRef.current = mergeTranscript(sessionBaseRef.current, final);
+    }
+    // Live transcription box: confirmed words + streaming partials.
+    if (final || interim) {
+      const display = (finalBufferRef.current + (interim ? ' ' + interim.trim() : '')).trim();
+      setLiveTranscript(display);
     }
     if (stateRef.current === 'listening' && (final || interim)) {
       setState('speech-detected');
@@ -669,90 +734,220 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
       } else {
         processTurnRef.current(q);
       }
-    }, 700);
+    }, 500);
   }, [setState, setOrbScale]);
 
   const handleResultRef = useRef(null);
   handleResultRef.current = handleResult;
 
   /**
-   * Start (or restart) the browser mic. continuous=true keeps the session
-   * alive; onend restarts immediately so the mic is effectively always on.
+   * Build the single reusable recognition object. Reusing (instead of
+   * recreating on every restart) avoids audio-resource contention that can
+   * make Chrome end sessions immediately in a beep loop.
    */
+  const ensureRecognition = useCallback(() => {
+    if (recogRef.current) return recogRef.current;
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) return null;
+    const recog = new SR();
+    recog.lang = 'en-IN';
+    recog.continuous = true; // stay on — no per-utterance shutdown
+    recog.interimResults = true; // streaming partials — fast
+    recog.maxAlternatives = 1;
+    recog.onresult = (ev) => {
+      try {
+        if (closedRef.current || micMutedRef.current) return;
+        // Merge ALL finals with word-overlap deduplication. In continuous
+        // mode Chrome re-sends overlapping hypotheses (e.g. "what is" then
+        // "what is what is") and resultIndex is unreliable — naive
+        // appending multiplies words ("what is what is what is"). Merging
+        // collapses overlaps to Chrome's latest hypothesis.
+        let interim = '', merged = '';
+        const n = (ev.results && ev.results.length) || 0;
+        for (let i = 0; i < n; i++) {
+          const r = ev.results[i];
+          const t = (r[0] && r[0].transcript) || '';
+          if (r.isFinal) merged = mergeTranscript(merged, t);
+          else interim += t;
+        }
+        if (handleResultRef.current) handleResultRef.current(interim, merged);
+      } catch { /* ignore */ }
+    };
+    recog.onstart = () => {
+      sessionLiveRef.current = true;
+      restartCountRef.current = 0;
+      // New browser session: carry over confirmed words so a mid-turn
+      // restart doesn't lose the first half of the sentence.
+      sessionBaseRef.current = finalBufferRef.current;
+    };
+    recog.onerror = (ev) => {
+      const err = (ev && ev.error) || '';
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        sessionLiveRef.current = false;
+        setState('error');
+        speak('Microphone access was blocked. Please allow the microphone and try again.', { voice: voicePref });
+        setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 6000);
+      }
+      // 'no-speech', 'network', 'audio-capture' -> onend will restart us.
+    };
+    recog.onend = () => {
+      sessionLiveRef.current = false;
+      lastOnEndRef.current = Date.now();
+      if (closedRef.current) return;
+      // Push-to-talk: only restart when the mic is wanted. While the AI
+      // speaks (or idle) the mic stays off — no restarts, no beeps.
+      if (!micWantedRef.current) return;
+      if (stateRef.current === 'speaking') return;
+      scheduleRestart();
+    };
+    recogRef.current = recog;
+    return recog;
+  }, [setState, voicePref]);
+
+  /** Restart the SAME recognition object after the browser ends the session. */
+  const scheduleRestart = useCallback((immediate = false) => {
+    if (closedRef.current) return;
+    try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
+    // Circuit breaker: if the browser keeps killing sessions rapidly,
+    // back off instead of beep-spamming.
+    const now = Date.now();
+    if (now - restartWindowRef.current > 10000) {
+      restartWindowRef.current = now;
+      restartCountRef.current = 0;
+    }
+    restartCountRef.current += 1;
+    let wait = immediate ? 150 : 250;
+    if (restartCountRef.current > 4) wait = 2000;
+    if (restartCountRef.current > 8) wait = 5000;
+    lastRestartRef.current = now;
+    restartTimerRef.current = setTimeout(() => {
+      if (closedRef.current) return;
+      const recog = ensureRecognitionRef.current();
+      if (!recog) return;
+      try {
+        recog.start();
+        if (stateRef.current === 'idle' || stateRef.current === 'error') setState('listening');
+      } catch {
+        // Start threw (session not fully released) — retry with backoff.
+        scheduleRestartRef.current();
+      }
+    }, wait);
+  }, []);
+  const scheduleRestartRef = useRef(null);
+  scheduleRestartRef.current = scheduleRestart;
+  const ensureRecognitionRef = useRef(null);
+  ensureRecognitionRef.current = ensureRecognition;
+
+  /** Start the mic. Called once on open; restarts go through scheduleRestart. */
   const startRecognition = useCallback(() => {
     if (closedRef.current) return;
-    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SR) {
+    const recog = ensureRecognition();
+    if (!recog) {
       setState('error');
       speak('Voice input is not supported in this browser. Try Chrome.', { voice: voicePref });
       setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 4500);
       return;
     }
-    try { if (recogRef.current) { try { recogRef.current.stop(); } catch { /* ignore */ } } } catch { /* ignore */ }
     try {
-      const recog = new SR();
-      recogRef.current = recog;
-      recog.lang = 'en-IN';
-      recog.continuous = true; // stay on — no per-utterance shutdown
-      recog.interimResults = true; // streaming partials — fast
-      recog.maxAlternatives = 1;
-      recog.onresult = (ev) => {
-        try {
-          if (closedRef.current || micMutedRef.current) return;
-          let interim = '', final = '';
-          for (let i = ev.resultIndex; i < ev.results.length; i++) {
-            const t = (ev.results[i][0] && ev.results[i][0].transcript) || '';
-            if (ev.results[i].isFinal) final += t;
-            else interim += t;
-          }
-          if (handleResultRef.current) handleResultRef.current(interim, final);
-        } catch { /* ignore */ }
-      };
-      recog.onerror = (ev) => {
-        const err = (ev && ev.error) || '';
-        if (err === 'not-allowed' || err === 'service-not-allowed') {
-          setState('error');
-          speak('Microphone access was blocked. Please allow the microphone and try again.', { voice: voicePref });
-          setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 6000);
-        }
-        // 'no-speech', 'network', 'audio-capture' -> onend will restart us.
-      };
-      recog.onend = () => {
-        if (closedRef.current) return;
-        // The browser ended the session — restart right away to keep the
-        // mic on. Guard against a tight fail-loop (each restart can beep).
-        const now = Date.now();
-        const wait = now - lastRestartRef.current < 2000 ? 2500 : 300;
-        lastRestartRef.current = now;
-        try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
-        restartTimerRef.current = setTimeout(() => {
-          if (!closedRef.current) startRecognitionRef.current();
-        }, wait);
-      };
       recog.start();
-      if (!closedRef.current && (stateRef.current === 'idle' || stateRef.current === 'error')) {
-        setState('listening');
-      }
+      if (stateRef.current === 'idle' || stateRef.current === 'error') setState('listening');
     } catch {
-      // Transient start failure (Chrome throws on too-rapid restart) — retry.
-      if (!closedRef.current) {
-        try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
-        restartTimerRef.current = setTimeout(() => {
-          if (!closedRef.current) startRecognitionRef.current();
-        }, 900);
-      }
+      scheduleRestart();
     }
-  }, [setState, voicePref]);
+  }, [ensureRecognition, setState, voicePref, scheduleRestart]);
   const startRecognitionRef = useRef(null);
   startRecognitionRef.current = startRecognition;
 
-  // Open: chime + INSTANT mic — the browser recognizer starts in the same
-  // gesture chain, no model download, no warm-up.
+  /**
+   * Push-to-talk mic controls. The mic is OFF unless the user tapped.
+   * stopMic: mic off now (no restart — micWanted false blocks onend/watchdog).
+   */
+  const stopMic = useCallback(() => {
+    micWantedRef.current = false;
+    try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
+    try { recogRef.current && recogRef.current.stop(); } catch { /* ignore */ }
+    sessionLiveRef.current = false;
+  }, []);
+  const stopMicRef = useRef(null);
+  stopMicRef.current = stopMic;
+
+  /** Start a listening turn: mic on, fresh buffers, listening state. */
+  const startListening = useCallback(() => {
+    if (closedRef.current) return;
+    micWantedRef.current = true;
+    try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
+    finalBufferRef.current = '';
+    pendingQueryRef.current = '';
+    turnActiveRef.current = false;
+    setLiveTranscript('');
+    setVoiceAnswer('');
+    startRecognitionRef.current();
+    setOrbScale(1.06);
+    if (!closedRef.current) setState('listening');
+  }, [setState, setOrbScale]);
+  const startListeningRef = useRef(null);
+  startListeningRef.current = startListening;
+
+  /**
+   * The mic button — one control for the whole conversation.
+   * idle/error -> start listening. listening -> submit now (or cancel if
+   * nothing heard). speaking -> interrupt the answer and listen.
+   * researching -> cancel back to idle.
+   */
+  const tapMic = useCallback(() => {
+    if (closedRef.current || showVoices || micMutedRef.current) return;
+    const st = stateRef.current;
+    if (st === 'idle' || st === 'error') {
+      startListeningRef.current();
+    } else if (st === 'listening' || st === 'speech-detected') {
+      const q = finalBufferRef.current.trim();
+      try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
+      if (q) {
+        finalBufferRef.current = '';
+        processTurnRef.current(q);
+      } else {
+        stopMicRef.current();
+        setOrbScale(1);
+        setState('idle');
+      }
+    } else if (st === 'speaking') {
+      pendingQueryRef.current = ''; // interrupting drops any queued query
+      stopSpeak();
+      startListeningRef.current();
+    } else if (st === 'researching') {
+      stopMicRef.current();
+      turnActiveRef.current = false;
+      setOrbScale(1);
+      setState('idle');
+    }
+  }, [showVoices, setState, setOrbScale]);
+  const tapMicRef = useRef(null);
+  tapMicRef.current = tapMic;
+
+  // Open: chime + auto-listen the FIRST time (mic on by itself, in the
+  // open gesture). After that turn it's push-to-talk — the user taps.
+  // A watchdog keeps the session alive while wanted.
   useEffect(() => {
     playVoiceChime();
-    startRecognitionRef.current();
+    try { startListeningRef.current(); } catch { /* ignore */ }
+    try { clearInterval(watchdogTimerRef.current); } catch { /* ignore */ }
+    // Safety net only: the normal onend -> scheduleRestart path handles
+    // restarts. This fires only if the session has been dead for >5s with
+    // no restart in flight (e.g. onend never fired). Conservative on
+    // purpose — aggressive restarts cause the mic beep loop.
+    watchdogTimerRef.current = setInterval(() => {
+      if (closedRef.current || micMutedRef.current) return;
+      if (!micWantedRef.current) return; // push-to-talk: mic off unless asked
+      if (sessionLiveRef.current) return;
+      if (stateRef.current === 'speaking') return; // stay quiet while AI speaks
+      const now = Date.now();
+      if (now - lastOnEndRef.current < 5000) return; // onend path is handling it
+      if (now - lastRestartRef.current < 5000) return; // restart already in flight
+      scheduleRestartRef.current(true);
+    }, 5000);
     return () => {
       try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
+      try { clearInterval(watchdogTimerRef.current); } catch { /* ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -776,22 +971,13 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   }, [setState, setOrbScale]);
 
   /** Stop = interrupt the assistant's speech, then hear me again. */
-  const stopAndListen = useCallback(() => {
-    stopSpeak();
-    try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
-    finalBufferRef.current = '';
-    pendingQueryRef.current = '';
-    setOrbScale(1);
-    if (!closedRef.current) setState('listening');
-    // Recognition never stopped — the mic is already on.
-  }, [setState, setOrbScale]);
-
   /** Close = our own closing chime, smooth exit, back to chat. */
   const closeVoice = useCallback(() => {
     if (closedRef.current) return;
     closedRef.current = true;
     playVoiceCloseChime();
     try { clearTimeout(restartTimerRef.current); } catch { /* ignore */ }
+    try { clearInterval(watchdogTimerRef.current); } catch { /* ignore */ }
     try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
     try { recogRef.current && recogRef.current.stop(); } catch { /* ignore */ }
     recogRef.current = null;
@@ -802,14 +988,18 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     setTimeout(() => { onBackToChat && onBackToChat(); }, 430);
   }, [setOrbScale, onBackToChat]);
 
-  /** Tap the orb to nudge back to listening when idle. */
+  /** Tap the orb = the mic button (context-aware). */
   const tapOrb = useCallback(() => {
-    if (closedRef.current || showVoices || micMutedRef.current) return;
-    if (stateRef.current === 'idle') {
-      setState('listening');
-      startRecognitionRef.current();
+    try { tapMicRef.current(); } catch { /* ignore */ }
+  }, []);
+
+  // Live transcription box: auto-scroll to the newest words / answer.
+  useEffect(() => {
+    const el = transcriptBoxRef.current;
+    if (el) {
+      try { el.scrollTop = el.scrollHeight; } catch { /* ignore */ }
     }
-  }, [showVoices, setState]);
+  }, [liveTranscript, voiceAnswer]);
 
   return (
     <div className={`cleo-v2${closing ? ' closing' : ''}`}>
@@ -835,13 +1025,43 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
         </div>
       </div>
 
-      {/* Mute | Stop | Close — one line, 3D glass, transparent stage */}
+      {/* Live transcription — fixed box, auto-scrolls as you speak */}
+      <div className="cleo-v2-transcript" ref={transcriptBoxRef} aria-live="polite">
+        {(liveTranscript || voiceAnswer) ? (
+          <>
+            {liveTranscript ? <p className="cleo-v2-tq">{liveTranscript}</p> : null}
+            {voiceAnswer ? <p className="cleo-v2-ta">{voiceAnswer}</p> : null}
+          </>
+        ) : (
+          <p className="cleo-v2-transcript-empty">
+            {vState === 'idle' && 'Tap Talk, then speak — your words appear here…'}
+            {(vState === 'listening' || vState === 'speech-detected') && 'Listening…'}
+            {vState === 'researching' && 'Finding your answer…'}
+            {vState === 'speaking' && 'Answering — tap the mic to interrupt…'}
+            {vState === 'error' && 'Something went wrong — tap Talk to retry.'}
+          </p>
+        )}
+      </div>
+
+      {/* Mute | Mic | Close — one line, 3D glass, transparent stage */}
       <div className="cleo-v2-controls">
         <button className={`cleo-vpill${micMuted ? ' on' : ''}`} onClick={toggleMicMute} aria-pressed={micMuted}>
           {micMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}{micMuted ? 'Muted' : 'Mute'}
         </button>
-        <button className="cleo-vpill" onClick={stopAndListen}>
-          <Square size={11} />Stop
+        <button
+          className={`cleo-vpill cleo-vpill-mic st-${vState}`}
+          onClick={tapMic}
+          aria-label={
+            vState === 'speaking' ? 'Interrupt and talk' :
+            (vState === 'listening' || vState === 'speech-detected') ? 'Done talking — send' :
+            vState === 'researching' ? 'Cancel' :
+            'Tap to talk'
+          }
+        >
+          <Mic size={14} />
+          {vState === 'speaking' ? 'Interrupt' :
+           (vState === 'listening' || vState === 'speech-detected') ? 'Done' :
+           vState === 'researching' ? 'Cancel' : 'Talk'}
         </button>
         <button className="cleo-vpill" onClick={closeVoice}>
           <X size={13} />Close
