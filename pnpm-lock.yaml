@@ -23,6 +23,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      ws:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.3.0
@@ -1174,6 +1177,18 @@ packages:
       sugarss:
         optional: true
       terser:
+        optional: true
+
+  ws@8.22.0:
+    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
         optional: true
 
   websocket-driver@0.7.5:
@@ -2369,6 +2384,8 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.6.4
       fsevents: 2.3.3
+
+  ws@8.22.0: {}
 
   websocket-driver@0.7.5:
     dependencies:
