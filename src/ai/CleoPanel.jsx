@@ -37,7 +37,7 @@ import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
 } from './conversation.js';
 import { speak, stopSpeak, unlockAudio, playVoiceChime, playVoiceCloseChime, VOICE_META } from './voice.js';
-import { preloadStt, sttStatus, transcribePcm } from './stt.js';
+import { preloadStt, sttStatus, transcribePcm, startRealtimeStt, getRealtimeSttText, getRealtimeSttFinalText, resetRealtimeStt, stopRealtimeStt, realtimeSttSupported } from './stt.js';
 import { ContinuousListener } from './listen.js';
 import { compact, inr } from '../lib/format.js';
 
@@ -512,8 +512,8 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const orbRef = useRef(null);
   const orbPulseRef = useRef(null);
   const listenerRef = useRef(null);
-  const busyRef = useRef(false);
-  const queuedPcmRef = useRef(null);
+  const turnSeqRef = useRef(0);
+  const realtimeSttRef = useRef(null);
   const speechStartRef = useRef(null);
   const speechEndRef = useRef(null);
 
@@ -526,10 +526,29 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   // unmount: stop everything (mic stream closed here; Whisper worker stays warm)
   useEffect(() => () => {
     closedRef.current = true;
+    turnSeqRef.current += 1;
     try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
     listenerRef.current = null;
+    try { stopRealtimeStt(); } catch { /* ignore */ }
+    realtimeSttRef.current = null;
     stopSpeak();
     try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
+  }, []);
+
+  // Browser SpeechRecognition is the realtime transcription fast path. The
+  // AudioWorklet/VAD still owns speech boundaries and barge-in detection.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !realtimeSttSupported()) return undefined;
+    realtimeSttRef.current = startRealtimeStt({
+      lang: 'en-IN',
+      onInterim: () => {},
+      onFinal: () => {},
+      onError: () => {},
+    });
+    return () => {
+      try { stopRealtimeStt(); } catch { /* ignore */ }
+      realtimeSttRef.current = null;
+    };
   }, []);
 
   /** Brain: transcript -> spoken answer text (voice only, never displayed). */
@@ -555,82 +574,68 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     return spoken;
   }, [context, isCreator, liveOn]);
 
-  /** One full turn: transcribe done by caller; brain -> speak -> resolve when heard. */
-  const runTurn = useCallback((pcm16, transcript) => new Promise((resolve) => {
-    const finish = (nextState) => {
-      try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
-      setOrbScale(1);
-      // Mute never diverts the state machine: the turn always lands back
-      // in 'listening', muted or not.
-      if (!closedRef.current) setState(nextState);
-      resolve();
-    };
-    (async () => {
-      setState('researching');
-      const spoken = await processTranscript(transcript);
-      if (closedRef.current) { resolve(); return; }
-      if (stateRef.current !== 'researching') { resolve(); return; } // interrupted meanwhile
-      if (!spoken) { finish('listening'); return; }
-      setState('speaking');
-      try { listenerRef.current && listenerRef.current.setBargeIn(true); } catch { /* ignore */ }
-      speak(spoken, {
-        voice: voicePref,
-        onProgress: () => {
-          setOrbScale(1.09);
-          try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
-          orbPulseRef.current = setTimeout(() => setOrbScale(1), 150);
-        },
-        onDone: () => {
-          if (stateRef.current !== 'speaking') { resolve(); return; }
-          finish('listening'); // ChatGPT-style: straight back to listening
-        },
-      });
-    })();
-  }), [processTranscript, voicePref, setState, setOrbScale]);
-
-  /** VAD finished a segment -> transcribe -> turn. Serializes turns; queues one. */
-  const handleSpeechEnd = useCallback(async (pcm16) => {
-    if (closedRef.current) return;
-    if (busyRef.current) { queuedPcmRef.current = pcm16; return; }
-    busyRef.current = true;
-    // Show "researching" for the whole transcription — Whisper takes 1-3s.
+  /** One full turn. A generation id makes every in-flight turn disposable. */
+  const runTurn = useCallback(async (transcript, generation) => {
     setState('researching');
-    try {
-      let transcript = '';
-      try {
-        transcript = await transcribePcm(pcm16);
-      } catch { /* STT hiccup — treat as silence */ }
-      if (closedRef.current) { return; }
-      const q = String(transcript || '').trim();
-      // Whisper sometimes emits hallucinations on noise — drop junk.
-      const words = q.split(/\s+/).filter(Boolean);
-      if (!q || words.length === 0) {
-        if (stateRef.current === 'researching' || stateRef.current === 'listening' || stateRef.current === 'speech-detected') setState('listening');
-        return;
-      }
-      await runTurn(pcm16, q);
-    } finally {
-      busyRef.current = false;
-      const queued = queuedPcmRef.current;
-      queuedPcmRef.current = null;
-      if (queued && !closedRef.current && speechEndRef.current) {
-        speechEndRef.current(queued);
-      }
+    const spoken = await processTranscript(transcript);
+    if (closedRef.current || generation !== turnSeqRef.current) return;
+    if (!spoken) { setState('listening'); return; }
+    setState('speaking');
+    try { listenerRef.current && listenerRef.current.setBargeIn(true); } catch { /* ignore */ }
+    speak(spoken, {
+      voice: voicePref,
+      onProgress: () => {
+        if (generation !== turnSeqRef.current) return;
+        setOrbScale(1.09);
+        try { clearTimeout(orbPulseRef.current); } catch { /* ignore */ }
+        orbPulseRef.current = setTimeout(() => setOrbScale(1), 120);
+      },
+      onDone: () => {
+        if (closedRef.current || generation !== turnSeqRef.current) return;
+        try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
+        setOrbScale(1);
+        setState('listening');
+      },
+    });
+  }, [processTranscript, voicePref, setState, setOrbScale]);
+
+  /** VAD ended an utterance. Prefer realtime browser text; Whisper is fallback only. */
+  const handleSpeechEnd = useCallback(async (pcm16) => {
+    if (closedRef.current || micMutedRef.current) return;
+    const generation = turnSeqRef.current;
+    setState('researching');
+
+    // Give the browser recognizer a tiny window to deliver its final result.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    if (closedRef.current || generation !== turnSeqRef.current) return;
+
+    let transcript = getRealtimeSttFinalText() || getRealtimeSttText();
+    if (!transcript || transcript.split(/\s+/).filter(Boolean).length < 1) {
+      try { transcript = await transcribePcm(pcm16); } catch { transcript = ''; }
     }
+
+    const q = String(transcript || '').trim();
+    const words = q.split(/\s+/).filter(Boolean);
+    if (!q || !words.length || generation !== turnSeqRef.current) {
+      if (!closedRef.current && generation === turnSeqRef.current) setState('listening');
+      return;
+    }
+    resetRealtimeStt();
+    await runTurn(q, generation);
   }, [setState, runTurn]);
 
-  /** VAD heard speech start. During 'speaking' this is a barge-in. */
+  /** Any new speech invalidates the previous answer immediately. */
   const handleSpeechStart = useCallback(() => {
     if (closedRef.current || micMutedRef.current) return;
     const st = stateRef.current;
-    if (st === 'speaking') {
-      // Barge-in: the user talks over the answer -> stop it now, keep capturing.
-      // The current VAD segment continues; its end becomes the new utterance.
+    turnSeqRef.current += 1;
+    resetRealtimeStt();
+    if (st === 'speaking' || st === 'researching') {
       stopSpeak();
       try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
       setOrbScale(1);
-      setState('listening');
-    } else if (st === 'listening') {
+    }
+    if (st === 'listening' || st === 'speaking' || st === 'researching' || st === 'speech-detected') {
       setState('speech-detected');
     }
   }, [setState, setOrbScale]);
@@ -699,7 +704,9 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
 
   /** Stop = interrupt the assistant's speech, then hear me again. */
   const stopAndListen = useCallback(() => {
+    turnSeqRef.current += 1;
     stopSpeak();
+    resetRealtimeStt();
     try { listenerRef.current && listenerRef.current.setBargeIn(false); } catch { /* ignore */ }
     setOrbScale(1);
     if (!closedRef.current) setState(micMutedRef.current ? 'idle' : 'listening');
