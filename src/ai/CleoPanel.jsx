@@ -643,17 +643,21 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   speechStartRef.current = handleSpeechStart;
   speechEndRef.current = handleSpeechEnd;
 
-  // Open: our chime, warm up Whisper, then open ONE continuous mic stream.
+  // Open immediately when browser realtime STT exists. Whisper is warmed in
+  // the background as the accuracy/reliability fallback instead of blocking mic.
   useEffect(() => {
     playVoiceChime();
     let cancelled = false;
     (async () => {
-      if (sttStatus() !== 'ready') {
+      const hasRealtime = realtimeSttSupported();
+      if (!hasRealtime && sttStatus() !== 'ready') {
         setState('warming');
         try { await preloadStt(); } catch { /* handled below */ }
+      } else if (hasRealtime && sttStatus() !== 'ready') {
+        preloadStt().catch(() => {});
       }
       if (cancelled || closedRef.current) return;
-      if (sttStatus() !== 'ready') {
+      if (!hasRealtime && sttStatus() !== 'ready') {
         setState('error');
         speak('My listening engine could not start. Please check your connection and try again.', { voice: voicePref });
         setTimeout(() => { if (stateRef.current === 'error' && !closedRef.current) setState('idle'); }, 5000);
@@ -717,8 +721,11 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     if (closedRef.current) return;
     closedRef.current = true;
     playVoiceCloseChime();
+    turnSeqRef.current += 1;
     try { listenerRef.current && listenerRef.current.stop(); } catch { /* ignore */ }
     listenerRef.current = null;
+    try { stopRealtimeStt(); } catch { /* ignore */ }
+    realtimeSttRef.current = null;
     stopSpeak();
     setOrbScale(1);
     setShowVoices(false);
