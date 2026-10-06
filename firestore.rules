@@ -1,0 +1,355 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ---------------- helpers ---------------- */
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwner(uid) {
+      return isAuthed() && request.auth.uid == uid;
+    }
+
+    function docVal(data, key, dflt) {
+      return key in data ? data[key] : dflt;
+    }
+
+    /* ---------------- admins ---------------- */
+
+    match /admins/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if false; // client cannot write admin docs
+    }
+
+    /* ---------------- creators ---------------- */
+
+    match /creators/{id} {
+      allow read: if true; // public discovery
+
+      allow create: if isOwner(id)
+        && (!('verified' in request.resource.data) || request.resource.data.verified == false)
+        && (!('addedToCollancer' in request.resource.data) || request.resource.data.addedToCollancer == false)
+        && (!('banned' in request.resource.data) || request.resource.data.banned == false)
+        && !('verificationStatus' in request.resource.data)
+        && !('adminNotes' in request.resource.data);
+
+      allow update: if isAdmin()
+        || (isOwner(id)
+          && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['verificationStatus', 'verified', 'addedToCollancer', 'adminNotes', 'banned']))
+        || (isAuthed()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating'])
+          && request.resource.data.rating >= 0
+          && request.resource.data.rating <= 5);
+
+      allow delete: if false;
+    }
+
+    /* ---------------- creatorHandles ---------------- */
+
+    match /creatorHandles/{handleLower} {
+      allow read: if true;
+      allow create: if isAuthed()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.handleLower == handleLower;
+      allow update, delete: if isAdmin();
+    }
+
+    /* ---------------- businesses ---------------- */
+
+    function refundBookingData(bid) {
+      return get(/databases/$(database)/documents/bookings/$(bid)).data;
+    }
+
+    function refundBookingValid(uid, inc) {
+      let bid = docVal(request.resource.data, 'refundBookingId', null);
+      return bid != null
+        && refundBookingData(bid).bizId == uid
+        && refundBookingData(bid).status == 'Cancelled'
+        && refundBookingData(bid).paymentMethod == 'wallet'
+        && docVal(refundBookingData(bid), 'refundProcessed', false) == false
+        && refundBookingData(bid).escrowAmount == inc;
+    }
+
+    match /businesses/{uid} {
+      allow get: if isAuthed();
+      allow list: if isAdmin() || isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && request.resource.data.walletBalance == 0;
+
+      allow update: if isAdmin()
+        || (isOwner(uid) && (
+          // profile-only update (wallet untouched)
+          request.resource.data.walletBalance == resource.data.walletBalance
+          // owner may only decrease the wallet (booking debits are transactional)
+          || request.resource.data.walletBalance < resource.data.walletBalance
+          // refund credit pinned to a valid cancelled wallet booking
+          || (request.resource.data.walletBalance > resource.data.walletBalance
+            && refundBookingValid(uid, request.resource.data.walletBalance - resource.data.walletBalance))
+        ));
+
+      allow delete: if false;
+    }
+
+    /* ---------------- bookings ---------------- */
+
+    match /bookings/{id} {
+      allow read: if isAdmin()
+        || (isAuthed() && (
+          resource.data.bizId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid));
+
+      allow create: if isAuthed()
+        && request.resource.data.bizId == request.auth.uid
+        && request.resource.data.creatorId is string
+        && request.resource.data.creatorId.size() > 0
+        && request.resource.data.status == 'Pending'
+        && docVal(request.resource.data, 'paymentApproved', false) == false
+        && !('releasedAt' in request.resource.data)
+        && !('releasedBy' in request.resource.data)
+        && !('adminRevenueId' in request.resource.data);
+
+      allow update: if isAdmin()
+        // creator transitions: Pending -> Accepted/Rejected; delivery submit on active bookings
+        || (isAuthed() && resource.data.creatorId == request.auth.uid && (
+          (resource.data.status == 'Pending'
+            && request.resource.data.status in ['Accepted', 'Rejected']
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'acceptedAt', 'acceptedByCreator', 'rejectedAt', 'rejectedByCreator', 'rejectionReason', 'seenByCreator']))
+          || (resource.data.status in ['Accepted', 'Active']
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['deliverySubmittedAt', 'promotedVideoLink', 'driveLink', 'driveLinkSentToBiz', 'referenceMediaFiles', 'seenByCreator']))
+        ))
+        // business cancellation: Pending/Accepted -> Cancelled
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && resource.data.status in ['Pending', 'Accepted']
+          && request.resource.data.status == 'Cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'cancelledAt', 'cancelledByBiz', 'cancelReason', 'seenByBiz']));
+
+      allow delete: if false;
+    }
+
+    /* ---------------- wallet ---------------- */
+
+    match /walletDeposits/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.bizId == request.auth.uid);
+      allow create: if isAuthed()
+        && request.resource.data.bizId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount >= 100;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /walletTransactions/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.bizId == request.auth.uid);
+      allow create: if isAuthed()
+        && request.resource.data.type in ['deposit', 'booking_deduction', 'refund'];
+      allow update, delete: if false; // append-only ledger
+    }
+
+    /* ---------------- payouts ---------------- */
+
+    match /payoutRequests/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.creatorId == request.auth.uid);
+      allow create: if isAuthed()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount >= 100;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    /* ---------------- verification ---------------- */
+
+    match /verificationRequests/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.creatorId == uid
+        && request.resource.data.status == 'pending';
+      // creator may update own pending request / resubmit after rejection
+      allow update: if isAdmin()
+        || (isOwner(uid)
+          && resource.data.status in ['pending', 'rejected']
+          && request.resource.data.status == 'pending');
+      allow delete: if false;
+    }
+
+    /* ---------------- requirements marketplace ---------------- */
+
+    match /requirements/{id} {
+      allow read: if true;
+
+      allow create: if isAuthed()
+        && request.resource.data.bizId == request.auth.uid
+        && request.resource.data.status == 'open';
+
+      allow update: if isAdmin()
+        // business manages own requirement
+        || (isAuthed() && resource.data.bizId == request.auth.uid)
+        // narrow creator reopen: matched -> open (accepted offer's booking was rejected)
+        || (isAuthed()
+          && resource.data.status == 'matched'
+          && request.resource.data.status == 'open'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'acceptedOfferId', 'matchedAt', 'updatedAt']));
+
+      allow delete: if isAuthed() && resource.data.bizId == request.auth.uid;
+    }
+
+    match /requirementOffers/{id} {
+      allow read: if isAuthed() && (
+        resource.data.creatorId == request.auth.uid
+        || resource.data.bizId == request.auth.uid
+        || isAdmin());
+
+      allow create: if isAuthed()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow update: if isAdmin()
+        // creator withdraws own pending offer
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'withdrawn'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'withdrawnAt', 'updatedAt']))
+        // business owning the requirement accepts/rejects
+        || (isAuthed() && resource.data.status == 'pending'
+          && request.resource.data.status in ['accepted', 'rejected']
+          && get(/databases/$(database)/documents/requirements/$(resource.data.requirementId)).data.bizId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']))
+        // creator releases an accepted offer back to pending (booking was rejected)
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'accepted'
+          && request.resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']));
+
+      allow delete: if false;
+    }
+
+    /* ---------------- reviews ---------------- */
+
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if isAuthed()
+        && request.resource.data.creatorId is string
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5;
+      allow update, delete: if false;
+    }
+
+    /* ---------------- promo demos ---------------- */
+
+    match /promoDemos/{id} {
+      allow read: if true;
+      allow create: if isAuthed() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isAdmin()
+        || (isAuthed() && resource.data.creatorId == request.auth.uid);
+    }
+
+    /* ---------------- Be On Top campaigns ---------------- */
+
+    match /adCampaigns/{id} {
+      allow read: if true; // discovery reads active boosts
+      allow create: if isAuthed()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.status == 'active';
+      allow update: if isAdmin() || (isAuthed() && resource.data.creatorId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    /* ---------------- business campaigns (display metadata) ---------------- */
+
+    match /bizCampaigns/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.bizId == request.auth.uid);
+      allow create, update: if isAuthed() && request.resource.data.bizId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    /* ---------------- pro payments ---------------- */
+
+    match /proPayments/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.bizId == request.auth.uid);
+      allow create: if isAuthed() && request.resource.data.bizId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /creatorProPayments/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.creatorId == request.auth.uid);
+      allow create: if isAuthed() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    /* ---------------- notifications ---------------- */
+
+    match /bizNotifs/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.bizId == request.auth.uid);
+      allow create: if isAuthed();
+      allow update: if isAdmin()
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
+      allow delete: if false;
+    }
+
+    match /creatorNotifs/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.creatorId == request.auth.uid);
+      allow create: if isAuthed();
+      allow update: if isAdmin()
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
+      allow delete: if false;
+    }
+
+    match /adminNotifs/{id} {
+      allow read, update: if isAdmin();
+      allow create: if isAuthed();
+      allow delete: if false;
+    }
+
+    /* ---------------- admin revenue ledger ---------------- */
+
+    match /adminRevenue/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        // creator-created ad_revenue entries (Be On Top)
+        || (isAuthed()
+          && request.resource.data.type == 'ad_revenue'
+          && request.resource.data.creatorId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    /* ---------------- pre-registrations (CollancerWeb + Registerationadmin) ---------------- */
+    // Restored from the pre-rebuild rules on collancer-8fd62 (lost when the
+    // new app's rules were deployed). CollancerWeb is a public site with no
+    // auth: it runs a dup-check query (where email == X, limit 1) and creates
+    // docs. Registerationadmin's client has no Firebase Auth either and uses
+    // onSnapshot (read-all) + updateDoc (status) + deleteDoc.
+    match /registrations/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string;
+      allow update, delete: if true;
+    }
+
+    /* ---------------- default deny ---------------- */
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,763 @@
+/* Cleo Chat + Voice Assistant — animation system + component styles.
+ * Visual language: app Sharp Glass (sharp cards, pill buttons, cyan accent,
+ * Lucide icons). Animation semantics follow the Cleo spec: animated assistant
+ * mark, three-dot generating, thinking loader + progress meter, mark glow,
+ * creator-card gloss, sheet transition, progressive voice transcript.
+ * No emoji icons. DOM-free of color conflicts: all colors are theme tokens.
+ */
+
+/* ---------- animated assistant mark (equivalent of the spec's animated Cleo mark) ---------- */
+.cleo-mark {
+  position: relative;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .35), transparent 46%),
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--cyan) 34%, #0b0d11), #0b0d11 78%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 2px 6px rgba(255, 255, 255, .22),
+    inset 0 -6px 12px rgba(0, 0, 0, .5),
+    0 0 22px -4px var(--cyan-glow);
+  animation: cleo-glow 3.2s ease-in-out infinite;
+  overflow: hidden;
+}
+.cleo-mark::before {
+  content: '';
+  position: absolute;
+  inset: -38%;
+  background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, var(--cyan) 55%, transparent) 78%, transparent 100%);
+  animation: cleo-orb-spin 5s linear infinite;
+  opacity: .8;
+}
+.cleo-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--cyan-deep) 30%, transparent), transparent 62%);
+}
+.cleo-mark > svg { position: relative; z-index: 1; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+
+@keyframes cleo-orb-spin { to { transform: rotate(360deg); } }
+@keyframes cleo-glow {
+  0%, 100% { box-shadow: inset 0 2px 6px rgba(255,255,255,.22), inset 0 -6px 12px rgba(0,0,0,.5), 0 0 18px -6px var(--cyan-glow); }
+  50% { box-shadow: inset 0 2px 6px rgba(255,255,255,.22), inset 0 -6px 12px rgba(0,0,0,.5), 0 0 30px -4px var(--cyan-glow); }
+}
+
+/* listening pulse rings */
+.cleo-mark.listening::before { animation-duration: 2.2s; }
+.cleo-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--cyan) 60%, transparent);
+  animation: cleo-pulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+.cleo-pulse-ring.r2 { animation-delay: .6s; }
+.cleo-pulse-ring.r3 { animation-delay: 1.2s; }
+@keyframes cleo-pulse {
+  0% { transform: scale(1); opacity: .9; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* speaking waveform bars around the mark */
+.cleo-wave { display: flex; align-items: center; gap: 3px; height: 22px; }
+.cleo-wave > span {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--cyan);
+  animation: cleo-wave 1s ease-in-out infinite;
+}
+@keyframes cleo-wave {
+  0%, 100% { height: 6px; opacity: .5; }
+  50% { height: 20px; opacity: 1; }
+}
+
+/* ---------- thinking: three-dot generating + progress meter ---------- */
+.cleo-dots { display: inline-flex; align-items: center; gap: 7px; }
+.cleo-dots > span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cyan);
+  animation: cleo-dot-bounce 1.1s ease-in-out infinite;
+}
+.cleo-dots > span:nth-child(2) { animation-delay: .18s; }
+.cleo-dots > span:nth-child(3) { animation-delay: .36s; }
+@keyframes cleo-dot-bounce {
+  0%, 100% { transform: translateY(0); opacity: .45; }
+  50% { transform: translateY(-7px); opacity: 1; }
+}
+
+.cleo-meter {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line-soft);
+  overflow: hidden;
+  position: relative;
+}
+.cleo-meter > i {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 38%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--cyan), var(--cyan-deep));
+  animation: cleo-meter-slide 1.4s ease-in-out infinite;
+}
+@keyframes cleo-meter-slide {
+  0% { left: -38%; }
+  100% { left: 100%; }
+}
+
+/* ---------- creator card gloss layer ---------- */
+.cleo-card-gloss { position: relative; overflow: hidden; }
+.cleo-card-gloss::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 46%;
+  left: -60%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .14), transparent);
+  transform: skewX(-12deg);
+  animation: cleo-gloss-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cleo-gloss-sweep {
+  0%, 55% { left: -60%; }
+  90%, 100% { left: 130%; }
+}
+
+/* ---------- voice transcript word-sync ---------- */
+.cleo-spoken { color: var(--text); }
+.cleo-unspoken { color: var(--text); opacity: .38; }
+
+/* ---------- mode segmented toggle ---------- */
+.cleo-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+}
+.cleo-seg > button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 16px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .18s var(--ease);
+}
+.cleo-seg > button.on {
+  background: linear-gradient(180deg, #2b2b31, #101013);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 8px rgba(0,0,0,.35);
+}
+
+/* ---------- voice big mic button ---------- */
+.cleo-micbtn {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, #2e2e34 0%, #0c0c0e 60%, #000 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -3px 8px rgba(0,0,0,.5), 0 8px 24px -8px rgba(0,0,0,.6);
+  transition: transform .15s var(--ease);
+}
+.cleo-micbtn:active { transform: scale(.93); }
+.cleo-micbtn.live {
+  border-color: color-mix(in srgb, var(--cyan) 65%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 30px -4px var(--cyan-glow);
+}
+
+/* ---------- sheet (portal bottom sheet) ---------- */
+.cleo-sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .5);
+  z-index: 90;
+  animation: fade-in .22s var(--ease);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.cleo-sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  border-radius: 20px 20px 0 0;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-bottom: 0;
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, .45);
+  animation: sheet-up .28s var(--ease);
+  padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+}
+.cleo-sheet.closing { animation: sheet-down .24s var(--ease) forwards; }
+.cleo-sheet-grab {
+  width: 44px; height: 5px; border-radius: 4px;
+  background: var(--line-soft);
+  margin: 8px auto 14px;
+}
+
+/* progressive answer caret */
+.cleo-caret::after {
+  content: '▍';
+  color: var(--cyan);
+  animation: cleo-caret-blink 1s steps(2) infinite;
+  font-size: .9em;
+}
+@keyframes cleo-caret-blink { 50% { opacity: 0; } }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .cleo-mark, .cleo-mark::before, .cleo-dots > span, .cleo-meter > i,
+  .cleo-card-gloss::before, .cleo-pulse-ring, .cleo-wave > span { animation: none !important; }
+}
+
+/* ---------- Live toggle (3D switch, green) ---------- */
+.cleo-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 3px 7px 3px 4px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .28), inset 0 -1px 0 rgba(255, 255, 255, .06);
+  cursor: pointer;
+  transition: all .2s var(--ease);
+  flex-shrink: 0;
+}
+.cleo-live .cleo-live-track {
+  width: 34px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: linear-gradient(180deg, #3a3f47, #22262c);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .5);
+  position: relative;
+  transition: background .2s var(--ease);
+  flex-shrink: 0;
+}
+.cleo-live .cleo-live-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #c9ced6 55%, #9aa1ab);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .45), inset 0 -2px 3px rgba(0, 0, 0, .18);
+  transition: left .2s var(--ease);
+}
+.cleo-live.on .cleo-live-track {
+  background: linear-gradient(180deg, #34d399, #10b981 60%, #059669);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .3), 0 0 12px -2px rgba(16, 185, 129, .7);
+}
+.cleo-live.on .cleo-live-knob { left: 16px; }
+.cleo-live .cleo-live-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: .02em;
+}
+.cleo-live.on .cleo-live-label { color: #10b981; }
+
+/* ---------- full-width composer bar ---------- */
+.cleo-composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 6px 6px 18px;
+  border-radius: var(--r-full);
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .18),
+    0 4px 14px -8px rgba(0, 0, 0, .25);
+}
+.cleo-composer input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  padding: 10px 0;
+}
+.cleo-composer input::placeholder { color: var(--faint); }
+.cleo-composer input:disabled { opacity: .5; }
+
+/* animated wave button (opens voice) */
+.cleo-wavebtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 5px rgba(0, 0, 0, .2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .15s var(--ease);
+}
+.cleo-wavebtn:active { transform: scale(.9); }
+.cleo-wavebtn .cleo-wave { height: 18px; }
+.cleo-wavebtn .cleo-wave > span { width: 2.5px; }
+
+/* send button integrated in the bar */
+.cleo-sendbtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, .55);
+  background: linear-gradient(180deg, #2e2e34 0%, #0c0c0e 60%, #000 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -2px 5px rgba(0, 0, 0, .5);
+  transition: transform .15s var(--ease), opacity .2s var(--ease);
+}
+.cleo-sendbtn:active { transform: scale(.9); }
+.cleo-sendbtn:disabled { opacity: .4; cursor: default; }
+
+/* ================= voice assistant — reference layout, app colors + 3D glass ================= */
+
+.cleo-vwrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+/* top bar: back | Collancer AI | LIVE */
+/* chat top bar — this IS the app top bar when the AI tab is open */
+.cleo-topbar {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: calc(env(safe-area-inset-top) + 8px) 2px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* voice top bar — also the app top bar in voice mode */
+.cleo-vtop { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 2px 2px; flex-shrink: 0; }
+.cleo-vback {
+  width: 40px; height: 40px; border-radius: 13px;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  color: var(--text); display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 14px -6px rgba(0, 0, 0, .3);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: transform .15s var(--ease);
+}
+.cleo-vback:active { transform: scale(.92); }
+.cleo-vtitle {
+  flex: 1; text-align: center; font-weight: 800; font-size: 17.5px; font-family: var(--font-display); letter-spacing: .01em;
+  background: linear-gradient(90deg, #22d3ee, #34d399, #818cf8, #e879f9, #22d3ee);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  animation: cleo-aurora 5s linear infinite;
+}
+@keyframes cleo-aurora { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+.cleo-livepill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; border-radius: var(--r-full);
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--muted);
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+.cleo-livepill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.cleo-livepill.on { color: var(--text); }
+.cleo-livepill.on .dot { background: #10b981; box-shadow: 0 0 10px #10b981; animation: cleo-dot-pulse 1.6s ease-in-out infinite; }
+@keyframes cleo-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* scrollable middle */
+.cleo-vscroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: space-evenly;
+  padding: 4px 8px;
+}
+/* grouped status + heading + sub */
+.cleo-vhero { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+
+/* glowing orb + side waveforms */
+.cleo-orbzone { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 2px; }
+.cleo-orb {
+  width: 96px; height: 96px; border-radius: 50%;
+  position: relative; flex-shrink: 0;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, .75) 0%, rgba(255, 255, 255, 0) 44%),
+    radial-gradient(circle at 50% 62%, var(--cyan-deep) 0%, var(--cyan) 58%, #0e7490 100%);
+  border: 1px solid color-mix(in srgb, var(--cyan-deep) 55%, transparent);
+  box-shadow:
+    inset 0 3px 10px rgba(255, 255, 255, .5),
+    inset 0 -16px 30px rgba(0, 0, 0, .28),
+    0 0 44px -6px var(--cyan-glow),
+    0 0 96px -20px var(--cyan-glow);
+  animation: cleo-orb-breathe 3.4s ease-in-out infinite;
+}
+.cleo-orb .core { color: #fff; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .35)); display: grid; place-items: center; position: relative; z-index: 1; }
+.cleo-orb .ring {
+  position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--cyan) 65%, transparent);
+  animation: cleo-orb-ring 1.9s ease-out infinite;
+  pointer-events: none;
+}
+.cleo-orb .ring.r2 { animation-delay: .63s; }
+.cleo-orb .ring.r3 { animation-delay: 1.26s; }
+@keyframes cleo-orb-ring { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes cleo-orb-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+.cleo-orb.pulse { animation: cleo-orb-listen 1.15s ease-in-out infinite; }
+@keyframes cleo-orb-listen { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+.cleo-orb.throb { animation: cleo-orb-speak 1.6s ease-in-out infinite; }
+@keyframes cleo-orb-speak { 0%, 100% { transform: scale(1.02); } 50% { transform: scale(1.07); } }
+
+.cleo-vwave { display: flex; align-items: center; gap: 4px; height: 44px; }
+.cleo-vwave > span {
+  width: 4px; border-radius: 3px;
+  height: calc(16px * var(--bh, 1));
+  background: linear-gradient(180deg, var(--cyan-deep), var(--cyan));
+  opacity: .9;
+  transform-origin: center;
+  box-shadow: 0 0 8px -2px var(--cyan-glow);
+  animation: cleo-vwave-bar 1.1s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.cleo-orbzone.live .cleo-vwave > span { animation-play-state: running; }
+@keyframes cleo-vwave-bar { 0%, 100% { transform: scaleY(.45); opacity: .55; } 50% { transform: scaleY(1.25); opacity: 1; } }
+
+/* status / heading / sub */
+.cleo-vstatus { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .28em; color: var(--muted); }
+.cleo-vstatus .sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.cleo-vstatus.st-listening .sdot, .cleo-vstatus.st-speech-detected .sdot { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: cleo-dot-pulse 1.1s ease-in-out infinite; }
+.cleo-vstatus.st-researching .sdot { background: var(--cyan-deep); box-shadow: 0 0 10px var(--cyan-deep); animation: cleo-dot-pulse .8s ease-in-out infinite; }
+.cleo-vstatus.st-speaking .sdot { background: var(--cyan); box-shadow: 0 0 12px var(--cyan); animation: cleo-dot-pulse 1.4s ease-in-out infinite; }
+.cleo-vstatus.st-error .sdot { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+.cleo-vhead { font-size: 23px; font-weight: 800; font-family: var(--font-display); letter-spacing: -.01em; text-align: center; line-height: 1.15; }
+.cleo-vsub { font-size: 12.5px; color: var(--muted); text-align: center; max-width: 310px; line-height: 1.5; }
+
+/* transcript / answer cards */
+.cleo-vcard {
+  display: flex; gap: 12px; align-items: flex-start;
+  width: 100%; padding: 11px 14px; border-radius: 16px;
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 24px -12px rgba(0, 0, 0, .35);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.cleo-vcard-ic {
+  width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-deep));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 4px 12px -4px var(--cyan-glow);
+}
+.cleo-vcard-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.cleo-vcard-label { font-size: 10px; font-weight: 800; letter-spacing: .22em; color: var(--muted); }
+.cleo-vcard-text { font-size: 13.5px; line-height: 1.55; color: var(--text); overflow-wrap: anywhere; }
+.cleo-vcard-text.faint { color: var(--faint); font-style: italic; }
+.cleo-vcreators { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+/* answer card enters with a smooth rise when the AI starts responding */
+@keyframes cleo-vanswer-in {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+.cleo-vcard.cleo-vcard-answer { animation: cleo-vanswer-in .5s var(--ease); }
+
+.cleo-vpill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: var(--r-full);
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  color: var(--text); font: inherit; font-size: 13px; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -2px 5px rgba(0, 0, 0, .08), 0 4px 14px -6px rgba(0, 0, 0, .35);
+  cursor: pointer;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: transform .15s var(--ease);
+}
+.cleo-vpill:active { transform: scale(.94); }
+.cleo-vpill .pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.cleo-vpill.on .pdot { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.cleo-vpill svg { flex-shrink: 0; }
+
+/* ================= voice v3 — ChatGPT-style: orb + Mute/Stop/Close + gear, zero text =================
+ * Transparent stage (no white layer — the app background shows through).
+ * The orb holds DENSE smoke: seven blurred aurora blobs + a slow smoke swirl
+ * drifting inside a dark sphere. Mic level drives --orb-s (scale) for live
+ * "movement while speaking". Tap the orb to resume listening when idle.
+ *
+ * Felt open/close: the orb blooms in with a soft overshoot on open, and the
+ * whole view sinks away on close (.closing is set ~430ms before unmount).
+ */
+.cleo-v2 {
+  display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
+  background: transparent;
+  position: relative;
+  animation: v2-fade-in .38s ease-out;
+}
+.cleo-v2.closing { animation: v2-fade-out .4s ease-in forwards; }
+@keyframes v2-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v2-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.cleo-v2-stage {
+  flex: 1; min-height: 0;
+  display: grid; place-items: center;
+  padding: 24px 20px 8px;
+  animation: v2-stage-in .68s cubic-bezier(.18, 1.28, .32, 1);
+}
+.cleo-v2.closing .cleo-v2-stage { animation: v2-stage-out .38s ease-in forwards; }
+@keyframes v2-stage-in {
+  0% { opacity: 0; transform: scale(.58) translateY(30px); filter: brightness(1.8) saturate(1.35); }
+  55% { opacity: 1; filter: brightness(1.06); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: brightness(1); }
+}
+@keyframes v2-stage-out {
+  0% { opacity: 1; transform: scale(1) translateY(0); filter: brightness(1); }
+  100% { opacity: 0; transform: scale(.7) translateY(20px); filter: brightness(1.6); }
+}
+
+/* the orb */
+.cleo-orb2 {
+  --drift: 9s;
+  width: 208px; height: 208px; border-radius: 50%;
+  position: relative; overflow: hidden; flex-shrink: 0;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 45%, #141a26 0%, #0a0d14 68%, #06080d 100%);
+  border: 1px solid color-mix(in srgb, var(--cyan) 32%, transparent);
+  box-shadow:
+    inset 0 0 60px rgba(0, 0, 0, .55),
+    inset 0 2px 12px rgba(255, 255, 255, .08),
+    0 0 70px -12px var(--cyan-glow),
+    0 0 150px -34px var(--cyan-glow);
+  transform: scale(var(--orb-s, 1));
+  transition: transform .16s ease-out;
+  animation: orb2-breathe 4.2s ease-in-out infinite;
+}
+@keyframes orb2-breathe { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.12); } }
+
+/* dense smoky aurora — seven overlapping clouds (normal blend keeps colors rich) */
+.cleo-orb2 .blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(19px); -webkit-filter: blur(19px);
+  will-change: transform; pointer-events: none;
+}
+.cleo-orb2 .b1 {
+  width: 68%; height: 68%; left: -10%; top: -8%;
+  background: radial-gradient(circle, rgba(34, 211, 238, .95), transparent 68%);
+  animation: orb-drift1 var(--drift) ease-in-out infinite;
+}
+.cleo-orb2 .b2 {
+  width: 64%; height: 64%; right: -12%; top: 4%;
+  background: radial-gradient(circle, rgba(167, 139, 250, .95), transparent 68%);
+  animation: orb-drift2 calc(var(--drift) * 1.22) ease-in-out infinite;
+}
+.cleo-orb2 .b3 {
+  width: 62%; height: 62%; left: 0%; bottom: -12%;
+  background: radial-gradient(circle, rgba(244, 114, 182, .92), transparent 68%);
+  animation: orb-drift3 calc(var(--drift) * 1.1) ease-in-out infinite;
+}
+.cleo-orb2 .b4 {
+  width: 58%; height: 58%; right: -2%; bottom: -4%;
+  background: radial-gradient(circle, rgba(52, 211, 153, .9), transparent 68%);
+  animation: orb-drift1 calc(var(--drift) * 1.34) ease-in-out infinite reverse;
+}
+.cleo-orb2 .b5 {
+  width: 66%; height: 66%; left: 16%; top: 14%;
+  background: radial-gradient(circle, rgba(59, 130, 246, .9), transparent 70%);
+  animation: orb-drift2 calc(var(--drift) * .92) ease-in-out infinite reverse;
+}
+.cleo-orb2 .b6 {
+  width: 54%; height: 54%; left: 22%; top: 28%;
+  background: radial-gradient(circle, rgba(232, 121, 249, .9), transparent 68%);
+  animation: orb-drift3 calc(var(--drift) * 1.45) ease-in-out infinite;
+}
+.cleo-orb2 .b7 {
+  width: 52%; height: 52%; right: 6%; top: -8%;
+  background: radial-gradient(circle, rgba(45, 212, 191, .88), transparent 68%);
+  animation: orb-drift1 calc(var(--drift) * 1.18) ease-in-out infinite;
+}
+/* slow rotating smoke swirl — fills the gaps so the orb feels full */
+.cleo-orb2 .swirl {
+  position: absolute; inset: -24%; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(34, 211, 238, .32) 70deg,
+    transparent 140deg,
+    rgba(167, 139, 250, .3) 210deg,
+    transparent 280deg,
+    rgba(244, 114, 182, .26) 330deg,
+    transparent 360deg
+  );
+  filter: blur(30px); -webkit-filter: blur(30px);
+  mix-blend-mode: screen;
+  animation: orb-swirl calc(var(--drift) * 2.2) linear infinite;
+}
+@keyframes orb-swirl { to { transform: rotate(360deg); } }
+.cleo-orb2 .swirl2 {
+  position: absolute; inset: -18%; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(
+    from 180deg,
+    transparent 0deg,
+    rgba(232, 121, 249, .3) 80deg,
+    transparent 150deg,
+    rgba(45, 212, 191, .28) 230deg,
+    transparent 300deg,
+    rgba(59, 130, 246, .26) 340deg,
+    transparent 360deg
+  );
+  filter: blur(26px); -webkit-filter: blur(26px);
+  mix-blend-mode: screen;
+  animation: orb-swirl-rev calc(var(--drift) * 2.9) linear infinite;
+}
+@keyframes orb-swirl-rev { to { transform: rotate(-360deg); } }
+.cleo-orb2 .sheen {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, .2), transparent 40%),
+    radial-gradient(circle at 50% 115%, rgba(34, 211, 238, .14), transparent 55%);
+}
+@keyframes orb-drift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(28px, 20px) scale(1.16); }
+  66% { transform: translate(-20px, 28px) scale(.92); }
+}
+@keyframes orb-drift2 {
+  0%, 100% { transform: translate(0, 0) scale(1.06); }
+  50% { transform: translate(-32px, -16px) scale(.9); }
+}
+@keyframes orb-drift3 {
+  0%, 100% { transform: translate(0, 0) scale(.95); }
+  33% { transform: translate(22px, -24px) scale(1.14); }
+  66% { transform: translate(-26px, 12px) scale(1); }
+}
+
+/* state reactivity — the orb "wakes up" when engaged */
+.cleo-orb2.st-idle { --drift: 9s; }
+.cleo-orb2.st-warming { --drift: 12s; animation: orb2-warming 2.2s ease-in-out infinite; }
+.cleo-orb2.st-warming .blob, .cleo-orb2.st-warming .swirl, .cleo-orb2.st-warming .swirl2 { opacity: .45; }
+@keyframes orb2-warming { 0%, 100% { filter: brightness(.85); } 50% { filter: brightness(1.18); } }
+.cleo-orb2.st-idle .blob { opacity: .96; }
+.cleo-orb2.st-idle .swirl { opacity: .85; }
+.cleo-orb2.st-idle .swirl2 { opacity: .7; }
+.cleo-orb2.st-listening, .cleo-orb2.st-speech-detected { --drift: 3.1s; animation-duration: 2.6s; }
+.cleo-orb2.st-listening .blob, .cleo-orb2.st-speech-detected .blob { opacity: 1; }
+.cleo-orb2.st-listening .swirl, .cleo-orb2.st-speech-detected .swirl,
+.cleo-orb2.st-listening .swirl2, .cleo-orb2.st-speech-detected .swirl2 { opacity: 1; }
+.cleo-orb2.st-researching { --drift: 4.4s; animation-duration: 3.2s; }
+.cleo-orb2.st-researching .blob { opacity: .95; }
+.cleo-orb2.st-speaking { --drift: 2.6s; animation-duration: 2.2s; }
+.cleo-orb2.st-speaking .blob { opacity: 1; }
+.cleo-orb2.st-muted .blob { opacity: .28; }
+.cleo-orb2.st-muted .swirl, .cleo-orb2.st-muted .swirl2 { opacity: .22; animation-play-state: paused; }
+.cleo-orb2.st-error { --drift: 9s; }
+.cleo-orb2.st-error .blob, .cleo-orb2.st-error .swirl, .cleo-orb2.st-error .swirl2 { opacity: .3; animation-play-state: paused; }
+
+/* v3 controls — Mute | Stop | Close on one line, 3D glass, transparent stage */
+.cleo-v2-controls {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 12px 0 4px; flex-shrink: 0;
+  background: transparent;
+  animation: v2-rise .5s .14s cubic-bezier(.22, 1, .36, 1) backwards;
+}
+.cleo-v2.closing .cleo-v2-controls { animation: v2-sink .3s ease-in forwards; }
+@keyframes v2-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes v2-sink { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(16px); } }
+
+/* settings gear below the buttons */
+.cleo-v2-gearwrap {
+  display: flex; justify-content: center;
+  padding: 12px 0 calc(18px + env(safe-area-inset-bottom)); flex-shrink: 0;
+  background: transparent;
+  animation: v2-rise .5s .22s cubic-bezier(.22, 1, .36, 1) backwards;
+}
+.cleo-v2.closing .cleo-v2-gearwrap { animation: v2-sink .3s .04s ease-in forwards; }
+.cleo-vgear {
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  color: var(--muted);
+  display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .35),
+    inset 0 -3px 8px rgba(0, 0, 0, .1),
+    0 6px 18px -8px rgba(0, 0, 0, .4);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: transform .15s var(--ease), color .15s var(--ease);
+}
+.cleo-vgear:active { transform: scale(.9); color: var(--text); }
+
+/* voice picker sheet — 10 voice models with name + gender */
+.cleo-vsheet-wrap {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: v2-fade-in .25s ease-out;
+}
+.cleo-vsheet-backdrop { position: absolute; inset: 0; background: rgba(4, 6, 10, .45); }
+.cleo-vsheet {
+  position: relative; width: 100%; max-height: 64%;
+  overflow-y: auto; overscroll-behavior: contain;
+  border-radius: 26px 26px 0 0;
+  border: 1px solid var(--glass-border); border-bottom: 0;
+  background: linear-gradient(180deg, var(--glass-hi), var(--surface));
+  backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 -18px 50px -18px rgba(0, 0, 0, .5);
+  padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  animation: v2-sheet-up .38s cubic-bezier(.22, 1, .36, 1);
+}
+@keyframes v2-sheet-up { from { transform: translateY(46%); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+.cleo-vsheet-grip {
+  width: 42px; height: 5px; border-radius: 99px; margin: 6px auto 12px;
+  background: var(--line-soft);
+}
+.cleo-vrow {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 14px; margin: 6px 0;
+  border-radius: 16px; border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  color: var(--text); font: inherit; cursor: pointer; text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: transform .15s var(--ease);
+}
+.cleo-vrow:active { transform: scale(.98); }
+.cleo-vrow.on {
+  border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 0 0 1px color-mix(in srgb, var(--cyan) 30%, transparent);
+}
+.cleo-vrow-name { font-weight: 800; font-size: 14.5px; }
+.cleo-vrow-gender {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 10px; border-radius: 99px;
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+}
+.cleo-vrow svg { margin-left: auto; color: var(--cyan); flex-shrink: 0; }
+
+
+/* reduced motion: freeze the aurora too */
+@media (prefers-reduced-motion: reduce) {
+  .cleo-orb, .cleo-orb .ring, .cleo-vwave > span,
+  .cleo-vstatus .sdot, .cleo-livepill.on .dot, .cleo-vtitle, .cleo-vcard-answer,
+  .cleo-orb2, .cleo-orb2 .blob, .cleo-orb2 .swirl, .cleo-vsheet { animation: none !important; }
+}
