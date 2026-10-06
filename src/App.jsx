@@ -95,22 +95,21 @@ export default function App() {
     // Apply the persisted theme ASAP so the first paint matches (index.html pre-sets data-theme too).
     applyTheme(getTheme());
     let cancelled = false;
-    // Initialize Firebase in the background. Auth restoration must never block
-    // the root UI from rendering; Firebase-dependent features still await
-    // ensureFirebase() through their own helpers.
-    try { ensureFirebase().catch(() => {}); } catch (e) { /* noop */ }
-
-    let saved = null;
-    try {
-      // Private admin entry: opening the app with ?admin unlocks the admin
-      // console on that device. The role screen itself never offers admin.
-      if (window.location.search.includes('admin')) {
-        localStorage.setItem(ROLE_KEY, 'admin');
-      }
-      saved = localStorage.getItem(ROLE_KEY);
-    } catch (e) { /* noop */ }
-    if (saved === 'business' || saved === 'creator' || saved === 'admin') setRole(saved);
-    setBooted(true);
+    // Returning users get a short Firebase-auth curtain before the role screen.
+    ensureFirebase().then(() => {
+      if (cancelled) return;
+      let saved = null;
+      try {
+        // Private admin entry: opening the app with ?admin unlocks the admin
+        // console on that device. The role screen itself never offers admin.
+        if (window.location.search.includes('admin')) {
+          localStorage.setItem(ROLE_KEY, 'admin');
+        }
+        saved = localStorage.getItem(ROLE_KEY);
+      } catch (e) { /* noop */ }
+      if (saved === 'business' || saved === 'creator' || saved === 'admin') setRole(saved);
+      setBooted(true);
+    });
     return () => { cancelled = true; };
   }, []);
 
