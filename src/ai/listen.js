@@ -44,7 +44,7 @@ export function resampleTo16k(input, fromRate) {
  * The emitted segment is resampled to 16kHz mono.
  */
 export class Vad {
-  constructor({ onSpeechStart, onSpeechEnd, silenceMs = 850, minSpeechMs = 350, maxSpeechMs = 25000, threshold = 0.02, confirmMs = 120 } = {}) {
+  constructor({ onSpeechStart, onSpeechEnd, silenceMs = 320, minSpeechMs = 180, maxSpeechMs = 25000, threshold = 0.018, confirmMs = 60 } = {}) {
     this.onSpeechStart = onSpeechStart;
     this.onSpeechEnd = onSpeechEnd;
     this.base = { silenceMs, minSpeechMs, maxSpeechMs, threshold, confirmMs };
@@ -55,7 +55,7 @@ export class Vad {
   /** Barge-in mode: while the assistant speaks, demand louder + longer speech. */
   setBargeIn(armed) {
     this.profile = armed
-      ? { ...this.base, threshold: Math.max(this.base.threshold, 0.05), confirmMs: Math.max(this.base.confirmMs, 350), silenceMs: 750 }
+      ? { ...this.base, threshold: Math.max(this.base.threshold, 0.035), confirmMs: Math.max(this.base.confirmMs, 180), silenceMs: 300 }
       : { ...this.base };
   }
 
