@@ -516,7 +516,7 @@ function speakViaBrowser(chunks, token, opts, preferFemale) {
       }
       const u = new SpeechSynthesisUtterance(chunks[i]);
       if (voice) u.voice = voice;
-      u.rate = 1; u.pitch = 1;
+      u.rate = 1.05; u.pitch = 1;
       opts.onProgress && opts.onProgress({ chunkIndex: i, charIndex: 0, word: '', text: chunks[i] });
       u.onboundary = (ev) => {
         if (token !== _cancelToken) return;
@@ -574,10 +574,13 @@ export async function speak(text, options = {}) {
     }
   }
 
+  // Low-latency path: device speech starts almost immediately and is
+  // interruptible at any point. Neural Edge audio remains available as the
+  // fallback when browser speech synthesis is unavailable.
   const attempts = [
+    () => speakViaBrowser(chunks, token, opts, isFemaleVoice(options.voice)),
     () => speakViaEdge(chunks, voiceName, token, opts, prosody),
     () => speakViaProxy(chunks, voiceName, token, opts, prosody),
-    () => speakViaBrowser(chunks, token, opts, isFemaleVoice(options.voice)),
   ];
   let lastError = null;
   for (const attempt of attempts) {
