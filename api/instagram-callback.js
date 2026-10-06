@@ -1,10 +1,12 @@
 /* GET /api/instagram-callback — Instagram OAuth redirect target. */
+import { createHash } from 'crypto';
 import { getAdmin } from './_firebaseAdmin.js';
 
 const APP_URL = 'https://collancer-app.vercel.app';
 const FALLBACK_REDIRECT_URI = `${APP_URL}/api/instagram-callback`;
 const GRAPH = 'https://graph.instagram.com/v21.0';
 const TOKEN_DAYS = 60;
+const fingerprint = (value) => createHash('sha256').update(String(value)).digest('hex').slice(0, 12);
 
 const go = (res, reason) =>
   res.writeHead(302, { Location: `${APP_URL}/?ig=${reason}` }).end();
@@ -55,7 +57,8 @@ export default async function handler(req, res) {
 
     // Consume state only after reading the exact redirect URI that was issued.
     await stateRef.delete().catch(() => {});
-    const redirectUri = String(stateData.redirectUri || process.env.INSTAGRAM_REDIRECT_URI || FALLBACK_REDIRECT_URI);
+    const redirectUri = FALLBACK_REDIRECT_URI;
+    console.log('[instagram-oauth:callback]', JSON.stringify({ redirectUri, redirectUriFp: fingerprint(redirectUri), stateRedirectUriFp: stateData.redirectUriFp || fingerprint(stateData.redirectUri || ''), requestPath: req.url ? String(req.url).split('?')[0] : '', state: String(state).slice(0, 12) }));
 
     const short = await postForm('https://api.instagram.com/oauth/access_token', {
       client_id: appId,
