@@ -210,9 +210,13 @@ export default function CreatorApp({ onSwitchRole }) {
       if (ig === 'connected') toast.ok('Instagram connected — your profile is live.');
       else if (ig.startsWith('error')) {
         const reason = decodeURIComponent(ig.slice(6));
-        toast.err(reason && reason !== 'access_denied'
-          ? `Instagram connect failed: ${reason}`
-          : 'Instagram connect was cancelled.');
+        if (reason === 'code-expired') {
+          toast.err('The Instagram connection expired — please tap Connect Instagram and approve quickly without leaving the page.');
+        } else {
+          toast.err(reason && reason !== 'access_denied'
+            ? `Instagram connect failed: ${reason}`
+            : 'Instagram connect was cancelled.');
+        }
       }
       params.delete('ig');
       const clean = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash}`;

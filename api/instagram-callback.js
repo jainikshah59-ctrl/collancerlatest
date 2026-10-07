@@ -25,12 +25,16 @@ async function postForm(url, params) {
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
-    // TEMP-DIAG (2026-10-06): surface Instagram's error so we can tell a bad
-    // client_secret apart from a bad/used code without server logs.
-    const msg = String(j?.error_message || j?.error?.message || `token exchange failed (${r.status})`)
-      .replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
+    // Surface Instagram's error so we can tell a bad client_secret apart
+    // from a bad/used code without server logs. Map expired/invalid codes
+    // to a user-friendly retry message.
+    const raw = String(j?.error_message || j?.error?.message || `token exchange failed (${r.status})`);
+    const msg = raw.replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
     const e = new Error(`token-failed: ${msg}`);
     e.code = 'TOKEN_FAILED_DIAG';
+    // Instagram's "Error validating verification code" means the code expired
+    // (user took too long on the authorize page) or was already used.
+    if (/validating verification code/i.test(raw)) e.code = 'CODE_EXPIRED';
     throw e;
   }
   return j;
@@ -72,13 +76,21 @@ export default async function handler(req, res) {
     await stateRef.delete().catch(() => {});
 
     // 2. Code -> short-lived token -> long-lived token (server-side only).
-    const short = await postForm('https://api.instagram.com/oauth/access_token', {
-      client_id: appId,
-      client_secret: appSecret,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri,
-      code: String(code),
-    });
+    let short;
+    try {
+      short = await postForm('https://api.instagram.com/oauth/access_token', {
+        client_id: appId,
+        client_secret: appSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code: String(code),
+      });
+    } catch (e) {
+      // Expired/used authorization code (user took too long on Instagram's
+      // page) -> tell the app to ask for a fresh connect attempt.
+      if (e?.code === 'CODE_EXPIRED') return go(res, 'error=code-expired');
+      return go(res, 'error=token-failed');
+    }
     if (!short.access_token) return go(res, 'error=token-failed');
     const ll = await fetch(
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token` +
