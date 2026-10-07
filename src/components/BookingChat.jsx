@@ -18,12 +18,20 @@ export default function BookingChat({ bookingId, senderType, senderName }) {
     ensureFirebase().then(() => {
       const q = query(
         collection(db(), 'booking_messages'),
-        where('bookingId', '==', bookingId),
-        orderBy('createdAt', 'asc')
+        where('bookingId', '==', bookingId)
+        // no orderBy — avoids composite index; sort client-side below
       );
       unsub = onSnapshot(q, (snap) => {
-        setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }, () => {});
+        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        all.sort((a, b) => {
+          const ta = a.createdAt?.toMillis?.() || 0;
+          const tb = b.createdAt?.toMillis?.() || 0;
+          return ta - tb;
+        });
+        setMessages(all);
+      }, (err) => {
+        console.error('[chat] snapshot failed', err);
+      });
     });
     return () => unsub();
   }, [bookingId]);
