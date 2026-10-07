@@ -159,6 +159,9 @@ function OverviewTab({ creator, pro, onBook }) {
 
 function DemosTab({ creator, pro, goPage }) {
   const [demos, setDemos] = useState(null);
+  // Instagram reels/posts synced from the connected account
+  const igMedia = creator?.instagram?.recentMedia || [];
+  const igUsername = creator?.instagram?.username || '';
   useEffect(() => {
     if (!pro) return;
     let unsub = () => {};
@@ -173,11 +176,49 @@ function DemosTab({ creator, pro, goPage }) {
 
   if (!pro) return <ProLock goPage={goPage} />;
   if (demos === null) return <><SkeletonCard /><SkeletonCard /></>;
-  if (demos.length === 0) {
+  const hasIg = igMedia.length > 0;
+  if (demos.length === 0 && !hasIg) {
     return <EmptyState icon={Play} title="No portfolio pieces yet" body="This creator hasn't added portfolio pieces." />;
   }
   return (
     <div className="cl-fade" style={{ display: 'grid', gap: 12 }}>
+      {/* Instagram reels/posts — auto-synced from the connected account */}
+      {hasIg && (
+        <Card style={{ padding: 14 }}>
+          <div className="cl-row" style={{ alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <strong style={{ fontSize: 14 }}>Instagram posts</strong>
+            {igUsername && <span className="cl-small cl-muted">@{igUsername}</span>}
+            <Chip cyan>{igMedia.length}</Chip>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {igMedia.map((m) => (
+              <a key={m.id} href={m.permalink || `https://instagram.com/p/${m.id}`} target="_blank" rel="noreferrer"
+                 style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2)', display: 'block' }}>
+                {m.url ? (
+                  m.type === 'VIDEO' || m.type === 'REELS'
+                    ? <video src={m.url} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <img src={m.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                    <ImageIcon style={{ width: 20, height: 20, color: 'var(--faint)' }} />
+                  </div>
+                )}
+                {(m.type === 'VIDEO' || m.type === 'REELS') && (
+                  <span style={{ position: 'absolute', top: 6, right: 6, color: '#fff', background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '2px 6px', fontSize: 10 }}>
+                    Reel
+                  </span>
+                )}
+                {(m.likes > 0 || m.comments > 0) && (
+                  <span style={{ position: 'absolute', bottom: 6, left: 6, right: 6, color: '#fff', fontSize: 10, display: 'flex', gap: 8, textShadow: '0 1px 3px rgba(0,0,0,.7)', alignItems: 'center' }}>
+                    {m.likes > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Heart style={{ width: 11, height: 11 }} />{compact(m.likes)}</span>}
+                    {m.comments > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MessageSquare style={{ width: 11, height: 11 }} />{compact(m.comments)}</span>}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        </Card>
+      )}
       {demos.map((d) => (
         <Card key={d.id} style={{ padding: 0, overflow: 'hidden' }}>
           {d.mediaUrl && (d.format === 'Video' || /\.(mp4|webm|mov)/i.test(d.mediaUrl)) ? (
