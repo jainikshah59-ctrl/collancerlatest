@@ -22,10 +22,6 @@ const COMPLETENESS_CHECKS = [
   { key: 'niche', label: 'Niche / category', test: (c) => !!norm(c.niche || (c.categories || [])[0]) },
   { key: 'city', label: 'City', test: (c) => !!norm(c.city) },
   {
-    key: 'followers', label: `At least ${compact(MIN_FOLLOWERS)} followers`,
-    test: (c) => Number(c.followers ?? c.ytSubscribers ?? 0) >= MIN_FOLLOWERS,
-  },
-  {
     key: 'price', label: 'At least one package price',
     test: (c) => {
       if (c.prices && typeof c.prices === 'object') return Object.values(c.prices).some((v) => Number(v) > 0);

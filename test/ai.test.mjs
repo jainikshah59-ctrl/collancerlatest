@@ -260,10 +260,10 @@ describe('creatorAi', () => {
     prices: { reel: 8000, story: 3000 }, pfp: 'x', profileLink: 'https://insta/x',
   };
 
-  it('profileCompleteness checks all 8 required items', async () => {
+  it('profileCompleteness checks all 7 required items', async () => {
     const pc = profileCompleteness(creator);
-    assert.equal(pc.total, 8);
-    assert.equal(pc.done, 8);
+    assert.equal(pc.total, 7);
+    assert.equal(pc.done, 7);
     const bad = profileCompleteness({ name: 'X' });
     assert.ok(bad.done < 8);
   });

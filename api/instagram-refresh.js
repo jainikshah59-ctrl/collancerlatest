@@ -44,16 +44,20 @@ export default async function handler(req, res) {
 
     const admin = getAdmin();
     const db = admin.firestore();
-    const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
-    if (!tokSnap.exists) return fail('not-connected');
-    let token = tokSnap.data()?.token;
-    const igId = tokSnap.data()?.igId;
-    if (!token || !igId) return fail('not-connected');
-
     const creatorRef = db.collection('creators').doc(uid);
     const creatorSnap = await creatorRef.get();
     const prev = creatorSnap.exists ? creatorSnap.data()?.instagram : null;
     if (!prev) return fail('not-connected');
+
+    // Token: check instagram_tokens collection first, fallback to creator doc (manual links)
+    const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
+    let token = tokSnap.exists ? tokSnap.data()?.token : null;
+    let igId = tokSnap.exists ? tokSnap.data()?.igId : null;
+    if (!token) {
+      token = prev.token;
+      igId = prev.igId || prev.userId;
+    }
+    if (!token || !igId) return fail('not-connected');
 
     const lastSync = prev.lastSyncedAt?.toMillis ? prev.lastSyncedAt.toMillis() : 0;
     if (!body.force && Date.now() - lastSync < STALE_MS) {
@@ -105,7 +109,7 @@ export default async function handler(req, res) {
     } catch { /* keep previous */ }
 
     // Media stats for avg likes/views + engagement rate — paginate ALL media.
-    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0 };
+    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0, videoCount: 0 };
     let recentMedia = prev.recentMedia || [];
     try {
       let allItems = [];
@@ -125,13 +129,17 @@ export default async function handler(req, res) {
         mediaStats.count++;
         mediaStats.totalLikes += Number(x.like_count) || 0;
         mediaStats.totalComments += Number(x.comments_count) || 0;
-        mediaStats.totalViews += Number(x.view_count) || 0;
+        if (x.media_type === 'VIDEO' && x.view_count) {
+          mediaStats.videoCount++;
+          mediaStats.totalViews += Number(x.view_count) || 0;
+        }
       }
     } catch { /* keep previous */ }
 
     const followersNum = Number(acct.followers_count) || prev.followersCount || 0;
     const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : (prev.avgLikes || 0);
-    const avgViews = mediaStats.count ? Math.round(mediaStats.totalViews / mediaStats.count) : (prev.avgViews || 0);
+    const videoCount = mediaStats.videoCount || 0;
+    const avgViews = videoCount ? Math.round(mediaStats.totalViews / videoCount) : (prev.avgViews || 0);
     const avgEngagement = mediaStats.count && followersNum
       ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
       : (prev.engagementRate || 0);

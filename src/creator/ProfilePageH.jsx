@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import {
   User as UserIcon, ArrowLeft, Camera, AtSign, MapPin, Globe, Youtube,
   Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Percent, Lock,
+  Image as ImageIcon, Play, Heart, MessageCircle, Eye, Instagram,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
@@ -28,7 +29,7 @@ const PRICE_KEYS = ['story', 'reel', 'video', 'personalad', 'ytshorts'];
 export default function ProfilePageH({ creator, onBack, onLogout, initialTab, isPro }) {
   const toast = useToast();
   const photoRef = useRef(null);
-  const [tab, setTab] = useState(initialTab === 'ratecard' ? 'ratecard' : 'profile');
+  const [tab, setTab] = useState(['ratecard', 'content', 'account'].includes(initialTab) ? initialTab : 'profile');
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
 
@@ -77,14 +78,14 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     e?.preventDefault();
     setErr('');
     if (p.name.trim().length < 2) return setErr('Please enter your display name.');
-    if (!handleOk(p.handle)) return setErr('Handle must be 3–30 characters: letters, numbers, dot or underscore.');
+    // Skip handle validation when Instagram is connected — handle comes from Instagram
+    if (!igConnected && !handleOk(p.handle)) return setErr('Handle must be 3–30 characters: letters, numbers, dot or underscore.');
     const num = (v) => (v === '' ? 0 : Math.max(0, Math.round(Number(v) || 0)));
     // Instagram-synced details are never written from here — they are managed
     // by the Instagram account and updated server-side only.
     const profileUpd = igConnected ? {
       name: p.name.trim(), platform: p.platform, niche: p.niche, city: p.city,
       engagement: Number(p.engagement) || 0,
-      avgViews: num(p.avgViews), avgLikes: num(p.avgLikes), reach: num(p.reach),
       profileLink: p.profileLink.trim(), ytChannel: p.ytChannel.trim(),
       categories: p.categories, promotionTypes: p.promotionTypes,
       updatedAt: serverTimestamp(),
@@ -238,6 +239,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         <Tabs
           tabs={[
             { key: 'profile', label: 'Profile', icon: UserIcon },
+            { key: 'content', label: 'Content', icon: ImageIcon },
             { key: 'ratecard', label: 'Rate card', icon: Wallet },
             { key: 'account', label: 'Account', icon: Globe },
           ]}
@@ -317,17 +319,28 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   <Field label="Engagement %"><Input value={p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" /></Field>
                 </div>
               </div>
-              <div className="cl-row" style={{ gap: 10 }}>
-                <div className="cl-grow">
-                  <Field label="Avg views"><Input value={p.avgViews} onChange={setPField('avgViews')} inputMode="numeric" placeholder="12000" /></Field>
+              {!igConnected && (
+                <div className="cl-row" style={{ gap: 10 }}>
+                  <div className="cl-grow">
+                    <Field label="Avg views"><Input value={p.avgViews} onChange={setPField('avgViews')} inputMode="numeric" placeholder="12000" /></Field>
+                  </div>
+                  <div className="cl-grow">
+                    <Field label="Avg likes"><Input value={p.avgLikes} onChange={setPField('avgLikes')} inputMode="numeric" placeholder="900" /></Field>
+                  </div>
+                  <div className="cl-grow">
+                    <Field label="Reach"><Input value={p.reach} onChange={setPField('reach')} inputMode="numeric" placeholder="40000" /></Field>
+                  </div>
                 </div>
-                <div className="cl-grow">
-                  <Field label="Avg likes"><Input value={p.avgLikes} onChange={setPField('avgLikes')} inputMode="numeric" placeholder="900" /></Field>
+              )}
+              {igConnected && (
+                <div className="cl-small cl-muted" style={{
+                  background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px',
+                  marginBottom: 4, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'center',
+                }}>
+                  <Lock style={{ width: 14, height: 14, flexShrink: 0 }} />
+                  <span>Views, likes & reach sync automatically from your Instagram — no need to enter them manually.</span>
                 </div>
-                <div className="cl-grow">
-                  <Field label="Reach"><Input value={p.reach} onChange={setPField('reach')} inputMode="numeric" placeholder="40000" /></Field>
-                </div>
-              </div>
+              )}
               <Field label="Social profile link">
                 <div style={{ position: 'relative' }}>
                   <Link2 style={{ position: 'absolute', left: 13, top: 14, width: 16, height: 16, color: 'var(--faint)' }} />
@@ -360,6 +373,89 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               </Button>
             </Card>
           </form>
+        )}
+
+        {tab === 'content' && (
+          <div className="cl-fade" style={{ display: 'grid', gap: 14 }}>
+            <Card>
+              <div className="cl-row" style={{ gap: 8, marginBottom: 12 }}>
+                <Instagram style={{ width: 18, height: 18, color: '#E1306C' }} />
+                <h3 style={{ fontSize: 16 }}>Instagram content</h3>
+                {igConnected && creator.instagram?.username && (
+                  <span className="cl-small cl-muted">@{creator.instagram.username}</span>
+                )}
+              </div>
+              {!igConnected ? (
+                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                  <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
+                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 16 }}>
+                    Connect your Instagram to automatically showcase your posts and reels here —
+                    exactly what brands will see.
+                  </p>
+                  <Button size="sm" onClick={() => {
+                    startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
+                  }} icon={Instagram}>
+                    Connect Instagram
+                  </Button>
+                </div>
+              ) : (creator.instagram?.recentMedia?.length > 0 ? (
+                <div>
+                  <p className="cl-small cl-muted" style={{ marginBottom: 12, lineHeight: 1.5 }}>
+                    This is exactly what brands see in your portfolio. Updates automatically when you sync.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {creator.instagram.recentMedia.map((m) => (
+                      <div key={m.id} style={{
+                        position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden',
+                        background: 'var(--surface-2)',
+                      }}>
+                        {m.thumbnailUrl || m.thumbnail_url ? (
+                          <img src={m.thumbnailUrl || m.thumbnail_url} alt="" loading="lazy"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                            {(m.type === 'VIDEO' || m.type === 'reel') ? (
+                              <Play style={{ width: 24, height: 24, color: 'var(--faint)' }} />
+                            ) : (
+                              <ImageIcon style={{ width: 24, height: 24, color: 'var(--faint)' }} />
+                            )}
+                          </div>
+                        )}
+                        {(m.type === 'VIDEO' || m.type === 'reel') && (
+                          <span style={{
+                            position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,.6)',
+                            color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                            display: 'flex', alignItems: 'center', gap: 3,
+                          }}>
+                            <Play style={{ width: 10, height: 10 }} /> Reel
+                          </span>
+                        )}
+                        <div style={{
+                          position: 'absolute', bottom: 0, left: 0, right: 0,
+                          background: 'linear-gradient(transparent, rgba(0,0,0,.7))',
+                          padding: '12px 6px 6px', display: 'flex', gap: 8, justifyContent: 'center',
+                        }}>
+                          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Heart style={{ width: 11, height: 11 }} /> {(m.likeCount || m.likes || 0).toLocaleString('en-IN')}
+                          </span>
+                          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <MessageCircle style={{ width: 11, height: 11 }} /> {(m.commentCount || m.comments || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                  <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
+                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6 }}>
+                    No posts found. Tap Sync on the Instagram banner above to refresh.
+                  </p>
+                </div>
+              ))}
+            </Card>
+          </div>
         )}
 
         {tab === 'ratecard' && (

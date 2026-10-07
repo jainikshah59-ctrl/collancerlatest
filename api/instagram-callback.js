@@ -138,7 +138,7 @@ export default async function handler(req, res) {
     } catch { /* insights need extra approval on some apps */ }
 
     // Fetch ALL media via pagination to calculate accurate stats.
-    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0 };
+    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0, videoCount: 0 };
     let recentMedia = [];
     try {
       let allItems = [];
@@ -159,13 +159,19 @@ export default async function handler(req, res) {
         mediaStats.count++;
         mediaStats.totalLikes += Number(x.like_count) || 0;
         mediaStats.totalComments += Number(x.comments_count) || 0;
-        mediaStats.totalViews += Number(x.view_count) || 0;
+        // Only videos have view_count — track separately for accurate avgViews
+        if (x.media_type === 'VIDEO' && x.view_count) {
+          mediaStats.videoCount++;
+          mediaStats.totalViews += Number(x.view_count) || 0;
+        }
       }
     } catch { /* media stats best-effort */ }
 
     const followersNum = Number(acct.followers_count) || 0;
     const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : 0;
-    const avgViews = mediaStats.count ? Math.round(mediaStats.totalViews / mediaStats.count) : 0;
+    // avgViews: only count videos (photos don't have view_count, would skew average down)
+    const videoCount = mediaStats.videoCount || 0;
+    const avgViews = videoCount ? Math.round(mediaStats.totalViews / videoCount) : 0;
     const avgEngagement = mediaStats.count && followersNum
       ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
       : 0;

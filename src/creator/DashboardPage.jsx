@@ -2,15 +2,16 @@
    active booking state, review summary, Be On Top entry, rate-card shortcut.
    Per audit §7.2: if not live (verified + addedToCollancer), dashboard stays the
    main page with a checklist. */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, Wallet, CalendarCheck, Store,
   Sparkles, Megaphone, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
 } from 'lucide-react';
-import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptyState } from '../components/ui.jsx';
+import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptyState, useToast } from '../components/ui.jsx';
 import { Bell } from 'lucide-react';
 import { compact, inr, timeAgo } from '../lib/format.js';
-import { MIN_FOLLOWERS, promoLabel } from '../lib/constants.js';
+import { promoLabel } from '../lib/constants.js';
+import { ensureFirebase, db, doc, updateDoc, serverTimestamp } from '../lib/firebase.js';
 
 export function completionItems(creator) {
   const c = creator || {};
@@ -22,7 +23,6 @@ export function completionItems(creator) {
     { key: 'platform', label: 'Platform', done: !!c.platform },
     { key: 'niche', label: 'Niche', done: !!c.niche },
     { key: 'city', label: 'City', done: !!c.city },
-    { key: 'followers', label: `${MIN_FOLLOWERS.toLocaleString('en-IN')}+ followers`, done: Number(c.followers || 0) >= MIN_FOLLOWERS },
     { key: 'price', label: 'At least one rate-card price', done: Object.values(prices).some((v) => Number(v) > 0) },
   ];
 }
@@ -33,7 +33,10 @@ export function completionPct(creator) {
 }
 
 export function isLive(creator) {
-  return !!(creator && creator.verified && creator.addedToCollancer);
+  if (!creator) return false;
+  // Instagram-connected accounts go live instantly (no manual verification needed)
+  if (creator.instagram?.connected && creator.igGoLive) return true;
+  return !!(creator.verified && creator.addedToCollancer);
 }
 
 function verificationTone(v) {
@@ -47,9 +50,34 @@ export default function DashboardPage({
   creator, bookings, reviews, verification, adCampaigns,
   unread, onNav, onOverlay, onOpenBooking,
 }) {
+  const toast = useToast();
+  const [goingLive, setGoingLive] = useState(false);
   const pct = completionPct(creator);
   const items = completionItems(creator);
   const live = isLive(creator);
+  const igConnected = !!creator?.instagram?.connected;
+
+  async function goLive() {
+    if (goingLive) return;
+    setGoingLive(true);
+    try {
+      await ensureFirebase();
+      const uid = creator.uid || creator.id;
+      await updateDoc(doc(db(), 'creators', uid), {
+        igGoLive: true,
+        verified: true,
+        addedToCollancer: true,
+        liveAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast.ok('You are live on Collancer! Brands can now discover you.');
+      // Refresh the page data — parent will re-fetch creator
+      window.location.reload();
+    } catch (e) {
+      toast.err('Could not go live. Please try again.');
+      setGoingLive(false);
+    }
+  }
   const vt = verificationTone(verification);
 
   const activeBookings = useMemo(
@@ -101,11 +129,19 @@ export default function DashboardPage({
               <div className="cl-small cl-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
                 {live
                   ? 'Brands can discover and book you right now.'
-                  : 'Get verified and added to Collancer to appear in brand discovery.'}
+                  : igConnected
+                    ? 'Your Instagram is connected — you are ready to go live instantly. No verification needed.'
+                    : 'Connect Instagram to go live instantly, or complete your profile for manual verification.'}
               </div>
             </div>
             {live && <Badge tone="cyan" icon={BadgeCheck}>Live</Badge>}
           </div>
+          {!live && igConnected && (
+            <Button block size="lg" onClick={goLive} disabled={goingLive} icon={Rocket}
+              style={{ marginTop: 14, background: 'linear-gradient(135deg, #06b6d4, #0891b2)', border: 'none' }}>
+              {goingLive ? 'Going live…' : 'Go Live on Collancer'}
+            </Button>
+          )}
           {!live && (
             <div style={{ marginTop: 12 }}>
               <ProgressBar value={pct} />
