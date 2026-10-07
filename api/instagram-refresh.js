@@ -104,17 +104,24 @@ export default async function handler(req, res) {
       insights = vals;
     } catch { /* keep previous */ }
 
-    // Media stats for avg likes/views + engagement rate.
+    // Media stats for avg likes/views + engagement rate — paginate ALL media.
     let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0 };
     let recentMedia = prev.recentMedia || [];
     try {
-      const m = await graphGet(`/me/media?fields=id,media_type,like_count,comments_count,view_count&limit=25`, token);
-      const items = m?.data || [];
-      recentMedia = items.slice(0, 12).map(x => ({
+      let allItems = [];
+      let url = `/me/media?fields=id,media_type,like_count,comments_count,view_count&limit=50`;
+      for (let page = 0; page < 20 && url; page++) {
+        const m = await graphGet(url, token);
+        const items = m?.data || [];
+        allItems = allItems.concat(items);
+        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com', '') : null;
+        if (items.length < 50) break;
+      }
+      recentMedia = allItems.slice(0, 12).map(x => ({
         id: x.id, type: x.media_type, likes: x.like_count || 0,
         comments: x.comments_count || 0, views: x.view_count || 0,
       }));
-      for (const x of items) {
+      for (const x of allItems) {
         mediaStats.count++;
         mediaStats.totalLikes += Number(x.like_count) || 0;
         mediaStats.totalComments += Number(x.comments_count) || 0;
