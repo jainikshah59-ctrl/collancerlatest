@@ -91,13 +91,16 @@ export default async function handler(req, res) {
       if (e?.code === 'CODE_EXPIRED') return go(res, 'error=code-expired');
       return go(res, 'error=token-failed');
     }
-    if (!short.access_token) return go(res, 'error=token-failed');
+    // Meta docs: token exchange returns { data: [{ access_token, user_id, permissions }] }.
+    // Handle both nested and flat formats for robustness.
+    const shortToken = short?.access_token || short?.data?.[0]?.access_token;
+    if (!shortToken) return go(res, 'error=token-failed');
     const ll = await fetch(
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token` +
       `&client_secret=${encodeURIComponent(appSecret)}` +
-      `&access_token=${encodeURIComponent(short.access_token)}`,
+      `&access_token=${encodeURIComponent(shortToken)}`,
     ).then((r) => r.json().catch(() => ({})));
-    const token = ll.access_token || short.access_token;
+    const token = ll.access_token || shortToken;
     const expiresAt = new Date(Date.now() + TOKEN_DAYS * 86400000);
 
     // 3. Instagram profile + account + insights (each best-effort).
@@ -127,6 +130,32 @@ export default async function handler(req, res) {
       insights = vals;
     } catch { /* insights need extra approval on some apps */ }
 
+    // Fetch recent media to calculate avg likes/views + engagement rate.
+    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0 };
+    let recentMedia = [];
+    try {
+      const m = await graphGet(`/me/media?fields=id,media_type,like_count,comments_count,view_count&limit=25`, token);
+      const items = m?.data || [];
+      recentMedia = items.slice(0, 12).map(x => ({
+        id: x.id, type: x.media_type, likes: x.like_count || 0,
+        comments: x.comments_count || 0, views: x.view_count || 0,
+      }));
+      for (const x of items) {
+        mediaStats.count++;
+        mediaStats.totalLikes += Number(x.like_count) || 0;
+        mediaStats.totalComments += Number(x.comments_count) || 0;
+        mediaStats.totalViews += Number(x.view_count) || 0;
+      }
+    } catch { /* media stats best-effort */ }
+
+    const followersNum = Number(acct.followers_count) || 0;
+    const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : 0;
+    const avgViews = mediaStats.count ? Math.round(mediaStats.totalViews / mediaStats.count) : 0;
+    const avgEngagement = mediaStats.count && followersNum
+      ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
+      : 0;
+    const reachVal = Number(insights.reach) || 0;
+
     const now = admin.firestore.FieldValue.serverTimestamp();
     const username = me.username;
     const handleLower = username.toLowerCase();
@@ -136,11 +165,13 @@ export default async function handler(req, res) {
       name: acct.name || '',
       profilePic: acct.profile_picture_url || '',
       bio: acct.biography || '',
-      followersCount: Number(acct.followers_count) || 0,
+      followersCount: followersNum,
       followsCount: Number(acct.follows_count) || 0,
       mediaCount: Number(me.media_count) || 0,
       accountType: me.account_type || '',
       insights,
+      recentMedia,
+      avgLikes, avgViews, engagementRate: avgEngagement, reach: reachVal,
       connectedAt: now,
       lastSyncedAt: now,
     };
@@ -173,6 +204,11 @@ export default async function handler(req, res) {
       pfp: instagram.profilePic || prev.pfp || '',
       bio: instagram.bio || prev.bio || '',
       followers: instagram.followersCount,
+      // Auto-fill profile stats from Instagram data
+      engagement: avgEngagement || prev.engagement || 0,
+      avgViews: avgViews || prev.avgViews || 0,
+      avgLikes: avgLikes || prev.avgLikes || 0,
+      reach: reachVal || prev.reach || 0,
       platform: 'Instagram',
       instagram,
       onboardingStep: 'done',

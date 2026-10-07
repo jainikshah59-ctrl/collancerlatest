@@ -104,6 +104,32 @@ export default async function handler(req, res) {
       insights = vals;
     } catch { /* keep previous */ }
 
+    // Media stats for avg likes/views + engagement rate.
+    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0 };
+    let recentMedia = prev.recentMedia || [];
+    try {
+      const m = await graphGet(`/me/media?fields=id,media_type,like_count,comments_count,view_count&limit=25`, token);
+      const items = m?.data || [];
+      recentMedia = items.slice(0, 12).map(x => ({
+        id: x.id, type: x.media_type, likes: x.like_count || 0,
+        comments: x.comments_count || 0, views: x.view_count || 0,
+      }));
+      for (const x of items) {
+        mediaStats.count++;
+        mediaStats.totalLikes += Number(x.like_count) || 0;
+        mediaStats.totalComments += Number(x.comments_count) || 0;
+        mediaStats.totalViews += Number(x.view_count) || 0;
+      }
+    } catch { /* keep previous */ }
+
+    const followersNum = Number(acct.followers_count) || prev.followersCount || 0;
+    const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : (prev.avgLikes || 0);
+    const avgViews = mediaStats.count ? Math.round(mediaStats.totalViews / mediaStats.count) : (prev.avgViews || 0);
+    const avgEngagement = mediaStats.count && followersNum
+      ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
+      : (prev.engagementRate || 0);
+    const reachVal = Number(insights.reach) || prev.reach || 0;
+
     const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
       ...prev,
@@ -111,11 +137,13 @@ export default async function handler(req, res) {
       name: acct.name ?? prev.name,
       profilePic: acct.profile_picture_url || prev.profilePic,
       bio: acct.biography ?? prev.bio,
-      followersCount: Number(acct.followers_count) || prev.followersCount || 0,
+      followersCount: followersNum,
       followsCount: Number(acct.follows_count) || prev.followsCount || 0,
       mediaCount: Number(me.media_count) || prev.mediaCount || 0,
       accountType: me.account_type || prev.accountType,
       insights: Object.keys(insights).length ? insights : prev.insights || {},
+      recentMedia,
+      avgLikes, avgViews, engagementRate: avgEngagement, reach: reachVal,
       tokenInvalid: false,
       lastSyncedAt: now,
     };
@@ -123,6 +151,10 @@ export default async function handler(req, res) {
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
       bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',
       followers: instagram.followersCount,
+      engagement: avgEngagement || creatorSnap.data()?.engagement || 0,
+      avgViews: avgViews || creatorSnap.data()?.avgViews || 0,
+      avgLikes: avgLikes || creatorSnap.data()?.avgLikes || 0,
+      reach: reachVal || creatorSnap.data()?.reach || 0,
       instagram,
       updatedAt: now,
     }, { merge: true });
