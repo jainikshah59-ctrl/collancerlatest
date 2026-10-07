@@ -1,31 +1,37 @@
-/* Phone OTP login — shared by creator + business auth screens.
-   Flow: enter phone -> Send OTP -> enter 6-digit code -> Verify.
-   On success calls onVerified(firebaseUser); the parent checks whether a
-   creator/business document exists for the uid (login-only, like email). */
+/* Phone OTP auth — shared by creator + business auth screens.
+   mode="login":  phone -> OTP -> onVerified(user). Parent checks whether a
+                  creator/business document exists (login-only, like email).
+   mode="signup": name + phone -> OTP -> onVerified(user, { name, phone }).
+                  Parent creates the creator/business document. */
 import React, { useState } from 'react';
-import { Phone, KeyRound, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Phone, KeyRound, ArrowLeft, RotateCcw, User as UserIcon } from 'lucide-react';
 import {
   normalizePhoneNumber, sendPhoneOtp, verifyPhoneOtp, clearPhoneRecaptcha,
 } from '../lib/firebase.js';
 import { Button, Field, Input } from './ui.jsx';
 
-export default function PhoneLoginForm({ onVerified, onBack }) {
+export default function PhoneLoginForm({ mode = 'login', nameLabel = 'Full name', onVerified, onBack }) {
+  const isSignup = mode === 'signup';
   const [step, setStep] = useState('number'); // number | otp
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [confirmRes, setConfirmRes] = useState(null);
+  const [e164, setE164] = useState('');
 
   async function handleSend(e) {
     e?.preventDefault();
     setErr('');
-    const e164 = normalizePhoneNumber(phone);
-    if (!e164) return setErr('Please enter a valid phone number.');
+    if (isSignup && name.trim().length < 2) return setErr(`Please enter your ${nameLabel.toLowerCase()}.`);
+    const normalized = normalizePhoneNumber(phone);
+    if (!normalized) return setErr('Please enter a valid phone number.');
     setBusy(true);
     try {
-      const cr = await sendPhoneOtp(e164);
+      const cr = await sendPhoneOtp(normalized);
       setConfirmRes(cr);
+      setE164(normalized);
       setStep('otp');
     } catch (e2) {
       const code = String(e2?.code || '');
@@ -46,7 +52,7 @@ export default function PhoneLoginForm({ onVerified, onBack }) {
     try {
       const cred = await verifyPhoneOtp(confirmRes, otp);
       clearPhoneRecaptcha();
-      onVerified(cred.user);
+      onVerified(cred.user, { name: name.trim(), phone: e164 });
     } catch (e2) {
       const code = String(e2?.code || '');
       if (code.includes('invalid-verification-code')) setErr('Incorrect OTP. Please check and try again.');
@@ -71,6 +77,16 @@ export default function PhoneLoginForm({ onVerified, onBack }) {
       <div id="recaptcha-container" />
       {step === 'number' ? (
         <form onSubmit={handleSend}>
+          {isSignup && (
+            <Field label={nameLabel}>
+              <div style={{ position: 'relative' }}>
+                <UserIcon style={{ position: 'absolute', left: 13, top: 14, width: 17, height: 17, color: 'var(--faint)' }} />
+                <Input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder={nameLabel === 'Business name' ? 'e.g. Acme Foods Pvt. Ltd.' : 'Aarav Sharma'}
+                  style={{ paddingLeft: 38 }} autoComplete="name" />
+              </div>
+            </Field>
+          )}
           <Field label="Phone number" hint="We'll send a 6-digit OTP to this number.">
             <div style={{ position: 'relative' }}>
               <Phone style={{ position: 'absolute', left: 13, top: 14, width: 17, height: 17, color: 'var(--faint)' }} />
@@ -84,7 +100,7 @@ export default function PhoneLoginForm({ onVerified, onBack }) {
           <button type="button" onClick={onBack}
             className="cl-small"
             style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '14px auto 0', background: 'none', border: 0, cursor: 'pointer', color: 'var(--muted)', fontWeight: 600 }}>
-            <ArrowLeft style={{ width: 14, height: 14 }} /> Back to other login options
+            <ArrowLeft style={{ width: 14, height: 14 }} /> Back to other {isSignup ? 'signup' : 'login'} options
           </button>
         </form>
       ) : (
@@ -101,7 +117,9 @@ export default function PhoneLoginForm({ onVerified, onBack }) {
             </div>
           </Field>
           {err && <div className="cl-error-text" style={{ marginBottom: 12 }}>{err}</div>}
-          <Button block size="lg" loading={busy} type="submit" icon={KeyRound}>Verify & log in</Button>
+          <Button block size="lg" loading={busy} type="submit" icon={KeyRound}>
+            {isSignup ? 'Verify & create account' : 'Verify & log in'}
+          </Button>
           <div className="cl-row" style={{ marginTop: 14, gap: 16, justifyContent: 'center' }}>
             <button type="button" onClick={handleSend} disabled={busy}
               className="cl-small"

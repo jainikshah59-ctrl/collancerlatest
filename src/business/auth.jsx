@@ -26,6 +26,7 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
   const toast = useToast();
   const [mode, setMode] = useState('login'); // login | register
   const [loginMethod, setLoginMethod] = useState('email'); // email | phone (login tab)
+  const [registerMethod, setRegisterMethod] = useState('form'); // form | phone (register tab)
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState('');
@@ -162,6 +163,26 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
     } finally { setBusy(false); }
   }
 
+  async function handlePhoneSignup(user, { name, phone }) {
+    setError('');
+    setBusy(true);
+    try {
+      const { db } = await ensureFirebase();
+      const { getDoc } = await import('../lib/firebase.js');
+      const snap = await getDoc(doc(db, 'businesses', user.uid));
+      if (!snap.exists()) {
+        await writeBusinessDoc(user.uid, {
+          bizName: name, email: user.email || '',
+          whatsapp: phone, address: '', industry: '',
+        });
+      }
+      toast.ok('Business account created. Welcome to Collancer.');
+    } catch (err) {
+      console.error('[biz-auth] phone-signup', err);
+      setError('Could not create your account. Please try again.');
+    } finally { setBusy(false); }
+  }
+
   return (
     <Page pageKey="biz-auth">
       <div className="cl-container" style={{ paddingTop: 44, paddingBottom: 40, maxWidth: 460 }}>
@@ -184,15 +205,23 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
 
         <div className="cl-card cl-fade">
           <div className="cl-tabs" style={{ marginBottom: 20 }}>
-            <button className={`cl-tab ${mode === 'login' ? 'on' : ''}`} onClick={() => { setMode('login'); setLoginMethod('email'); setError(''); }}>
+            <button className={`cl-tab ${mode === 'login' ? 'on' : ''}`} onClick={() => { setMode('login'); setLoginMethod('email'); setRegisterMethod('form'); setError(''); }}>
               <LogIn /> Log in
             </button>
-            <button className={`cl-tab ${mode === 'register' ? 'on' : ''}`} onClick={() => { setMode('register'); setLoginMethod('email'); setError(''); }}>
+            <button className={`cl-tab ${mode === 'register' ? 'on' : ''}`} onClick={() => { setMode('register'); setLoginMethod('email'); setRegisterMethod('form'); setError(''); }}>
               <UserPlus /> Register
             </button>
           </div>
 
           {mode === 'register' ? (
+            registerMethod === 'phone' ? (
+              <PhoneLoginForm
+                mode="signup"
+                nameLabel="Business name"
+                onVerified={handlePhoneSignup}
+                onBack={() => { setRegisterMethod('form'); setError(''); }}
+              />
+            ) : (
             <form onSubmit={handleRegister}>
               <Field label="Business name">
                 <LabeledInput icon={Building2} placeholder="e.g. Acme Foods Pvt. Ltd." value={form.bizName} onChange={set('bizName')} />
@@ -223,7 +252,17 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
               </Field>
               {error && <p className="cl-error-text" style={{ marginBottom: 12 }}>{error}</p>}
               <Button type="submit" block loading={busy} icon={ArrowRight}>Create business account</Button>
+              <div className="cl-row" style={{ margin: '14px 0', gap: 12 }}>
+                <div className="cl-divider" style={{ flex: 1, margin: 0 }} />
+                <span className="cl-small cl-muted">or</span>
+                <div className="cl-divider" style={{ flex: 1, margin: 0 }} />
+              </div>
+              <Button variant="light" block onClick={() => { setRegisterMethod('phone'); setError(''); }}
+                disabled={busy} icon={Phone}>
+                Continue with Phone
+              </Button>
             </form>
+            )
           ) : loginMethod === 'phone' ? (
             <PhoneLoginForm
               onVerified={handlePhoneVerified}

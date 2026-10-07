@@ -56,6 +56,7 @@ export default function CreatorAuthScreen() {
   const toast = useToast();
   const [mode, setMode] = useState('login'); // login | register
   const [loginMethod, setLoginMethod] = useState('email'); // email | phone (login tab)
+  const [registerMethod, setRegisterMethod] = useState('form'); // form | phone (register tab)
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
@@ -183,6 +184,23 @@ export default function CreatorAuthScreen() {
     }
   }
 
+  async function handlePhoneSignup(user, { name, phone }) {
+    setErr('');
+    setBusy(true);
+    try {
+      const { getDocData } = await import('../lib/firebase.js');
+      const existing = await getDocData('creators', user.uid);
+      if (!existing) {
+        await createCreatorDoc(user.uid, { name, phone, email: user.email || '' });
+      }
+      toast.ok('Account created. Connect your Instagram to finish setup.');
+    } catch {
+      setErr('Could not create your account. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const pwToggle = (
     <button type="button" onClick={() => setShowPw((s) => !s)} aria-label="Toggle password visibility"
       style={{ position: 'absolute', right: 10, top: 11, border: 0, background: 'none', cursor: 'pointer', color: 'var(--faint)' }}>
@@ -207,7 +225,7 @@ export default function CreatorAuthScreen() {
             <div className="cl-tabs" style={{ marginBottom: 18 }} role="tablist">
               {['login', 'register'].map((m) => (
                 <button key={m} role="tab" aria-selected={mode === m} className={`cl-tab ${mode === m ? 'on' : ''}`}
-                  onClick={() => { setMode(m); setLoginMethod('email'); setErr(''); }}>
+                  onClick={() => { setMode(m); setLoginMethod('email'); setRegisterMethod('form'); setErr(''); }}>
                   {m === 'login' ? 'Log in' : 'Register'}
                 </button>
               ))}
@@ -235,6 +253,14 @@ export default function CreatorAuthScreen() {
               <Button block size="lg" loading={busy} type="submit" icon={BadgeCheck}>Finish registration</Button>
             </form>
           ) : mode === 'register' ? (
+            registerMethod === 'phone' ? (
+              <PhoneLoginForm
+                mode="signup"
+                nameLabel="Full name"
+                onVerified={handlePhoneSignup}
+                onBack={() => { setRegisterMethod('form'); setErr(''); }}
+              />
+            ) : (
             <form onSubmit={doRegister}>
               <Field label="Full name">
                 <div style={{ position: 'relative' }}>
@@ -280,10 +306,15 @@ export default function CreatorAuthScreen() {
                 )}
                 Continue with Google
               </Button>
+              <Button block variant="light" onClick={() => { setRegisterMethod('phone'); setErr(''); }} disabled={busy}
+                style={{ marginTop: 10 }} icon={Phone}>
+                Continue with Phone
+              </Button>
               <p className="cl-small cl-muted" style={{ textAlign: 'center', marginTop: 12, lineHeight: 1.6 }}>
                 That's all we ask — your profile builds itself when you connect Instagram next.
               </p>
             </form>
+            )
           ) : loginMethod === 'phone' ? (
             <PhoneLoginForm
               onVerified={handlePhoneVerified}
