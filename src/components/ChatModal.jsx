@@ -123,25 +123,30 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 90,
+      width: '100vw', height: '100dvh',
       background: 'var(--surface)',
       transform: visible ? 'translateY(0)' : 'translateY(100%)',
       opacity: visible ? 1 : 0,
       transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.28s ease',
       display: 'flex', flexDirection: 'column',
+      borderRadius: 0,
     }}>
-      {/* header */}
+      {/* header — 3D glass bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: 'calc(12px + env(safe-area-inset-top)) 12px 12px',
+        background: 'linear-gradient(180deg, var(--surface-2), var(--surface))',
         borderBottom: '1px solid var(--line)',
-        background: 'var(--surface)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 4px 16px rgba(0,0,0,0.08)',
+        borderRadius: 0, position: 'relative', zIndex: 2,
       }}>
         <button
           onClick={handleClose} aria-label="Back"
           style={{
-            width: 38, height: 38, borderRadius: '50%', border: 0,
-            background: 'var(--surface-2)', cursor: 'pointer',
-            display: 'grid', placeItems: 'center', color: 'var(--ink)',
+            width: 40, height: 40, borderRadius: 0, border: '1px solid var(--line)',
+            background: 'linear-gradient(180deg, var(--surface), var(--surface-2))',
+            cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--ink)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 6px rgba(0,0,0,0.1)',
             transition: 'transform 0.15s ease',
           }}
           onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.92)'; }}
@@ -149,7 +154,7 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
         >
           <ArrowLeft style={{ width: 20, height: 20 }} />
         </button>
-        <Avatar src={peerAvatar} name={peerName} size={42} />
+        <Avatar src={peerAvatar} name={peerName} size={44} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--ink)' }}>
             {peerName}
@@ -161,7 +166,7 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
       </div>
 
       {/* messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--surface)' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--surface)' }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px 16px' }}>
             <p className="cl-small cl-muted" style={{ lineHeight: 1.7, fontSize: 14 }}>
@@ -186,15 +191,16 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
               <div style={{
                 maxWidth: '75%',
                 padding: '10px 14px',
-                borderRadius: 18,
-                borderBottomRightRadius: mine ? 6 : 18,
-                borderBottomLeftRadius: mine ? 18 : 6,
+                borderRadius: 4,
                 fontSize: 14.5, lineHeight: 1.55,
                 color: mine ? '#fff' : 'var(--ink)',
-                background: mine ? 'var(--cyan)' : 'var(--surface-2)',
+                background: mine
+                  ? 'linear-gradient(180deg, #38e0f8 0%, var(--cyan) 50%, #0891b2 100%)'
+                  : 'linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%)',
+                border: mine ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--line)',
                 boxShadow: mine
-                  ? '0 2px 8px rgba(8,145,178,0.25)'
-                  : '0 1px 3px rgba(0,0,0,0.06)',
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 4px rgba(0,0,0,0.12), 0 3px 10px rgba(8,145,178,0.3)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,0.07)',
               }}>
                 {m.text}
               </div>
@@ -203,14 +209,16 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
         })}
         <div ref={bottomRef} />
       </div>
-      <style>{`@keyframes cl-msg-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
+      <style>{`@keyframes cl-msg-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
-      {/* composer */}
+      {/* composer — 3D glass bar */}
       <div style={{
         padding: '10px 12px calc(10px + env(safe-area-inset-bottom))',
         borderTop: '1px solid var(--line)',
-        background: 'var(--surface)',
+        background: 'linear-gradient(0deg, var(--surface-2), var(--surface))',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 -4px 16px rgba(0,0,0,0.06)',
         display: 'flex', gap: 10, alignItems: 'center',
+        borderRadius: 0,
       }}>
         <input
           value={text}
@@ -218,22 +226,21 @@ export default function ChatModal({ booking, myType, peerName, peerAvatar, sende
           onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
           placeholder="Type a message..."
           className="cl-input"
-          style={{ flex: 1, height: 44, borderRadius: 22, fontSize: 15 }}
+          style={{ flex: 1, height: 46, borderRadius: 0, fontSize: 15 }}
         />
         <button
           onClick={send}
           disabled={sending || !text.trim()}
           aria-label="Send message"
           style={{
-            width: 46, height: 46, borderRadius: '50%', border: 0,
+            width: 48, height: 46, borderRadius: 0, border: '1px solid rgba(255,255,255,0.35)',
             cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff',
-            background: 'var(--cyan)',
-            boxShadow: '0 4px 14px rgba(8,145,178,0.35)',
+            background: 'linear-gradient(180deg, #38e0f8 0%, var(--cyan) 50%, #0891b2 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -2px 4px rgba(0,0,0,0.15), 0 4px 12px rgba(8,145,178,0.35)',
             opacity: sending || !text.trim() ? 0.4 : 1,
             transition: 'transform 0.15s ease, opacity 0.2s ease',
-            transform: 'scale(1)',
           }}
-          onTouchStart={(e) => { if (text.trim() && !sending) e.currentTarget.style.transform = 'scale(0.9)'; }}
+          onTouchStart={(e) => { if (text.trim() && !sending) e.currentTarget.style.transform = 'scale(0.92)'; }}
           onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           {sending ? <Loader2 style={{ width: 20, height: 20 }} /> : <Send style={{ width: 20, height: 20 }} />}

@@ -71,10 +71,10 @@ export default function ChatToastHost({ notifs, myType }) {
       >
         <div style={{
           display: 'flex', gap: 12, alignItems: 'center',
-          padding: '12px 14px', borderRadius: 18,
-          background: 'var(--surface)',
+          padding: '12px 14px', borderRadius: 0,
+          background: 'linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%)',
           border: '1px solid var(--line)',
-          boxShadow: '0 16px 44px rgba(0,0,0,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 44px rgba(0,0,0,0.18)',
         }}>
           <Avatar src={toast.peerAvatar} name={toast.peerName} size={44} />
           <div style={{ flex: 1, minWidth: 0 }}>
