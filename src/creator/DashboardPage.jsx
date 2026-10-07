@@ -16,9 +16,10 @@ import { ensureFirebase, db, doc, updateDoc, serverTimestamp } from '../lib/fire
 export function completionItems(creator) {
   const c = creator || {};
   const prices = c.prices || {};
+  const igUsername = c.instagram?.username || c.instagram?.userName || '';
   return [
     { key: 'name', label: 'Display name', done: !!(c.name && c.name.trim()) },
-    { key: 'handle', label: 'Creator handle', done: !!(c.handle && c.handleLower) },
+    { key: 'handle', label: 'Creator handle', done: !!((c.handle && c.handleLower) || igUsername) },
     { key: 'bio', label: 'Bio', done: !!(c.bio && c.bio.trim().length >= 10) },
     { key: 'platform', label: 'Platform', done: !!c.platform },
     { key: 'niche', label: 'Niche', done: !!c.niche },
@@ -55,7 +56,7 @@ export default function DashboardPage({
   const pct = completionPct(creator);
   const items = completionItems(creator);
   const live = isLive(creator);
-  const igConnected = !!creator?.instagram?.connected;
+  const igConnected = !!(creator?.instagram?.connected || creator?.instagram?.username);
 
   async function goLive() {
     if (goingLive) return;
