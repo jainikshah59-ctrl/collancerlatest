@@ -66,3 +66,11 @@ export async function refreshInstagram(force = false) {
   const token = await idToken();
   return postJson('/api/instagram-refresh', { idToken: token, force });
 }
+
+/** Disconnect Instagram: deletes the stored token + synced data server-side. */
+export async function disconnectInstagram() {
+  const token = await idToken();
+  const j = await postJson('/api/instagram-disconnect', { idToken: token });
+  if (!j?.ok) throw new Error(j?.reason || 'disconnect-failed');
+  return j;
+}

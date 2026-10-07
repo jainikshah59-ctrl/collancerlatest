@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Avatar, Badge, useToast } from '../components/ui.jsx';
 import {
-  startInstagramConnect, refreshInstagram, lastSyncedLabel,
+  startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel,
 } from '../lib/instagram.js';
 
 function SyncRow({ icon: Icon, label, value, last }) {
@@ -155,9 +155,10 @@ export function InstagramConnectBanner({ onConnect }) {
 
 /* ---------- connected status card with live refresh ---------- */
 
-export function InstagramSyncCard({ creator }) {
+export function InstagramSyncCard({ creator, onDisconnected }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const ig = creator?.instagram;
   if (!ig) return null;
 
@@ -171,6 +172,21 @@ export function InstagramSyncCard({ creator }) {
       else toast.err('Refresh failed. Please try again.');
     } catch {
       toast.err('Refresh failed. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDisconnect() {
+    if (!confirming) { setConfirming(true); return; }
+    setBusy(true);
+    try {
+      await disconnectInstagram();
+      toast.ok('Instagram disconnected. Your synced data was deleted.');
+      setConfirming(false);
+      onDisconnected?.();
+    } catch {
+      toast.err('Could not disconnect. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -197,6 +213,19 @@ export function InstagramSyncCard({ creator }) {
           icon={busy ? Loader2 : RefreshCw}>
           {busy ? 'Syncing…' : 'Sync'}
         </Button>
+      </div>
+      <div className="cl-row" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+        <button
+          onClick={onDisconnect}
+          disabled={busy}
+          className="cl-small"
+          style={{
+            background: 'none', border: 0, cursor: 'pointer',
+            color: confirming ? 'var(--danger, #dc2626)' : 'var(--faint)',
+            fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3,
+          }}>
+          {confirming ? 'Tap again to confirm disconnect' : 'Disconnect Instagram'}
+        </button>
       </div>
     </Card>
   );

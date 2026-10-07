@@ -12,6 +12,8 @@ import { ToastProvider, Button, Page, Logo, getTheme, applyTheme } from './compo
 const BusinessApp = React.lazy(() => import('./business/BusinessApp.jsx'));
 const CreatorApp = React.lazy(() => import('./creator/CreatorApp.jsx'));
 const AdminApp = React.lazy(() => import('./admin/AdminApp.jsx'));
+const PublicPrivacyPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicPrivacyPage })));
+const PublicDataDeletionPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicDataDeletionPage })));
 
 const ROLE_KEY = 'collancer_role';
 
@@ -123,6 +125,24 @@ export default function App() {
   };
 
   if (!booted) return <ToastProvider><Curtain /></ToastProvider>;
+
+  // Public legal pages (no login required) — Meta App Review needs public
+  // Privacy Policy and Data Deletion URLs.
+  const legal = (() => {
+    try {
+      const m = new URLSearchParams(window.location.search).get('legal');
+      return m === 'privacy' || m === 'data-deletion' ? m : null;
+    } catch { return null; }
+  })();
+  if (legal) {
+    return (
+      <ToastProvider>
+        <Suspense fallback={<Curtain />}>
+          {legal === 'privacy' ? <PublicPrivacyPage /> : <PublicDataDeletionPage />}
+        </Suspense>
+      </ToastProvider>
+    );
+  }
 
   return (
     <ToastProvider>
