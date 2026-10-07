@@ -34,6 +34,7 @@ import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
 import { poolAnswer, isPoolableQuery } from './llmPool.js';
+import { checkScope, scopeRefusal, socialReply } from './scopeGuard.js';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
 import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
@@ -280,6 +281,15 @@ function CreatorSheet({ item, onClose, onBook }) {
 async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   const q = String(text || '').trim();
   if (!q) return null;
+  /* ---- scope guard (fail-closed): only collaboration + Collancer-app
+     questions reach the pool/brain. Off-topic -> fixed refusal. ---- */
+  const scope = checkScope(q, isCreator, loadConvo());
+  if (!scope.inScope) {
+    return { answer: scopeRefusal(isCreator), creators: [], actions: [], confidence: 1 };
+  }
+  if (scope.kind === 'social') {
+    return { answer: socialReply(q, isCreator), creators: [], actions: [], confidence: 1 };
+  }
   if (isCreator) {
     const res = await askCreatorAI(q, {
       creator: context.user || {},
@@ -296,7 +306,7 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   // fails, we fall through to the deterministic brain below.
   if (liveOn && isPoolableQuery(q, loadConvo())) {
     try {
-      const pooled = await poolAnswer(q);
+      const pooled = await poolAnswer(q, isCreator);
       if (pooled && pooled.text) {
         try {
           const camp = extractCampaign(q);

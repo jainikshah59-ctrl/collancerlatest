@@ -81,14 +81,18 @@ function topBrainEntries(q, n = 3) {
 
 /* ---------- prompt ---------- */
 
-export function buildPoolMessages(question) {
+export function buildPoolMessages(question, isCreator = false) {
   const q = String(question || '').trim();
   const entries = topBrainEntries(q, 3);
   const ctx = entries
     .map((e, i) => `Fact ${i + 1} (${e.title || 'Collancer'}): ${String(e.answer).slice(0, 240)}`)
     .join('\n');
+  const scopeLine = isCreator
+    ? 'Scope: you ONLY answer questions about brand collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for creators \u2014 I only help with brand collaborations and Collancer app questions."'
+    : 'Scope: you ONLY answer questions about creator collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for brands \u2014 I only help with creator collaborations and Collancer app questions."';
   const system =
     'You are Collancer Ai, the AI assistant of Collancer — a creator–brand collaboration platform (not an agency). Tagline: WHERE INFLUENCE MEETS INDUSTRY.\n' +
+    scopeLine + '\n' +
     'Always-true Collancer facts (never contradict these):\n' +
     '- Paid bookings: the creator\u2019s listed price + a 12% platform fee.\n' +
     '- Business Pro members get 5% off the creator price (the discount applies to the creator price, before the fee is calculated).\n' +
@@ -168,10 +172,10 @@ async function callLane(url, body, timeoutMs) {
  * Tries Pollinations (browser-direct) then the server pool (Kilo).
  * Returns null when every lane fails — the caller must fall back to the brain.
  */
-export async function poolAnswer(question) {
+export async function poolAnswer(question, isCreator = false) {
   const q = String(question || '').trim();
   if (!q) return null;
-  const { system, user } = buildPoolMessages(q);
+  const { system, user } = buildPoolMessages(q, isCreator);
   const messages = [
     { role: 'system', content: system },
     { role: 'user', content: user },

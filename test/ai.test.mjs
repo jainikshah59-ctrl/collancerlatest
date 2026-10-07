@@ -452,3 +452,58 @@ describe('llmPool', () => {
     assert.equal(user, 'what is the platform fee?');
   });
 });
+
+describe('scope guard — Collancer Ai topic restriction', () => {
+  it('allows collaboration questions on both sides', async () => {
+    const { checkScope } = await import('../src/ai/scopeGuard.js');
+    assert.equal(checkScope('How do I book a creator for my campaign?', false, null).inScope, true);
+    assert.equal(checkScope('How do I find brands to work with?', true, null).inScope, true);
+    assert.equal(checkScope('When will my payout arrive?', true, null).inScope, true);
+    assert.equal(checkScope('What is Collancer?', false, null).inScope, true);
+    assert.equal(checkScope('What are your prices?', false, null).inScope, true);
+    assert.equal(checkScope('How do I add money to my wallet?', false, null).inScope, true);
+  });
+
+  it('allows greetings and thanks as social (not refusals)', async () => {
+    const { checkScope } = await import('../src/ai/scopeGuard.js');
+    const g = checkScope('Hi', false, null);
+    assert.equal(g.inScope, true);
+    assert.equal(g.kind, 'social');
+    const t = checkScope('Thanks!', true, null);
+    assert.equal(t.inScope, true);
+    assert.equal(t.kind, 'social');
+  });
+
+  it('refuses off-topic questions on both sides', async () => {
+    const { checkScope } = await import('../src/ai/scopeGuard.js');
+    const offTopic = [
+      'What is the capital of France?',
+      'Write me a poem about love',
+      'How do I bake a chocolate cake?',
+      'What is the stock price of Tesla?',
+      'Explain quantum physics',
+      'Write Python code to sort a list',
+      'Tell me a joke',
+    ];
+    for (const q of offTopic) {
+      assert.equal(checkScope(q, false, null).inScope, false, `brand side should refuse: ${q}`);
+      assert.equal(checkScope(q, true, null).inScope, false, `creator side should refuse: ${q}`);
+    }
+  });
+
+  it('refusal messages are side-specific', async () => {
+    const { scopeRefusal } = await import('../src/ai/scopeGuard.js');
+    assert.match(scopeRefusal(false), /for brands/);
+    assert.match(scopeRefusal(false), /creator collaborations/);
+    assert.match(scopeRefusal(true), /for creators/);
+    assert.match(scopeRefusal(true), /brand collaborations/);
+  });
+
+  it('pool system prompt carries the scope restriction per side', async () => {
+    const { buildPoolMessages } = await import('../src/ai/llmPool.js');
+    const biz = buildPoolMessages('hello', false);
+    assert.match(biz.system, /ONLY answer questions about creator collaborations/);
+    const cre = buildPoolMessages('hello', true);
+    assert.match(cre.system, /ONLY answer questions about brand collaborations/);
+  });
+});
