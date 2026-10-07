@@ -8,7 +8,7 @@ import {
   Instagram, Lock, RefreshCw, CheckCircle2, Loader2, ArrowRight,
   Users, Image as ImageIcon, Eye,
 } from 'lucide-react';
-import { Card, Button, Avatar, Badge, useToast } from '../components/ui.jsx';
+import { Card, Button, useToast } from '../components/ui.jsx';
 import {
   startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel,
 } from '../lib/instagram.js';
@@ -153,7 +153,7 @@ export function InstagramConnectBanner({ onConnect }) {
   );
 }
 
-/* ---------- connected status card with live refresh ---------- */
+/* ---------- compact connected status banner (no profile duplication) ---------- */
 
 export function InstagramSyncCard({ creator, onDisconnected }) {
   const toast = useToast();
@@ -193,39 +193,45 @@ export function InstagramSyncCard({ creator, onDisconnected }) {
   }
 
   return (
-    <Card className="cl-glass">
-      <div className="cl-row" style={{ gap: 12 }}>
-        <Avatar src={ig.profilePic} name={ig.username} size={52} />
-        <div className="cl-grow" style={{ minWidth: 0 }}>
-          <div className="cl-row" style={{ gap: 6 }}>
-            <span style={{ fontWeight: 800, fontSize: 15 }}>@{ig.username}</span>
-            <Badge tone="cyan">Live</Badge>
+    <Card className="cl-glass" style={{
+      border: '1px solid rgba(34,197,94,.25)',
+      background: 'linear-gradient(135deg, rgba(34,197,94,.07), rgba(34,197,94,.03))',
+      padding: '10px 14px',
+    }}>
+      <div className="cl-row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{
+          width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center',
+          background: 'linear-gradient(45deg, #f09433, #dc2743, #bc1888)', color: '#fff', flexShrink: 0,
+        }}>
+          <Instagram style={{ width: 16, height: 16 }} />
+        </span>
+        <div className="cl-grow" style={{ minWidth: 120 }}>
+          <div className="cl-row" style={{ gap: 6, alignItems: 'center' }}>
+            <CheckCircle2 style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>Instagram connected</span>
+            <span className="cl-small cl-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{ig.username}</span>
           </div>
-          <div className="cl-small cl-muted" style={{ marginTop: 2 }}>
-            {(ig.followersCount || 0).toLocaleString('en-IN')} followers · {(ig.mediaCount || 0).toLocaleString('en-IN')} posts
-            {ig.insights?.reach ? ` · ${(ig.insights.reach || 0).toLocaleString('en-IN')} reach today` : ''}
-          </div>
-          <div className="cl-small cl-faint" style={{ marginTop: 2 }}>
-            Synced {lastSyncedLabel(creator)} · managed by Instagram <Lock style={{ width: 11, height: 11, verticalAlign: -1 }} />
+          <div className="cl-small cl-faint" style={{ marginTop: 1 }}>
+            Synced {lastSyncedLabel(creator)} · <Lock style={{ width: 10, height: 10, verticalAlign: -1 }} /> managed by Instagram
           </div>
         </div>
-        <Button size="sm" variant="light" onClick={onRefresh} disabled={busy}
-          icon={busy ? Loader2 : RefreshCw}>
-          {busy ? 'Syncing…' : 'Sync'}
-        </Button>
-      </div>
-      <div className="cl-row" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
-        <button
-          onClick={onDisconnect}
-          disabled={busy}
-          className="cl-small"
-          style={{
-            background: 'none', border: 0, cursor: 'pointer',
-            color: confirming ? 'var(--danger, #dc2626)' : 'var(--faint)',
-            fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3,
-          }}>
-          {confirming ? 'Tap again to confirm disconnect' : 'Disconnect Instagram'}
-        </button>
+        <div className="cl-row" style={{ gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <Button size="sm" variant="light" onClick={onRefresh} disabled={busy} icon={busy ? Loader2 : RefreshCw}>
+            {busy ? 'Syncing…' : 'Sync'}
+          </Button>
+          <button
+            onClick={onDisconnect}
+            disabled={busy}
+            className="cl-small"
+            style={{
+              background: 'none', border: 0, cursor: 'pointer',
+              color: confirming ? 'var(--danger, #dc2626)' : 'var(--faint)',
+              fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3,
+              whiteSpace: 'nowrap',
+            }}>
+            {confirming ? 'Confirm?' : 'Disconnect'}
+          </button>
+        </div>
       </div>
     </Card>
   );
