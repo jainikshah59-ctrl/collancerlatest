@@ -11,7 +11,7 @@
 import { getAdmin } from './_firebaseAdmin.js';
 
 const APP_URL = 'https://collancer-app.vercel.app';
-const GRAPH = 'https://graph.instagram.com/v26.0';
+const GRAPH = 'https://graph.instagram.com/v21.0';
 const TOKEN_DAYS = 60;
 
 const go = (res, reason) =>
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
         const m = await graphGet(url, token);
         const items = m?.data || [];
         allItems = allItems.concat(items);
-        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com/v26.0', '') : null;
+        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com', '') : null;
         if (items.length < 50) break;
       }
       recentMedia = allItems.slice(0, 12).map(x => ({
@@ -183,7 +183,6 @@ export default async function handler(req, res) {
     const username = me.username;
     const handleLower = username.toLowerCase();
     const instagram = {
-      connected: true,
       igId: String(igId),
       username,
       name: acct.name || '',

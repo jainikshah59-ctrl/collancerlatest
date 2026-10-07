@@ -34,7 +34,7 @@ export function lastSyncedLabel(creator, now = Date.now()) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-async function idToken() {
+export async function idToken() {
   await ensureFirebase();
   const user = auth()?.currentUser;
   if (!user) throw new Error('not-signed-in');

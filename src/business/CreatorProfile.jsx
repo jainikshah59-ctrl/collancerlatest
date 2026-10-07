@@ -110,7 +110,9 @@ function OverviewTab({ creator, pro, onBook }) {
           {creator.instagram?.username
             ? 'Stats synced directly from the creator\'s Instagram account.'
             : 'Estimates are derived from the creator\'s reported audience stats.'}
-        </p>      </Card>
+        </p>
+        </p>
+      </Card>
 
       {/* pricing */}
       <Card style={{ marginBottom: 12 }}>

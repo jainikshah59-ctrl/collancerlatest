@@ -61,7 +61,7 @@ export default function DashboardPage({
     if (goingLive) return;
     setGoingLive(true);
     try {
-      const { idToken } = await import('../lib/firebase.js');
+      const { idToken } = await import('../lib/instagram.js');
       const token = await idToken();
       const r = await fetch('/api/creator-go-live', {
         method: 'POST',

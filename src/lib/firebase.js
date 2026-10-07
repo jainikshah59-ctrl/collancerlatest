@@ -52,14 +52,6 @@ export function ensureFirebase() {
 export const auth = () => _auth;
 export const db = () => _db;
 
-/** Return a fresh Firebase ID token for authenticated server API calls. */
-export async function idToken() {
-  await ensureFirebase();
-  const user = _auth?.currentUser;
-  if (!user) throw new Error('not-signed-in');
-  return user.getIdToken();
-}
-
 /* ---- Auth helpers ---- */
 export async function registerEmail(email, password) {
   await ensureFirebase();
