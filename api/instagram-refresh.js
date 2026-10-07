@@ -13,7 +13,7 @@
  */
 import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
 
-const GRAPH = 'https://graph.instagram.com/v21.0';
+const GRAPH = 'https://graph.instagram.com/v26.0';
 const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
 
@@ -118,7 +118,7 @@ export default async function handler(req, res) {
         const m = await graphGet(url, token);
         const items = m?.data || [];
         allItems = allItems.concat(items);
-        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com', '') : null;
+        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com/v26.0', '') : null;
         if (items.length < 50) break;
       }
       recentMedia = allItems.slice(0, 12).map(x => ({
@@ -149,6 +149,7 @@ export default async function handler(req, res) {
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
+      connected: true,
       ...prev,
       username: me.username || prev.username,
       name: acct.name ?? prev.name,
