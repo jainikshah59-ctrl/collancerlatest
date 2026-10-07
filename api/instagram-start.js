@@ -53,6 +53,8 @@ export default async function handler(req, res) {
       `?client_id=${encodeURIComponent(appId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent(SCOPES)}` +
+      '&enable_fb_login=0' +
+      '&force_authentication=1' +
       '&response_type=code' +
       `&state=${encodeURIComponent(state)}`;
     return res.status(200).json({ ok: true, url });
