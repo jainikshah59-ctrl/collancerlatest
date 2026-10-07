@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import {
   CheckCircle2, XCircle, Send, Link2, ExternalLink, MapPin, Wallet,
   ShieldCheck, AlertCircle, RefreshCw, FileText, CalendarClock, Tag,
+  MessageCircle,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, addDoc, collection,
@@ -18,6 +19,7 @@ import {
 } from '../components/ui.jsx';
 import { statusTone, statusLabel } from './BookingsPage.jsx';
 import BookingChat from '../components/BookingChat.jsx';
+import ChatModal, { useChatUnread, UnreadBadge } from '../components/ChatModal.jsx';
 
 const urlOk = (u) => /^https?:\/\/.+\..+/.test(String(u || '').trim());
 
@@ -76,6 +78,8 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
   const [reason, setReason] = useState('');
   const [deliveryUrl, setDeliveryUrl] = useState('');
   const [showDeliver, setShowDeliver] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const unread = useChatUnread(booking, 'creator');
 
   const b = booking;
   const isBarter = useMemo(
@@ -470,7 +474,22 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
             </div>
           </Card>
         )}
-        <BookingChat bookingId={b.id} senderType="creator" senderName={creator?.name || 'Creator'} />
+        <div style={{ position: 'relative', marginBottom: 4 }}>
+          <Button variant="light" block icon={MessageCircle} onClick={() => setChatOpen(true)}>
+            Chat with Brand
+          </Button>
+          <UnreadBadge count={unread} />
+        </div>
+        {chatOpen && (
+          <ChatModal
+            booking={b}
+            myType="creator"
+            peerName={b.bizName || 'Brand'}
+            peerAvatar={b.bizPfp}
+            senderName={creator?.name || 'Creator'}
+            onClose={() => setChatOpen(false)}
+          />
+        )}
         <Button variant="light" block onClick={onClose}>Close</Button>
       </div>
     </Modal>

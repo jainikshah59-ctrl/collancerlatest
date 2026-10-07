@@ -142,11 +142,15 @@ service cloud.firestore {
         && !('adminRevenueId' in request.resource.data);
 
       allow update: if isAdmin()
-        // CREATOR/brand mark-as-seen (no status change)
+        // CREATOR/brand mark-as-seen + chat read timestamps (no status change)
         || (isAuthed() && resource.data.creatorId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByCreator']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByCreator', 'creatorChatReadAt']))
         || (isAuthed() && resource.data.bizId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByBiz']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByBiz', 'brandChatReadAt']))
+        // either party may stamp last-message metadata when chatting
+        || (isAuthed()
+          && (resource.data.creatorId == request.auth.uid || resource.data.bizId == request.auth.uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessageAt', 'lastMessageFrom']))
         // CREATOR accept: Pending -> Active
         || (isAuthed() && resource.data.creatorId == request.auth.uid
           && resource.data.status == 'Pending'

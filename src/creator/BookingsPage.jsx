@@ -91,7 +91,15 @@ export default function BookingsPage({ bookings, loading, onBack, onOpen }) {
             {list.map((b) => {
               const isBarter = Number(b.amount || 0) === 0 || b.paymentStatus === 'not_required';
               return (
-                <Card key={b.id} pressable onClick={() => onOpen(b.id)} style={{ padding: 14 }}>
+                <Card key={b.id} pressable onClick={() => onOpen(b.id)} style={{ padding: 14, position: 'relative' }}>
+                  {b.lastMessageFrom === 'brand' && (b.lastMessageAt?.toMillis?.() || 0) > (b.creatorChatReadAt?.toMillis?.() || 0) && (
+                    <span style={{
+                      position: 'absolute', top: 12, right: 12, width: 12, height: 12, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      border: '2px solid #fff', boxShadow: '0 2px 8px rgba(220,38,38,0.5)',
+                      animation: 'cl-pulse-red 1.6s ease-in-out infinite',
+                    }} />
+                  )}
                   <div className="cl-row" style={{ gap: 12, alignItems: 'flex-start' }}>
                     <div className="cl-grow" style={{ minWidth: 0 }}>
                       <div className="cl-row" style={{ gap: 8 }}>

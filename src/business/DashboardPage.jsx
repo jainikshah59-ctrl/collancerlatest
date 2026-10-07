@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Wallet as WalletIcon, Gift, Crown, LifeBuoy, FileText,
   ShieldCheck, LogOut, Camera, Pencil, X, ChevronRight, Star, Send,
   ExternalLink, AlertCircle, CheckCircle2, Clock, Flame, CalendarClock,
+  MessageCircle,
 } from 'lucide-react';
 import { useBiz, isBizPro, tsMs } from './ctx.jsx';
 import { ensureFirebase, updateDoc, doc, addDoc, collection, getDocs, query, where, serverTimestamp } from '../lib/firebase.js';
@@ -14,6 +15,7 @@ import { fileToDataURL } from '../lib/cloudinary.js';
 import { inr, timeAgo } from '../lib/format.js';
 import { BOOKING_STATUS } from '../lib/constants.js';
 import BookingChat from '../components/BookingChat.jsx';
+import ChatModal, { useChatUnread, UnreadBadge } from '../components/ChatModal.jsx';
 import {
   Card, Avatar, Badge, Button, Stat, EmptyState, Sheet, Field, Input,
   TextArea, ConfirmDialog, IconBtn, Page, useToast, DeadlineCountdown,
@@ -46,6 +48,8 @@ function BookingDetail({ booking, onClose, onReviewed }) {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [acting, setActing] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const unread = useChatUnread(booking, 'brand');
 
   async function cancelBooking() {
     if (!cancelReason.trim()) { toast.err('Please give a short reason for cancelling.'); return; }
@@ -258,7 +262,22 @@ function BookingDetail({ booking, onClose, onReviewed }) {
         <div className="cl-kv"><dt>Method</dt><dd style={{ textTransform: 'capitalize' }}>{booking.paymentMethod || '—'}</dd></div>
       </Card>
 
-      <BookingChat bookingId={booking.id} senderType="brand" senderName={biz?.bizName || 'Brand'} />
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <Button block variant="light" icon={MessageCircle} onClick={() => setChatOpen(true)}>
+          Chat with Creator
+        </Button>
+        <UnreadBadge count={unread} />
+      </div>
+      {chatOpen && (
+        <ChatModal
+          booking={booking}
+          myType="brand"
+          peerName={booking.creatorName || 'Creator'}
+          peerAvatar={booking.creatorPfp}
+          senderName={biz?.bizName || 'Brand'}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
 
       {booking.status === 'Pending' && (
         <Button variant="danger" block onClick={() => setCancelOpen(true)}>Cancel booking</Button>
@@ -516,7 +535,15 @@ export default function DashboardPage() {
           />
         ) : (
           merged.map((b) => (
-            <Card key={b.id} pressable onClick={() => setOpenId(b.id)} style={{ marginBottom: 10 }}>
+            <Card key={b.id} pressable onClick={() => setOpenId(b.id)} style={{ marginBottom: 10, position: 'relative' }}>
+              {b.lastMessageFrom === 'creator' && (b.lastMessageAt?.toMillis?.() || 0) > (b.brandChatReadAt?.toMillis?.() || 0) && (
+                <span style={{
+                  position: 'absolute', top: 10, right: 10, width: 12, height: 12, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  border: '2px solid #fff', boxShadow: '0 2px 8px rgba(220,38,38,0.5)',
+                  animation: 'cl-pulse-red 1.6s ease-in-out infinite',
+                }} />
+              )}
               <div className="cl-row" style={{ gap: 12 }}>
                 <Avatar src={b.creatorPfp} name={b.creatorName} size={46} />
                 <div className="cl-grow" style={{ minWidth: 0 }}>
