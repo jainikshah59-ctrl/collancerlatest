@@ -624,7 +624,12 @@ a { color: inherit; }
 /* ---------- misc ---------- */
 .cl-divider { height: 1px; background: var(--line-soft); margin: 16px 0; }
 .cl-row { display: flex; align-items: center; gap: 12px; }
-.cl-grow { flex: 1; }
+.cl-grow { flex: 1; min-width: 0; }
+/* Mobile: multi-field form rows stack vertically instead of squeezing side-by-side.
+   Applies to any flex row that contains form fields (profile forms, booking modals, etc.). */
+@media (max-width: 640px) {
+  .cl-row:has(.cl-field) { flex-direction: column; align-items: stretch; }
+}
 .cl-muted { color: var(--muted); }
 .cl-small { font-size: 12.5px; }
 .cl-money { font-variant-numeric: tabular-nums; font-weight: 700; }

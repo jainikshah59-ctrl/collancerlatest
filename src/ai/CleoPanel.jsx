@@ -1169,7 +1169,7 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
               <CleoMark state="idle" size={36} />
               <div style={{ minWidth: 0, flexShrink: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 16.5, fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>Collancer Ai</div>
-                <div className="cl-muted" style={{ fontSize: 10, letterSpacing: '.01em', whiteSpace: 'nowrap' }}>
+                <div className="cl-muted" style={{ fontSize: 10, letterSpacing: '.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Live Colenso Marketplace Intelligence
                 </div>
               </div>
