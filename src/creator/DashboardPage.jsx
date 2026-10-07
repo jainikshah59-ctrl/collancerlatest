@@ -11,7 +11,6 @@ import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptySta
 import { Bell } from 'lucide-react';
 import { compact, inr, timeAgo } from '../lib/format.js';
 import { promoLabel } from '../lib/constants.js';
-import { ensureFirebase, db, doc, updateDoc, serverTimestamp } from '../lib/firebase.js';
 
 export function completionItems(creator) {
   const c = creator || {};
@@ -62,17 +61,16 @@ export default function DashboardPage({
     if (goingLive) return;
     setGoingLive(true);
     try {
-      await ensureFirebase();
-      const uid = creator.uid || creator.id;
-      await updateDoc(doc(db(), 'creators', uid), {
-        igGoLive: true,
-        verified: true,
-        addedToCollancer: true,
-        liveAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      const { idToken } = await import('../lib/firebase.js');
+      const token = await idToken();
+      const r = await fetch('/api/creator-go-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
       });
+      const j = await r.json();
+      if (!j?.ok) throw new Error(j?.reason || 'go-live-failed');
       toast.ok('You are live on Collancer! Brands can now discover you.');
-      // Refresh the page data — parent will re-fetch creator
       window.location.reload();
     } catch (e) {
       toast.err('Could not go live. Please try again.');
