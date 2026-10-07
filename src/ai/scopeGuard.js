@@ -134,3 +134,21 @@ export function socialReply(question, isCreator) {
   }
   return `Hi! I\u2019m Collancer Ai \u2014 I help with ${scope} and Collancer app questions. What would you like to know?`;
 }
+
+/* ---------- creator pool routing ---------- */
+
+/**
+ * isCreatorDataQuery(q) — true when the question needs the creator's LIVE
+ * personal data or personalization (bookings, payouts, earnings, verification
+ * status, profile completeness/tips, personalized pricing). These must stay
+ * on the deterministic brain (askCreatorAI) and never go to the LLM pool,
+ * which has no access to user data. Mirrors askCreatorAI's own routing.
+ */
+export function isCreatorDataQuery(question) {
+  const s = String(question || '').toLowerCase();
+  if (/\b(bookings?|payouts?|earnings?|earn\w*|income|withdrawals?|verification|verified|profile)\b/.test(s)) return true;
+  if (/\b(my|mine)\b.*\b(pric\w*|rates?|charge)\b/.test(s)) return true;
+  if (/\b(pric\w*|rates?|charge)\b.*\b(my|mine|i)\b/.test(s)) return true;
+  if (/how much.*\b(i|should i)\b.*\b(charge|ask|set|earn)\b/.test(s)) return true;
+  return false;
+}

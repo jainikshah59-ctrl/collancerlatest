@@ -34,7 +34,7 @@ import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
 import { poolAnswer, isPoolableQuery } from './llmPool.js';
-import { checkScope, scopeRefusal, socialReply } from './scopeGuard.js';
+import { checkScope, scopeRefusal, socialReply, isCreatorDataQuery } from './scopeGuard.js';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
 import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
@@ -291,6 +291,17 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
     return { answer: socialReply(q, isCreator), creators: [], actions: [], confidence: 1 };
   }
   if (isCreator) {
+    // Creator side: try the free LLM pool first for general questions
+    // (same as business side). Personal-data questions stay on the
+    // deterministic brain — the pool has no access to live user data.
+    if (liveOn && isPoolableQuery(q, loadConvo()) && !isCreatorDataQuery(q)) {
+      try {
+        const pooled = await poolAnswer(q, true);
+        if (pooled && pooled.text) {
+          return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
+        }
+      } catch { /* fall through to the deterministic brain */ }
+    }
     const res = await askCreatorAI(q, {
       creator: context.user || {},
       bookings: context.extra?.bookings || [],

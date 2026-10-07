@@ -507,3 +507,26 @@ describe('scope guard — Collancer Ai topic restriction', () => {
     assert.match(cre.system, /ONLY answer questions about brand collaborations/);
   });
 });
+
+describe('creator pool routing — isCreatorDataQuery', () => {
+  it('keeps personal-data questions on the brain', async () => {
+    const { isCreatorDataQuery } = await import('../src/ai/scopeGuard.js');
+    assert.equal(isCreatorDataQuery('show my bookings'), true);
+    assert.equal(isCreatorDataQuery('when will my payout arrive?'), true);
+    assert.equal(isCreatorDataQuery('how much have I earned?'), true);
+    assert.equal(isCreatorDataQuery('am I verified?'), true);
+    assert.equal(isCreatorDataQuery('how complete is my profile?'), true);
+    assert.equal(isCreatorDataQuery('how much should I charge for a reel?'), true);
+    assert.equal(isCreatorDataQuery('what are my rates?'), true);
+  });
+
+  it('sends general questions to the pool', async () => {
+    const { isCreatorDataQuery } = await import('../src/ai/scopeGuard.js');
+    assert.equal(isCreatorDataQuery('what is a good engagement rate?'), false);
+    assert.equal(isCreatorDataQuery('how do I negotiate with brands?'), false);
+    assert.equal(isCreatorDataQuery('what should a pitch include?'), false);
+    assert.equal(isCreatorDataQuery('what is Collancer?'), false);
+    // "verification" stays on the brain (it also shows live verification status)
+    assert.equal(isCreatorDataQuery('how does verification work on Collancer?'), true);
+  });
+});
