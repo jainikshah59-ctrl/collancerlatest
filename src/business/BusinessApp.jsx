@@ -28,6 +28,7 @@ import ProPage from './ProPage.jsx';
 import ReferralPage from './ReferralPage.jsx';
 import { SupportPage, PrivacyPage, TermsPage } from './SupportPages.jsx';
 import AIPage from './AIPage.jsx';
+import ChatToastHost from '../components/ChatToastHost.jsx';
 import {
   TopBar, BottomNav, IconBtn, Badge, Sheet, Card, Button,
   EmptyState, Page, useToast, ThemeToggle, useEffectiveTheme,
@@ -378,6 +379,7 @@ export default function BusinessApp({ onSwitchRole }) {
             ))
           )}
         </Sheet>
+        <ChatToastHost notifs={notifs} myType="brand" />
       </div>
     </BizProvider>
   );

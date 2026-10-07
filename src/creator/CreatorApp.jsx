@@ -22,6 +22,7 @@ import DashboardPage from './DashboardPage.jsx';
 import VerificationPage from './VerificationPage.jsx';
 import BookingsPage from './BookingsPage.jsx';
 import BookingDetailModal from './BookingDetailModal.jsx';
+import ChatToastHost from '../components/ChatToastHost.jsx';
 import EarningsPage from './EarningsPage.jsx';
 import AdCampaignPage from './AdCampaignPage.jsx';
 import PromoDemoSection from './PromoDemoSection.jsx';
@@ -364,6 +365,7 @@ export default function CreatorApp({ onSwitchRole }) {
         danger
         onConfirm={doLogout}
       />
+      <ChatToastHost notifs={notifs} myType="creator" />
     </div>
   );
 }

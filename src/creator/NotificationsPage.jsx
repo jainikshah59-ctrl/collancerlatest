@@ -13,7 +13,7 @@ const TYPE_TONE = {
   booking_received: 'amber', verification_approved: 'green', verification_rejected: 'red',
   payment_approved: 'green', completion_rejected: 'red', payout_approved: 'cyan',
   payout_rejected: 'red', payout_paid: 'green', offer_rejected: 'red', ad_success: 'cyan',
-  video_removed: 'red',
+  video_removed: 'red', chat_message: 'cyan',
 };
 
 function typeLabel(t) {
