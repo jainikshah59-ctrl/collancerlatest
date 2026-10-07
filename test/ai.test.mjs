@@ -290,9 +290,9 @@ describe('creatorAi', () => {
     assert.match(r.answer, /Pending: 1/);
   });
 
-  it('computes earnings buckets at 95% share', async () => {
+  it('computes earnings buckets at 93% share', async () => {
     const r = await askCreatorAI('my earnings', { creator, bookings: [{ status: 'Completed', creatorPrice: 10000 }] });
-    assert.match(r.answer, /₹9,500/);
+    assert.match(r.answer, /₹9,300/);
   });
 
   it('reports payout status and verification state', async () => {

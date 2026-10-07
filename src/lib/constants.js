@@ -5,9 +5,9 @@ export const TAGLINE = 'WHERE INFLUENCE MEETS INDUSTRY';
 /* Receiving UPI ID for manual wallet deposits (placeholder — replace with real Collancer UPI ID). */
 export const COLLANCER_UPI_ID = 'collancer@upi';
 
-export const PLATFORM_FEE_PCT = 12; // % added on creator price
+export const PLATFORM_FEE_PCT = 12; // % added on creator price (brand side)
 export const PRO_DISCOUNT_PCT = 5;  // % business-Pro discount on creator price
-export const CREATOR_SHARE_PCT = 95; // % of creatorPrice the creator earns
+export const CREATOR_SHARE_PCT = 93; // % of creatorPrice the creator earns (7% platform cut)
 export const MIN_FOLLOWERS = 10000;
 export const MIN_PAYOUT = 100;
 export const MIN_DEPOSIT = 100;

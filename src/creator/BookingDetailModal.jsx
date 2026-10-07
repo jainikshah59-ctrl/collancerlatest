@@ -246,6 +246,8 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
         completionRequestedAt: serverTimestamp(),
         adminRejected: false,
         adminRejectionReason: null,
+        // 72h brand review window (Collabstr model) — auto-approve if lapsed
+        reviewDeadline: new Date(Date.now() + 72 * 3600 * 1000),
       });
       notifyBiz(b.bizId, 'drive_link_shared', isPersonalAd ? 'Ad video delivered' : 'Delivery submitted',
         `${creator?.handle ? '@' + creator.handle : creator?.name} submitted the delivery link for review.`, b.id);

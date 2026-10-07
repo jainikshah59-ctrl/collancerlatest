@@ -86,6 +86,11 @@ export function buildBookingDoc({
     status: 'Pending',
     seenByCreator: false,
     seenByBiz: true,
+    // 72h deadlines (Collabstr model)
+    acceptDeadline: new Date(Date.now() + 72 * 3600 * 1000), // creator must accept within 72h
+    reviewDeadline: null, // set when creator submits work (72h from submission)
+    autoCancelled: false,
+    autoApproved: false,
     // marketplace linkage
     fromMarketplace: !!fromMarketplace,
     requirementId: requirementId || null,

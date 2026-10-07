@@ -709,3 +709,27 @@ export function Logo({ size = 64, radius, style }) {
     />
   );
 }
+
+/* ---------------- Deadline countdown (72h windows) ---------------- */
+export function DeadlineCountdown({ deadline, label }) {
+  const [_now, _setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => _setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  if (!deadline) return null;
+  const ms = new Date(deadline).getTime() - _now;
+  if (ms <= 0) return (
+    <span className="cl-small" style={{ color: 'var(--danger, #dc2626)', fontWeight: 700 }}>
+      {label} expired
+    </span>
+  );
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const urgent = h < 12;
+  return (
+    <span className="cl-small" style={{ color: urgent ? 'var(--danger, #dc2626)' : 'var(--amber, #d97706)', fontWeight: 600 }}>
+      {label}: {h}h {m}m left
+    </span>
+  );
+}
