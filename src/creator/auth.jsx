@@ -12,6 +12,7 @@ import {
 } from '../lib/firebase.js';
 import { TAGLINE } from '../lib/constants.js';
 import { Button, Field, Input, Card, Page, Logo, useToast } from '../components/ui.jsx';
+import PhoneLoginForm from '../components/PhoneLogin.jsx';
 
 const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
 const phoneOk = (p) => /^[+\d][\d\s-]{7,15}$/.test(String(p || '').trim());
@@ -54,6 +55,7 @@ async function createCreatorDoc(uid, fields) {
 export default function CreatorAuthScreen() {
   const toast = useToast();
   const [mode, setMode] = useState('login'); // login | register
+  const [loginMethod, setLoginMethod] = useState('email'); // email | phone (login tab)
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
@@ -161,6 +163,26 @@ export default function CreatorAuthScreen() {
     }
   }
 
+  async function handlePhoneVerified(user) {
+    setErr('');
+    setBusy(true);
+    try {
+      const { getDocData } = await import('../lib/firebase.js');
+      const c = await getDocData('creators', user.uid);
+      if (!c) {
+        await logout();
+        setErr('No creator account found for this phone number. Please register first.');
+        setLoginMethod('email');
+      } else {
+        toast.ok(`Welcome back, ${c.name?.split(' ')[0] || 'creator'}.`);
+      }
+    } catch {
+      setErr('Login failed. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const pwToggle = (
     <button type="button" onClick={() => setShowPw((s) => !s)} aria-label="Toggle password visibility"
       style={{ position: 'absolute', right: 10, top: 11, border: 0, background: 'none', cursor: 'pointer', color: 'var(--faint)' }}>
@@ -185,7 +207,7 @@ export default function CreatorAuthScreen() {
             <div className="cl-tabs" style={{ marginBottom: 18 }} role="tablist">
               {['login', 'register'].map((m) => (
                 <button key={m} role="tab" aria-selected={mode === m} className={`cl-tab ${mode === m ? 'on' : ''}`}
-                  onClick={() => { setMode(m); setErr(''); }}>
+                  onClick={() => { setMode(m); setLoginMethod('email'); setErr(''); }}>
                   {m === 'login' ? 'Log in' : 'Register'}
                 </button>
               ))}
@@ -262,6 +284,11 @@ export default function CreatorAuthScreen() {
                 That's all we ask — your profile builds itself when you connect Instagram next.
               </p>
             </form>
+          ) : loginMethod === 'phone' ? (
+            <PhoneLoginForm
+              onVerified={handlePhoneVerified}
+              onBack={() => { setLoginMethod('email'); setErr(''); }}
+            />
           ) : (
             <form onSubmit={doLogin}>
               <Field label="Email">
@@ -295,6 +322,10 @@ export default function CreatorAuthScreen() {
                   </svg>
                 )}
                 Continue with Google
+              </Button>
+              <Button block variant="light" onClick={() => { setLoginMethod('phone'); setErr(''); }} disabled={busy}
+                style={{ marginTop: 10 }} icon={Phone}>
+                Continue with Phone
               </Button>
               <p className="cl-small cl-muted" style={{ textAlign: 'center', marginTop: 12 }}>
                 New here? Switch to the Register tab to join as a creator.

@@ -6,6 +6,7 @@ import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, GoogleAuthProvider,
   signInWithPopup, signInWithRedirect, getRedirectResult,
+  RecaptchaVerifier, signInWithPhoneNumber,
 } from 'firebase/auth';
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
@@ -84,6 +85,53 @@ export async function loginGoogleRedirect() {
 export async function handleGoogleRedirectResult() {
   await ensureFirebase();
   try { return await getRedirectResult(_auth); } catch (e) { return null; }
+}
+
+/* ---- Phone OTP login ---- */
+
+let _recaptchaVerifier = null;
+
+function clearRecaptcha() {
+  if (_recaptchaVerifier) {
+    try { _recaptchaVerifier.clear(); } catch (e) { /* noop */ }
+    _recaptchaVerifier = null;
+  }
+}
+
+/**
+ * normalizePhoneNumber(p) -> E.164 string or null.
+ * Indian 10-digit numbers get +91. Anything else must already be
+ * international format (leading +) with 10–15 digits.
+ */
+export function normalizePhoneNumber(p) {
+  const raw = String(p || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (/^91\d{10}$/.test(digits)) return '+' + digits;
+  if (/^\d{10}$/.test(digits)) return '+91' + digits;
+  if (raw.startsWith('+') && digits.length >= 10 && digits.length <= 15) return '+' + digits;
+  return null;
+}
+
+/**
+ * sendPhoneOtp(e164Phone, containerId) -> Promise<ConfirmationResult>.
+ * Renders an invisible reCAPTCHA into the given container and sends the OTP.
+ * The container element must exist in the DOM when this is called.
+ */
+export async function sendPhoneOtp(e164Phone, containerId = 'recaptcha-container') {
+  await ensureFirebase();
+  clearRecaptcha();
+  _recaptchaVerifier = new RecaptchaVerifier(_auth, containerId, { size: 'invisible' });
+  return signInWithPhoneNumber(_auth, e164Phone, _recaptchaVerifier);
+}
+
+/** verifyPhoneOtp(confirmationResult, code) -> Promise<UserCredential>. */
+export function verifyPhoneOtp(confirmationResult, code) {
+  return confirmationResult.confirm(String(code || '').trim());
+}
+
+/** Clear the reCAPTCHA verifier (call on unmount / flow reset). */
+export function clearPhoneRecaptcha() {
+  clearRecaptcha();
 }
 export function watchAuth(cb) {
   ensureFirebase().then(() => onAuthStateChanged(_auth, cb));

@@ -9,6 +9,7 @@ import {
 } from '../lib/firebase.js';
 import { INDUSTRIES, TAGLINE } from '../lib/constants.js';
 import { Button, Field, Input, Select, Page, Logo, useToast } from '../components/ui.jsx';
+import PhoneLoginForm from '../components/PhoneLogin.jsx';
 
 const inputIcon = { width: 16, height: 16, color: 'var(--faint)', flexShrink: 0 };
 
@@ -24,6 +25,7 @@ function LabeledInput({ icon: Icon, ...props }) {
 export default function BusinessAuthScreen({ onSwitchRole, notice }) {
   const toast = useToast();
   const [mode, setMode] = useState('login'); // login | register
+  const [loginMethod, setLoginMethod] = useState('email'); // email | phone (login tab)
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState('');
@@ -140,6 +142,26 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
     } finally { setGoogleBusy(false); }
   }
 
+  async function handlePhoneVerified(user) {
+    setError('');
+    setBusy(true);
+    try {
+      const { db } = await ensureFirebase();
+      const { getDoc } = await import('../lib/firebase.js');
+      const snap = await getDoc(doc(db, 'businesses', user.uid));
+      if (!snap.exists()) {
+        await logout();
+        setError('No business account found for this phone number. Please register first.');
+        setLoginMethod('email');
+      } else {
+        toast.ok('Welcome back.');
+      }
+    } catch (err) {
+      console.error('[biz-auth] phone', err);
+      setError('Login failed. Please try again.');
+    } finally { setBusy(false); }
+  }
+
   return (
     <Page pageKey="biz-auth">
       <div className="cl-container" style={{ paddingTop: 44, paddingBottom: 40, maxWidth: 460 }}>
@@ -162,10 +184,10 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
 
         <div className="cl-card cl-fade">
           <div className="cl-tabs" style={{ marginBottom: 20 }}>
-            <button className={`cl-tab ${mode === 'login' ? 'on' : ''}`} onClick={() => { setMode('login'); setError(''); }}>
+            <button className={`cl-tab ${mode === 'login' ? 'on' : ''}`} onClick={() => { setMode('login'); setLoginMethod('email'); setError(''); }}>
               <LogIn /> Log in
             </button>
-            <button className={`cl-tab ${mode === 'register' ? 'on' : ''}`} onClick={() => { setMode('register'); setError(''); }}>
+            <button className={`cl-tab ${mode === 'register' ? 'on' : ''}`} onClick={() => { setMode('register'); setLoginMethod('email'); setError(''); }}>
               <UserPlus /> Register
             </button>
           </div>
@@ -202,6 +224,11 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
               {error && <p className="cl-error-text" style={{ marginBottom: 12 }}>{error}</p>}
               <Button type="submit" block loading={busy} icon={ArrowRight}>Create business account</Button>
             </form>
+          ) : loginMethod === 'phone' ? (
+            <PhoneLoginForm
+              onVerified={handlePhoneVerified}
+              onBack={() => { setLoginMethod('email'); setError(''); }}
+            />
           ) : (
             <form onSubmit={handleLogin}>
               <Field label="Email">
@@ -219,6 +246,10 @@ export default function BusinessAuthScreen({ onSwitchRole, notice }) {
               </div>
               <Button variant="light" block loading={googleBusy} onClick={handleGoogle} icon={Briefcase}>
                 Continue with Google
+              </Button>
+              <Button variant="light" block onClick={() => { setLoginMethod('phone'); setError(''); }}
+                disabled={busy || googleBusy} style={{ marginTop: 10 }} icon={Phone}>
+                Continue with Phone
               </Button>
             </form>
           )}
