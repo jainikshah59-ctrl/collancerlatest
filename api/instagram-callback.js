@@ -18,11 +18,15 @@ const go = (res, reason) =>
   res.writeHead(302, { Location: `${APP_URL}/?ig=${reason}` }).end();
 
 async function postForm(url, params) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params).toString(),
-  });
+  // Meta documents the code->token exchange with multipart/form-data
+  // (curl -F). A urlencoded body is REJECTED with the misleading
+  // "Error validating verification code. Please make sure your redirect_uri
+  // is identical to the one you used in the OAuth dialog request" - which
+  // sends you hunting redirect URIs while the real problem is the encoding.
+  // (Root-caused 2026-10-07; see research notes.)
+  const form = new FormData();
+  for (const [k, v] of Object.entries(params)) form.append(k, String(v));
+  const r = await fetch(url, { method: 'POST', body: form });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     // Surface Instagram's error so we can tell a bad client_secret apart
@@ -32,8 +36,11 @@ async function postForm(url, params) {
     const msg = raw.replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
     const e = new Error(`token-failed: ${msg}`);
     e.code = 'TOKEN_FAILED_DIAG';
-    // Instagram's "Error validating verification code" means the code expired
-    // (user took too long on the authorize page) or was already used.
+    // Instagram's "Error validating verification code" is misleading: besides
+    // a genuinely expired/used code (codes are single-use, valid 1h per Meta
+    // docs - NOT minutes), Instagram returns this exact message when the
+    // exchange body isn't multipart/form-data (fixed above) or when the app
+    // secret doesn't match the Instagram use-case secret (Jainik-side check).
     if (/validating verification code/i.test(raw)) e.code = 'CODE_EXPIRED';
     throw e;
   }
