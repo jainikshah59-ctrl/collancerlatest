@@ -72,7 +72,7 @@ export default async function handler(req, res) {
         note: 'Auto-approved: brand did not review within 72 hours',
       });
       // Notify admin via payouts queue
-      const payoutRef = db.collection('payouts').doc();
+      const payoutRef = db.collection('payoutRequests').doc();
       batch.set(payoutRef, {
         bookingId: doc.id, creatorId: b.creatorId,
         amount: Math.round((b.creatorPrice || 0) * 0.93), // 7% creator fee

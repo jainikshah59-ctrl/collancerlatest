@@ -17,6 +17,7 @@ import {
   Modal, Card, Button, Badge, Field, Input, TextArea, useToast,
 } from '../components/ui.jsx';
 import { statusTone, statusLabel } from './BookingsPage.jsx';
+import BookingChat from '../components/BookingChat.jsx';
 
 const urlOk = (u) => /^https?:\/\/.+\..+/.test(String(u || '').trim());
 
@@ -404,6 +405,16 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
         </Card>
       )}
 
+      {/* Revision requested by brand */}
+      {b.revisionRequested && b.revisionNote && (
+        <Card style={{ marginTop: 14, background: 'var(--amber-soft)', borderColor: 'transparent' }}>
+          <div className="cl-small" style={{ fontWeight: 700, color: 'var(--amber, #d97706)', marginBottom: 4 }}>
+            Revision requested (#{b.revisionCount || 1})
+          </div>
+          <div className="cl-small" style={{ lineHeight: 1.6 }}>{b.revisionNote}</div>
+        </Card>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
         {canAct && !rejectOpen && (
@@ -459,6 +470,7 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
             </div>
           </Card>
         )}
+        <BookingChat bookingId={b.id} senderType="creator" senderName={creator?.name || 'Creator'} />
         <Button variant="light" block onClick={onClose}>Close</Button>
       </div>
     </Modal>

@@ -13,9 +13,10 @@ import { ensureFirebase, updateDoc, doc, addDoc, collection, getDocs, query, whe
 import { fileToDataURL } from '../lib/cloudinary.js';
 import { inr, timeAgo } from '../lib/format.js';
 import { BOOKING_STATUS } from '../lib/constants.js';
+import BookingChat from '../components/BookingChat.jsx';
 import {
   Card, Avatar, Badge, Button, Stat, EmptyState, Sheet, Field, Input,
-  TextArea, ConfirmDialog, IconBtn, Page, useToast,
+  TextArea, ConfirmDialog, IconBtn, Page, useToast, DeadlineCountdown,
 } from '../components/ui.jsx';
 
 const STATUS_TONE = {
@@ -40,6 +41,11 @@ function BookingDetail({ booking, onClose, onReviewed }) {
   const [stars, setStars] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [sending, setSending] = useState(false);
+  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionNote, setRevisionNote] = useState('');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [acting, setActing] = useState(false);
 
   async function cancelBooking() {
     if (!cancelReason.trim()) { toast.err('Please give a short reason for cancelling.'); return; }
@@ -60,6 +66,77 @@ function BookingDetail({ booking, onClose, onReviewed }) {
       console.error('[dash] cancel', err);
       toast.err('Could not cancel the booking. Please try again.');
     } finally { setCancelling(false); }
+  }
+
+  async function approveDelivery() {
+    setActing(true);
+    try {
+      const { db } = await ensureFirebase();
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'Completed',
+        approvedAt: serverTimestamp(),
+        approvedByBiz: true,
+        payoutStatus: 'pending_admin_release',
+        updatedAt: serverTimestamp(),
+      });
+      // Queue payout
+      await addDoc(collection(db, 'payoutRequests'), {
+        bookingId: booking.id,
+        creatorId: booking.creatorId,
+        amount: Math.round((booking.creatorPrice || 0) * 0.93),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        note: 'Brand-approved payout',
+      });
+      toast.ok('Approved! Payout queued for the creator.');
+      onClose();
+    } catch (err) {
+      toast.err('Could not approve. Please try again.');
+    } finally { setActing(false); }
+  }
+
+  async function requestRevision() {
+    if (!revisionNote.trim()) { toast.err('Please describe what needs to change.'); return; }
+    setActing(true);
+    try {
+      const { db } = await ensureFirebase();
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'Active',
+        revisionRequested: true,
+        revisionNote: revisionNote.trim(),
+        revisionCount: (booking.revisionCount || 0) + 1,
+        revisionRequestedAt: serverTimestamp(),
+        reviewDeadline: null, // reset, will be set on resubmission
+        updatedAt: serverTimestamp(),
+      });
+      toast.ok('Revision requested. The creator has been notified.');
+      setRevisionOpen(false);
+      setRevisionNote('');
+      onClose();
+    } catch (err) {
+      toast.err('Could not request revision. Please try again.');
+    } finally { setActing(false); }
+  }
+
+  async function openDispute() {
+    if (!disputeReason.trim()) { toast.err('Please describe the issue.'); return; }
+    setActing(true);
+    try {
+      const { db } = await ensureFirebase();
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'Disputed',
+        disputeReason: disputeReason.trim(),
+        disputeOpenedAt: serverTimestamp(),
+        disputeOpenedBy: 'brand',
+        updatedAt: serverTimestamp(),
+      });
+      toast.ok('Dispute opened. Our team will review and decide.');
+      setDisputeOpen(false);
+      setDisputeReason('');
+      onClose();
+    } catch (err) {
+      toast.err('Could not open dispute. Please try again.');
+    } finally { setActing(false); }
   }
 
   async function submitReview() {
@@ -181,8 +258,32 @@ function BookingDetail({ booking, onClose, onReviewed }) {
         <div className="cl-kv"><dt>Method</dt><dd style={{ textTransform: 'capitalize' }}>{booking.paymentMethod || '—'}</dd></div>
       </Card>
 
+      <BookingChat bookingId={booking.id} senderType="brand" senderName={biz?.bizName || 'Brand'} />
+
       {booking.status === 'Pending' && (
         <Button variant="danger" block onClick={() => setCancelOpen(true)}>Cancel booking</Button>
+      )}
+
+      {booking.status === 'PendingCompletion' && (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+          <DeadlineCountdown deadline={booking.reviewDeadline} label="Review window" />
+          <Button block size="lg" loading={acting} icon={CheckCircle2} onClick={approveDelivery}
+            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none' }}>
+            Approve & Release Payment
+          </Button>
+          <div className="cl-row" style={{ gap: 10 }}>
+            <div className="cl-grow">
+              <Button block variant="light" onClick={() => setRevisionOpen(true)}>Request Revision</Button>
+            </div>
+            <div className="cl-grow">
+              <Button block variant="light" onClick={() => setDisputeOpen(true)}
+                style={{ color: 'var(--danger, #dc2626)' }}>Open Dispute</Button>
+            </div>
+          </div>
+          <p className="cl-small cl-muted" style={{ textAlign: 'center', lineHeight: 1.5 }}>
+            Auto-approves if you don't act within 72 hours.
+          </p>
+        </div>
       )}
 
       {booking.status === 'Completed' && (
@@ -210,6 +311,41 @@ function BookingDetail({ booking, onClose, onReviewed }) {
         loading={cancelling}
         onConfirm={cancelBooking}
       />
+      <ConfirmDialog
+        open={revisionOpen}
+        onClose={() => { setRevisionOpen(false); setRevisionNote(''); }}
+        title="Request revision"
+        body="Describe what needs to change. The creator will be notified and can resubmit."
+        confirmLabel="Send revision request"
+        loading={acting}
+        onConfirm={requestRevision}
+      />
+      {revisionOpen && (
+        <div style={{ marginTop: 12 }}>
+          <Field label="What needs to change?">
+            <TextArea value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)}
+              placeholder="e.g. Please re-shoot the intro, audio is unclear..." />
+          </Field>
+        </div>
+      )}
+      <ConfirmDialog
+        open={disputeOpen}
+        onClose={() => { setDisputeOpen(false); setDisputeReason(''); }}
+        title="Open dispute"
+        body="Our team will review and make a final decision. This pauses the 72h auto-approve."
+        confirmLabel="Open dispute"
+        danger
+        loading={acting}
+        onConfirm={openDispute}
+      />
+      {disputeOpen && (
+        <div style={{ marginTop: 12 }}>
+          <Field label="Describe the issue">
+            <TextArea value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="e.g. Deliverables don't match the brief..." />
+          </Field>
+        </div>
+      )}
       {!cancelOpen && booking.status === 'Pending' && (
         <div style={{ marginTop: 12 }}>
           <Field label="Cancellation reason">

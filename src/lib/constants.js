@@ -66,6 +66,7 @@ export const BOOKING_STATUS = {
   PENDING_COMPLETION: 'PendingCompletion',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
+  DISPUTED: 'Disputed',
 };
 
 export const DEMO_TYPES = ['Product Review', 'Unboxing', 'Tutorial', 'Lifestyle Vlog', 'Ad Shoot', 'Testimonial'];

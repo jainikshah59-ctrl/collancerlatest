@@ -142,23 +142,59 @@ service cloud.firestore {
         && !('adminRevenueId' in request.resource.data);
 
       allow update: if isAdmin()
-        // creator transitions: Pending -> Accepted/Rejected; delivery submit on active bookings
-        || (isAuthed() && resource.data.creatorId == request.auth.uid && (
-          (resource.data.status == 'Pending'
-            && request.resource.data.status in ['Accepted', 'Rejected']
-            && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'acceptedAt', 'acceptedByCreator', 'rejectedAt', 'rejectedByCreator', 'rejectionReason', 'seenByCreator']))
-          || (resource.data.status in ['Accepted', 'Active']
-            && request.resource.data.status == resource.data.status
-            && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['deliverySubmittedAt', 'promotedVideoLink', 'driveLink', 'driveLinkSentToBiz', 'referenceMediaFiles', 'seenByCreator']))
-        ))
-        // business cancellation: Pending/Accepted -> Cancelled
+        // CREATOR/brand mark-as-seen (no status change)
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByCreator']))
         || (isAuthed() && resource.data.bizId == request.auth.uid
-          && resource.data.status in ['Pending', 'Accepted']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByBiz']))
+        // CREATOR accept: Pending -> Active
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'Pending'
+          && request.resource.data.status == 'Active'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'acceptedAt', 'acceptedByCreator', 'seenByCreator',
+              'creatorAddress', 'addressSharedAt', 'addressSharedTo']))
+        // CREATOR reject: Pending -> Cancelled
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'Pending'
           && request.resource.data.status == 'Cancelled'
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'cancelledAt', 'cancelledByBiz', 'cancelReason', 'seenByBiz']));
+            .hasOnly(['status', 'rejectedAt', 'rejectedByCreator', 'rejectionReason',
+              'refundProcessed', 'refundAmount', 'refundStatus', 'refundedAt', 'seenByCreator']))
+        // CREATOR delivery submit: Active -> PendingCompletion
+        || (isAuthed() && resource.data.creatorId == request.auth.uid
+          && resource.data.status == 'Active'
+          && request.resource.data.status == 'PendingCompletion'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'driveLink', 'promotedVideoLink', 'deliverySubmittedAt',
+              'completionRequestedAt', 'adminRejected', 'adminRejectionReason',
+              'reviewDeadline', 'seenByCreator']))
+        // BUSINESS cancel: Pending/Active -> Cancelled
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && resource.data.status in ['Pending', 'Active']
+          && request.resource.data.status == 'Cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'cancelledAt', 'cancelledByBiz', 'cancelReason', 'seenByBiz']))
+        // BUSINESS approve: PendingCompletion -> Completed
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && resource.data.status == 'PendingCompletion'
+          && request.resource.data.status == 'Completed'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'approvedAt', 'approvedByBiz', 'payoutStatus', 'updatedAt', 'seenByBiz']))
+        // BUSINESS revision: PendingCompletion -> Active
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && resource.data.status == 'PendingCompletion'
+          && request.resource.data.status == 'Active'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'revisionRequested', 'revisionNote', 'revisionCount',
+              'revisionRequestedAt', 'reviewDeadline', 'updatedAt', 'seenByBiz']))
+        // BUSINESS dispute: PendingCompletion -> Disputed
+        || (isAuthed() && resource.data.bizId == request.auth.uid
+          && resource.data.status == 'PendingCompletion'
+          && request.resource.data.status == 'Disputed'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'disputeReason', 'disputeOpenedAt', 'disputeOpenedBy',
+              'updatedAt', 'seenByBiz']));
 
       allow delete: if false;
     }
@@ -187,9 +223,13 @@ service cloud.firestore {
     match /payoutRequests/{id} {
       allow read: if isAdmin() || (isAuthed() && resource.data.creatorId == request.auth.uid);
       allow create: if isAuthed()
-        && request.resource.data.creatorId == request.auth.uid
         && request.resource.data.status == 'pending'
-        && request.resource.data.amount >= 100;
+        && request.resource.data.amount >= 100
+        && (request.resource.data.creatorId == request.auth.uid
+          // brand may queue payout for its completed booking
+          || (request.resource.data.bookingId is string
+            && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.bizId == request.auth.uid
+            && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'Completed'));
       allow update: if isAdmin();
       allow delete: if false;
     }
@@ -272,6 +312,21 @@ service cloud.firestore {
         && request.resource.data.creatorId is string
         && request.resource.data.stars >= 1
         && request.resource.data.stars <= 5;
+      allow update, delete: if false;
+    }
+
+    /* ---------------- booking messages (in-booking chat) ---------------- */
+
+    match /booking_messages/{id} {
+      allow read: if isAdmin() || (isAuthed() && (
+        get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.bizId == request.auth.uid ||
+        get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.creatorId == request.auth.uid));
+      allow create: if isAuthed()
+        && request.resource.data.bookingId is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && (request.resource.data.senderType == 'brand' || request.resource.data.senderType == 'creator');
       allow update, delete: if false;
     }
 
