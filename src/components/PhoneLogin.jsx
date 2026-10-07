@@ -35,9 +35,13 @@ export default function PhoneLoginForm({ mode = 'login', nameLabel = 'Full name'
       setStep('otp');
     } catch (e2) {
       const code = String(e2?.code || '');
-      if (code.includes('invalid-phone-number')) setErr('Please enter a valid phone number.');
+      if (code.includes('invalid-phone-number') || code.includes('missing-phone-number')) setErr('Please enter a valid phone number.');
       else if (code.includes('too-many-requests')) setErr('Too many attempts. Please try again later.');
-      else setErr('Could not send the OTP. Please check the number and try again.');
+      else if (code.includes('operation-not-allowed')) setErr('Phone sign-in is not enabled for this app yet. (auth/operation-not-allowed)');
+      else if (code.includes('quota-exceeded')) setErr('SMS quota exceeded. Please try again later. (auth/quota-exceeded)');
+      else if (code.includes('captcha-check-failed') || code.includes('invalid-app-credential')) setErr('Verification check failed. Please try again. (auth/captcha-check-failed)');
+      else if (code.includes('unauthorized-domain')) setErr('This domain is not authorized for phone sign-in. (auth/unauthorized-domain)');
+      else setErr(`Could not send the OTP. Please check the number and try again.${code ? ` (${code})` : ''}`);
     } finally {
       setBusy(false);
     }
