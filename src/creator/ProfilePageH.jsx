@@ -409,8 +409,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                         position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden',
                         background: 'var(--surface-2)',
                       }}>
-                        {m.thumbnailUrl || m.thumbnail_url ? (
-                          <img src={m.thumbnailUrl || m.thumbnail_url} alt="" loading="lazy"
+                        {(m.url || m.thumbnail || m.thumbnailUrl || m.thumbnail_url) ? (
+                          <img src={m.url || m.thumbnail || m.thumbnailUrl || m.thumbnail_url} alt="" loading="lazy"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>

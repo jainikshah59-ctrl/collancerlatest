@@ -142,7 +142,7 @@ export default async function handler(req, res) {
     let recentMedia = [];
     try {
       let allItems = [];
-      let url = `/me/media?fields=id,media_type,like_count,comments_count,view_count&limit=50`;
+      let url = `/me/media?fields=id,media_type,like_count,comments_count,view_count,media_url,thumbnail_url,permalink,timestamp&limit=50`;
       // Paginate through all media (Instagram returns max 50 per page)
       for (let page = 0; page < 20 && url; page++) {
         const m = await graphGet(url, token);
@@ -154,6 +154,8 @@ export default async function handler(req, res) {
       recentMedia = allItems.slice(0, 12).map(x => ({
         id: x.id, type: x.media_type, likes: x.like_count || 0,
         comments: x.comments_count || 0, views: x.view_count || 0,
+        url: x.media_url || null, thumbnail: x.thumbnail_url || null,
+        permalink: x.permalink || null, timestamp: x.timestamp || null,
       }));
       for (const x of allItems) {
         mediaStats.count++;

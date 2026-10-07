@@ -103,11 +103,14 @@ function OverviewTab({ creator, pro, onBook }) {
       {/* estimates */}
       <Card style={{ marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimates</h4>
-        <div className="cl-kv"><dt>Estimated likes</dt><dd>{compact(avgLikes)}</dd></div>
-        <div className="cl-kv"><dt>Estimated reach</dt><dd>{compact(reach)}</dd></div>
+        <div className="cl-kv"><dt>{creator.instagram?.username ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
+        <div className="cl-kv"><dt>{creator.instagram?.username ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
         <div className="cl-kv"><dt>Conversion range</dt><dd>{compact(convLo)} – {compact(convHi)} actions</dd></div>
         <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
-          Estimates are derived from the creator's reported audience stats.
+          {creator.instagram?.username
+            ? 'Stats synced directly from the creator\'s Instagram account.'
+            : 'Estimates are derived from the creator\'s reported audience stats.'}
+        </p>
         </p>
       </Card>
 
@@ -192,12 +195,12 @@ function DemosTab({ creator, pro, goPage }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {igMedia.map((m) => (
-              <a key={m.id} href={m.permalink || `https://instagram.com/p/${m.id}`} target="_blank" rel="noreferrer"
+              <a key={m.id} href={m.permalink || (igUsername ? `https://instagram.com/${igUsername}` : '#')} target="_blank" rel="noreferrer"
                  style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2)', display: 'block' }}>
-                {m.url ? (
+                {(m.url || m.thumbnail) ? (
                   m.type === 'VIDEO' || m.type === 'REELS'
-                    ? <video src={m.url} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <img src={m.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <video src={m.url || m.thumbnail} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <img src={m.url || m.thumbnail} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
                     <ImageIcon style={{ width: 20, height: 20, color: 'var(--faint)' }} />
