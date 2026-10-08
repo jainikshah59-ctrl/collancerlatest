@@ -32,7 +32,7 @@ const PRICE_KEYS = ['story', 'reel', 'video', 'personalad', 'ytshorts'];
  * the `instagram` object is server-synced and locked by Firestore rules).
  * Empty selection = brands see all recent media (back-compat). */
 function FeaturedContentPicker({ creator, toast }) {
-  const allMedia = creator?.instagram?.recentMedia || [];
+  const allMedia = creator?.instagramClient?.recentMedia || creator?.instagram?.recentMedia || [];
   const [selected, setSelected] = useState(() => new Set(creator?.featuredMediaIds || []));
   const [saving, setSaving] = useState(false);
   const [viewerMedia, setViewerMedia] = useState(null);
@@ -56,11 +56,8 @@ function FeaturedContentPicker({ creator, toast }) {
     setSaving(true);
     try {
       const { db } = await ensureFirebase();
-      const selectedIds = Array.from(selected);
-      const selectedMedia = allMedia.filter((m) => selected.has(m.id));
       await updateDoc(doc(db, 'creators', creator.id), {
-        featuredMediaIds: selectedIds,
-        featuredMedia: selectedMedia,
+        featuredMediaIds: Array.from(selected),
         updatedAt: serverTimestamp(),
       });
       toast.ok(selected.size === 0
@@ -147,72 +144,6 @@ function FeaturedContentPicker({ creator, toast }) {
   );
 }
 
-function InstagramInsightsCard({ creator }) {
-  const ig = creator?.instagram || null;
-  const ins = ig?.accountInsights;
-  if (!ig || !ins) return null;
-  const t = ins.totals || {};
-  const growth = ins.followerGrowth || [];
-  const firstFollowers = Number(growth[0]?.v || 0);
-  const lastFollowers = Number(growth[growth.length - 1]?.v || 0);
-  const followerDelta = growth.length > 1 ? lastFollowers - firstFollowers : 0;
-  const metrics = [
-    ['Views · 30 days', ig.views30d ?? t.views],
-    ['Reach · 30 days', ig.reach ?? t.reach],
-    ['Profile views', ig.profileViews ?? t.profile_views],
-    ['Accounts engaged', ig.accountsEngaged ?? t.accounts_engaged],
-    ['Total interactions', ig.totalInteractions ?? t.total_interactions],
-    ['Likes', ig.likes30d ?? t.likes],
-    ['Comments', ig.comments30d ?? t.comments],
-    ['Shares', ig.shares30d ?? t.shares],
-    ['Saves', ig.saves30d ?? t.saves],
-    ['Replies', ig.replies30d ?? t.replies],
-    ['Follows / unfollows', ig.followsAndUnfollows30d ?? t.follows_and_unfollows],
-    ['Profile link taps', ig.profileLinksTaps30d ?? t.profile_links_taps],
-  ];
-  const audience = ig.audience || {};
-  const top = (arr) => (arr || []).slice(0, 5);
-  return (
-    <Card className="cl-glass">
-      <div className="cl-row" style={{ marginBottom: 12 }}>
-        <div className="cl-grow">
-          <h3 style={{ fontSize: 16 }}>Instagram Insights</h3>
-          <p className="cl-small cl-muted" style={{ marginTop: 3 }}>Live data pulled from Instagram · last 30 days</p>
-        </div>
-        <Badge tone="cyan">Live</Badge>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
-        {metrics.map(([label, value]) => (
-          <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' }}>
-            <div className="cl-money" style={{ fontSize: 16 }}>{value == null ? '—' : compact(Number(value) || 0)}</div>
-            <div className="cl-small cl-muted" style={{ fontSize: 11 }}>{label}</div>
-          </div>
-        ))}
-      </div>
-      {growth.length > 1 && (
-        <div style={{ marginTop: 12 }} className="cl-kv">
-          <dt>Follower change · 30 days</dt>
-          <dd>{followerDelta >= 0 ? '+' : ''}{compact(followerDelta)}</dd>
-        </div>
-      )}
-      {(audience.countries?.length || audience.cities?.length || audience.genderAge?.length) > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div className="cl-small cl-muted" style={{ fontWeight: 700, marginBottom: 8 }}>Audience demographics</div>
-          {top(audience.countries).length > 0 && (
-            <div className="cl-small" style={{ marginBottom: 5 }}>Top countries: {top(audience.countries).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
-          )}
-          {top(audience.cities).length > 0 && (
-            <div className="cl-small" style={{ marginBottom: 5 }}>Top cities: {top(audience.cities).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
-          )}
-          {top(audience.genderAge).length > 0 && (
-            <div className="cl-small">Age / gender: {top(audience.genderAge).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
-          )}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export default function ProfilePageH({ creator, onBack, onLogout, initialTab, isPro }) {
   const toast = useToast();
   const photoRef = useRef(null);
@@ -220,9 +151,21 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
 
-  // Instagram data is canonical in creator.instagram. Never prefer the
-  // legacy instagramClient cache because it can resurrect stale values after reload.
-  const profileCreator = creator;
+  // Keep the mounted profile in sync immediately after Instagram refresh.
+  const [syncedInstagram, setSyncedInstagram] = useState(null);
+  const profileCreator = syncedInstagram
+    ? {
+        ...creator,
+        instagram: { ...(creator.instagram || {}), ...syncedInstagram },
+        instagramClient: syncedInstagram,
+        followers: syncedInstagram.followersCount ?? creator.followers,
+        engagement: syncedInstagram.engagementRate ?? creator.engagement,
+        avgViews: syncedInstagram.avgViews ?? creator.avgViews,
+        avgLikes: syncedInstagram.avgLikes ?? creator.avgLikes,
+        reach: syncedInstagram.reach ?? creator.reach,
+        profileViews: syncedInstagram.profileViews ?? creator.profileViews,
+      }
+    : creator;
 
   // ---- profile tab state ----
   const [p, setP] = useState({
@@ -236,6 +179,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   });
   const setPField = (k) => (e) => setP((prev) => ({ ...prev, [k]: e.target.value }));
   const handleInstagramSynced = (instagram) => {
+    setSyncedInstagram(instagram);
     setP((prev) => ({
       ...prev,
       name: instagram.name || prev.name,
@@ -248,28 +192,6 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       reach: String(instagram.reach ?? prev.reach),
     }));
   };
-
-  useEffect(() => {
-    const ig = profileCreator.instagram;
-    if (!ig) return;
-    setP((prev) => ({
-      ...prev,
-      name: ig.name || prev.name,
-      handle: ig.username || prev.handle,
-      bio: ig.bio ?? prev.bio,
-      followers: String(ig.followersCount ?? prev.followers),
-      engagement: String(ig.engagementRate ?? prev.engagement),
-      avgViews: String(ig.avgViews ?? prev.avgViews),
-      avgLikes: String(ig.avgLikes ?? prev.avgLikes),
-      reach: String(ig.reach ?? prev.reach),
-    }));
-  }, [
-    profileCreator.instagram?.lastSyncedAt,
-    profileCreator.instagram?.username,
-    profileCreator.instagram?.followersCount,
-    profileCreator.instagram?.views30d,
-    profileCreator.instagram?.reach,
-  ]);
 
   // ---- rate card state ----
   const [prices, setPrices] = useState(() => {
@@ -425,7 +347,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
           }} />
         )}
-        {igConnected && <InstagramInsightsCard creator={profileCreator} />}\n        {/* Header card */}
+        {/* Header card */}
         <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 14 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -624,7 +546,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     Connect Instagram
                   </Button>
                 </div>
-              ) : ((profileCreator.instagram?.recentMedia?.length) > 0 ? (
+              ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={profileCreator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
@@ -697,7 +619,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             </Card>
             <Card>
               <ThemeToggle pro={isPro} />
-              <Button variant="danger" block onClick={() => setLogoutOpen(true)} icon={LogOut}>Log out</Button>
+              <Button variant="danger" block onClick={() => setLogoutOpen(true)} icon={LogOut} style={{ marginBottom: 76 }}>Log out</Button>
             </Card>
           </form>
         )}

@@ -65,12 +65,11 @@ function Stars({ value, onPick, size = 22 }) {
 }
 
 function OverviewTab({ creator, pro, onBook }) {
-  const ig = creator.instagram || null;
-  const followers = Number(ig?.followersCount || creator.followers || creator.ytSubscribers || 0);
-  const engagement = Number(creator.engagement || ig?.engagementRate || 0);
-  const avgViews = Number(creator.avgViews || ig?.avgViews || 0);
-  const avgLikes = Number(creator.avgLikes || ig?.avgLikes || 0);
-  const reach = Number(creator.reach || ig?.reach || 0);
+  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
+  const engagement = Number(creator.engagement || 0);
+  const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
+  const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
+  const reach = Number(creator.reach || Math.round(avgViews * 1.4));
   const convLo = (reach * 0.005).toFixed(0);
   const convHi = (reach * 0.02).toFixed(0);
 
@@ -105,8 +104,8 @@ function OverviewTab({ creator, pro, onBook }) {
       {/* estimates */}
       <Card style={{ marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimates</h4>
-        <div className="cl-kv"><dt>{(creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
-        <div className="cl-kv"><dt>{(creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
         <div className="cl-kv"><dt>Conversion range</dt><dd>{compact(convLo)} – {compact(convHi)} actions</dd></div>
         <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
           {(creator.instagramClient?.username || creator.instagram?.username)
@@ -167,14 +166,11 @@ function DemosTab({ creator, pro, goPage }) {
   // Instagram reels/posts — creator picks which ones brands see
   // (creator.featuredMediaIds); falls back to recent sync when unset.
   // Prefer instagramClient (direct browser sync) over instagram (server sync).
-  const igData = creator?.instagram || {};
+  const igData = creator?.instagramClient || creator?.instagram || {};
   const allIg = igData.recentMedia || [];
   const featuredIds = creator?.featuredMediaIds || [];
-  const savedFeatured = creator?.featuredMedia || [];
   const igMedia = featuredIds.length > 0
-    ? featuredIds.map((id) =>
-        allIg.find((m) => m.id === id) || savedFeatured.find((m) => m.id === id)
-      ).filter(Boolean)
+    ? allIg.filter((m) => featuredIds.includes(m.id))
     : allIg;
   const igUsername = igData.username || '';
   useEffect(() => {
@@ -271,17 +267,17 @@ function DemosTab({ creator, pro, goPage }) {
 function AnalyticsTab({ creator, pro, goPage }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   if (!pro) return <ProLock goPage={goPage} />;
-  // Server-synced Instagram data is the canonical source of truth.
-  const ig = creator?.instagram || {};
+  // Prefer instagramClient (direct browser sync) over instagram (server sync)
+  const ig = creator?.instagramClient || creator?.instagram || {};
   const hasIg = !!ig.username;
   const totals = ig.accountInsights?.totals || {};
   const audience = ig.audience || {};
   const growth = ig.accountInsights?.followerGrowth || [];
 
-  const followers = Number(creator.instagram?.followersCount ?? creator.followers ?? creator.ytSubscribers ?? 0);
+  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
-  const avgViews = Number(creator.avgViews ?? 0);
-  const avgLikes = Number(creator.avgLikes ?? 0);
+  const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
+  const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
   const likeRate = avgViews > 0 ? (avgLikes / avgViews) * 100 : 0;
   const viewRate = followers > 0 ? (avgViews / followers) * 100 : 0;
 
@@ -321,17 +317,11 @@ function AnalyticsTab({ creator, pro, goPage }) {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               {[
-                { label: 'Views (30d)', value: compact(totals.views || 0) },
                 { label: 'Reach (30d)', value: compact(totals.reach || 0) },
-                { label: 'Profile views', value: compact(totals.profile_views || 0) },
+                { label: 'Profile views (30d)', value: compact(totals.profile_views || 0) },
+                { label: 'Website taps (30d)', value: compact(totals.website_clicks || 0) },
                 { label: 'Accounts engaged', value: compact(totals.accounts_engaged || 0) },
                 { label: 'Total interactions', value: compact(totals.total_interactions || 0) },
-                { label: 'Likes (30d)', value: compact(totals.likes || 0) },
-                { label: 'Comments (30d)', value: compact(totals.comments || 0) },
-                { label: 'Shares (30d)', value: compact(totals.shares || 0) },
-                { label: 'Saves (30d)', value: compact(totals.saves || 0) },
-                { label: 'Follows / unfollows', value: compact(totals.follows_and_unfollows || 0) },
-                { label: 'Profile link taps', value: compact(totals.profile_links_taps || 0) },
                 { label: 'Follower growth (30d)', value: (growthDelta >= 0 ? '+' : '') + compact(growthDelta) },
               ].map((s) => (
                 <div key={s.label} style={{

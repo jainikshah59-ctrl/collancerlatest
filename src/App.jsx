@@ -70,7 +70,13 @@ function RoleSelect({ onPick }) {
           ))}
         </div>
         <p className="cl-small cl-muted" style={{ textAlign: 'center', marginTop: 26 }}>
-          By continuing you agree to our Terms &amp; Privacy Policy.
+          By continuing you agree to our{' '}
+          <button
+            onClick={() => { window.location.href = '/?legal=privacy'; }}
+            style={{ background: 'none', border: 0, padding: 0, color: 'var(--cyan)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
+          >
+            Terms & Privacy Policy
+          </button>.
         </p>
       </div>
     </Page>

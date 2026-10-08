@@ -182,12 +182,7 @@ export function normalizeCreator(raw) {
   const categories = Array.isArray(r.categories) ? r.categories
     : (r.niche ? [r.niche] : []);
   const handle = String(r.handle || r.username || '').replace(/^@/, '');
-  // Preserve the complete Firestore creator record alongside canonical fields.
-  // Brand-side CreatorProfile receives this normalized object from the live
-  // creators snapshot; dropping fields here makes creator edits and featured
-  // Instagram media invisible on the brand side even though Firestore updated.
   return {
-    ...r,
     id: String(r.id || r.uid || handle || ''),
     name: String(r.name || r.displayName || handle || 'Creator'),
     handle,

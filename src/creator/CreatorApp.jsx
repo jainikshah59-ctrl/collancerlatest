@@ -225,47 +225,18 @@ export default function CreatorApp({ onSwitchRole }) {
     } catch { /* noop */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ---- Instagram live sync ----
-   * Firestore is the canonical profile source. The server refresh is triggered
-   * immediately, when the tab becomes visible/focused, and every 60 seconds.
-   * Instagram itself is never called directly from the browser.
-   */
+  /* ---- Instagram live sync: refresh stale data in the background ---- */
   useEffect(() => {
-    if (!uid || !creator?.instagram) return;
+    if (!uid || !creator?.instagram || !needsInstagramSync(creator)) return;
     let cancelled = false;
-    let running = false;
-
-    const sync = async (force = false) => {
-      if (cancelled || running || document.visibilityState === 'hidden') return;
-      running = true;
+    (async () => {
       try {
-        const j = await refreshInstagram(force);
-        if (cancelled) return;
-        if (j?.reason === 'token-expired') {
-          toast.err('Instagram session expired — please reconnect.');
-        }
-      } catch (e) {
-        console.warn('[instagram-live-sync]', e);
-      } finally {
-        running = false;
-      }
-    };
-
-    sync(false);
-    const timer = window.setInterval(() => sync(false), 60 * 1000);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') sync(false);
-    };
-    const onFocus = () => sync(false);
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onFocus);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [uid, !!creator?.instagram]); // eslint-disable-line react-hooks/exhaustive-deps
+        const j = await refreshInstagram(false);
+        if (!cancelled && j?.ok && !j.fresh) toast.ok('Instagram data refreshed.');
+      } catch { /* silent — profile still shows cached data */ }
+    })();
+    return () => { cancelled = true; };
+  }, [uid, creator?.instagram?.lastSyncedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- navigation helpers ---- */
   const go = (p, sub) => {
