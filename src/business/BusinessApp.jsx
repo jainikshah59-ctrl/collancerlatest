@@ -14,7 +14,7 @@ import {
 import { dedupeCreators } from '../ai/engine.js';
 import {
   ensureFirebase, watchAuth, logout, doc, onSnapshot, collection,
-  query, where, updateDoc,
+  query, where, updateDoc, getDoc,
 } from '../lib/firebase.js';
 import { BizProvider, tsMs, isBizPro } from './ctx.jsx';
 import BusinessAuthScreen from './auth.jsx';
@@ -253,6 +253,19 @@ export default function BusinessApp({ onSwitchRole }) {
     } catch (e) { /* noop */ }
   }
 
+  async function openNegotiationNotification(n) {
+    if (!n?.negotiationId) return;
+    try {
+      const snap = await getDoc(doc(db(), 'negotiations', n.negotiationId));
+      if (!snap.exists()) return toast.err('This negotiation is no longer available.');
+      const d = { id: snap.id, ...snap.data() };
+      const c = creators.find((x) => x.id === d.creatorId);
+      if (!c) return toast.err('Creator is no longer available.');
+      setNegotiation({ creator: c, negotiationId: d.id, packageKey: d.packageKey });
+      setInboxOpen(false);
+    } catch { toast.err('Could not open the negotiation.'); }
+  }
+
   async function markOneRead(id) {
     try {
       const { db } = await ensureFirebase();
@@ -407,7 +420,7 @@ export default function BusinessApp({ onSwitchRole }) {
             notifs.map((n) => (
               <Card
                 key={n.id}
-                onClick={() => markOneRead(n.id)}
+                onClick={() => { markOneRead(n.id); if (n.negotiationId) openNegotiationNotification(n); }}
                 style={{
                   marginBottom: 10, cursor: 'pointer',
                   borderLeft: n.read ? undefined : '3px solid var(--cyan)',
