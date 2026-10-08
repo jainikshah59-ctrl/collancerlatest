@@ -338,7 +338,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const live = isLive(profileCreator);
 
   return (
-    <Page pageKey="profileCreator-profile">
+    <Page pageKey="creator-profile">
       <TopBar title="Profile" subtitle={igConnected ? `@${profileCreator.instagram.username}` : (profileCreator.handleLower ? `@${profileCreator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
