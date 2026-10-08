@@ -27,7 +27,10 @@ import CashfreeDemoPay from '../components/CashfreeDemoPay.jsx';
 const STAGES = ['Type', 'Package', 'Details', 'Review', 'Payment', 'Sent'];
 
 function priceFor(creator, key) {
-  if (creator.prices && Number(creator.prices[key]) > 0) return Number(creator.prices[key]);
+  const base = Number(creator.prices?.[key] || 0);
+  const sale = Number(creator.discountedPrices?.[key] || 0);
+  if (sale > 0 && base > 0 && sale < base) return sale;
+  if (base > 0) return base;
   return Number(creator.price) || 0;
 }
 
