@@ -32,7 +32,7 @@ const PRICE_KEYS = ['story', 'reel', 'video', 'personalad', 'ytshorts'];
  * the `instagram` object is server-synced and locked by Firestore rules).
  * Empty selection = brands see all recent media (back-compat). */
 function FeaturedContentPicker({ creator, toast }) {
-  const allMedia = creator?.instagramClient?.recentMedia || creator?.instagram?.recentMedia || [];
+  const allMedia = creator?.instagram?.recentMedia || [];
   const [selected, setSelected] = useState(() => new Set(creator?.featuredMediaIds || []));
   const [saving, setSaving] = useState(false);
   const [viewerMedia, setViewerMedia] = useState(null);
@@ -220,21 +220,9 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
 
-  // Keep the mounted profile in sync immediately after Instagram refresh.
-  const [syncedInstagram, setSyncedInstagram] = useState(null);
-  const profileCreator = syncedInstagram
-    ? {
-        ...creator,
-        instagram: { ...(creator.instagram || {}), ...syncedInstagram },
-        instagramClient: syncedInstagram,
-        followers: syncedInstagram.followersCount ?? creator.followers,
-        engagement: syncedInstagram.engagementRate ?? creator.engagement,
-        avgViews: syncedInstagram.avgViews ?? creator.avgViews,
-        avgLikes: syncedInstagram.avgLikes ?? creator.avgLikes,
-        reach: syncedInstagram.reach ?? creator.reach,
-        profileViews: syncedInstagram.profileViews ?? creator.profileViews,
-      }
-    : creator;
+  // Instagram data is canonical in creator.instagram. Never prefer the
+  // legacy instagramClient cache because it can resurrect stale values after reload.
+  const profileCreator = creator;
 
   // ---- profile tab state ----
   const [p, setP] = useState({
@@ -248,7 +236,6 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   });
   const setPField = (k) => (e) => setP((prev) => ({ ...prev, [k]: e.target.value }));
   const handleInstagramSynced = (instagram) => {
-    setSyncedInstagram(instagram);
     setP((prev) => ({
       ...prev,
       name: instagram.name || prev.name,
@@ -261,6 +248,28 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       reach: String(instagram.reach ?? prev.reach),
     }));
   };
+
+  useEffect(() => {
+    const ig = profileCreator.instagram;
+    if (!ig) return;
+    setP((prev) => ({
+      ...prev,
+      name: ig.name || prev.name,
+      handle: ig.username || prev.handle,
+      bio: ig.bio ?? prev.bio,
+      followers: String(ig.followersCount ?? prev.followers),
+      engagement: String(ig.engagementRate ?? prev.engagement),
+      avgViews: String(ig.avgViews ?? prev.avgViews),
+      avgLikes: String(ig.avgLikes ?? prev.avgLikes),
+      reach: String(ig.reach ?? prev.reach),
+    }));
+  }, [
+    profileCreator.instagram?.lastSyncedAt,
+    profileCreator.instagram?.username,
+    profileCreator.instagram?.followersCount,
+    profileCreator.instagram?.views30d,
+    profileCreator.instagram?.reach,
+  ]);
 
   // ---- rate card state ----
   const [prices, setPrices] = useState(() => {
