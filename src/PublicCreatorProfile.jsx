@@ -95,6 +95,14 @@ export default function PublicCreatorProfile({ handle }) {
     return all.filter((m) => ids.includes(m.id)).slice(0, 12);
   }, [creator]);
 
+  const reviewBreakdown = useMemo(() => {
+    const keys = [['communication', 'Communication'], ['timeliness', 'Timeliness'], ['satisfaction', 'Satisfaction']];
+    return keys.map(([key, label]) => {
+      const vals = reviews.map((r) => Number(r.categories?.[key] || 0)).filter(Boolean);
+      return { key, label, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0 };
+    });
+  }, [reviews]);
+
   const avgRating = useMemo(() => {
     if (!reviews.length) return Number(creator?.rating || 0);
     return reviews.reduce((a, r) => a + Number(r.stars || 0), 0) / reviews.length;
@@ -270,6 +278,17 @@ export default function PublicCreatorProfile({ handle }) {
         <h3 style={{ fontSize: 16, marginBottom: 10 }}>
           Reviews {reviews.length > 0 && <span className="cl-muted" style={{ fontWeight: 400 }}>({reviews.length})</span>}
         </h3>
+        {reviews.length > 0 && (
+          <Card style={{ marginBottom: 10 }}>
+            <div className="cl-small cl-muted" style={{ marginBottom: 8 }}>Category ratings</div>
+            {reviewBreakdown.map((r) => r.avg > 0 && (
+              <div key={r.key} className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+                <span className="cl-small" style={{ fontWeight: 600 }}>{r.label}</span>
+                <span className="cl-small"><b>{r.avg.toFixed(1)}</b> / 5</span>
+              </div>
+            ))}
+          </Card>
+        )}
         {reviews.length === 0 ? (
           <p className="cl-small cl-muted">No reviews yet.</p>
         ) : (
