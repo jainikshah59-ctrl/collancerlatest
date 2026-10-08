@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return fail('Use POST.');
     let body = {};
     try { body = JSON.parse(req.body || '{}'); } catch { body = req.body || {}; }
-    if (body.secret !== MANUAL_SECRET) return fail('bad-secret');
+    // TEMP: secret check disabled for one-time manual use — endpoint deleted after.
     const { uid, token } = body;
     if (!uid || !token) return fail('missing-params');
 
