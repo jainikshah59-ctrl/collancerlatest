@@ -170,6 +170,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   // ---- profile tab state ----
   const [p, setP] = useState({
     name: profileCreator.name || '', handle: profileCreator.handle || '', bio: profileCreator.bio || '',
+    headline: profileCreator.headline || '',
     platform: profileCreator.platform || 'Instagram', niche: profileCreator.niche || NICHES[0],
     city: profileCreator.city || 'Mumbai', followers: String(profileCreator.followers || ''),
     engagement: String(profileCreator.engagement || ''), avgViews: String(profileCreator.avgViews || ''),
@@ -204,6 +205,22 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     PRICE_KEYS.forEach((k) => { o[k] = profileCreator.discountedPrices?.[k] ? String(profileCreator.discountedPrices[k]) : ''; });
     return o;
   });
+  // ---- package cards state (Collabstr-style) ----
+  const [pkgMeta, setPkgMeta] = useState(() => {
+    const o = {};
+    PRICE_KEYS.forEach((k) => {
+      const m = profileCreator.packages?.[k] || {};
+      o[k] = {
+        enabled: m.enabled !== false,
+        description: m.description || '',
+        deliveryDays: m.deliveryDays ? String(m.deliveryDays) : '',
+      };
+    });
+    return o;
+  });
+  const setPkg = (k, field) => (e) => setPkgMeta((prev) => ({
+    ...prev, [k]: { ...prev[k], [field]: e?.target ? e.target.value : e },
+  }));
 
   // ---- account tab state ----
   const [a, setA] = useState({
@@ -232,13 +249,15 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     // Instagram-synced details are never written from here — they are managed
     // by the Instagram account and updated server-side only.
     const profileUpd = igConnected ? {
-      name: p.name.trim(), platform: p.platform, niche: p.niche, city: p.city,
+      name: p.name.trim(), headline: p.headline.trim().slice(0, 80),
+      platform: p.platform, niche: p.niche, city: p.city,
       engagement: Number(p.engagement) || 0,
       profileLink: p.profileLink.trim(), ytChannel: p.ytChannel.trim(),
       categories: p.categories, promotionTypes: p.promotionTypes,
       updatedAt: serverTimestamp(),
     } : {
-      name: p.name.trim(), bio: p.bio.trim(), platform: p.platform, niche: p.niche, city: p.city,
+      name: p.name.trim(), bio: p.bio.trim(), headline: p.headline.trim().slice(0, 80),
+      platform: p.platform, niche: p.niche, city: p.city,
       followers: num(p.followers), engagement: Number(p.engagement) || 0,
       avgViews: num(p.avgViews), avgLikes: num(p.avgLikes), reach: num(p.reach),
       profileLink: p.profileLink.trim(), ytChannel: p.ytChannel.trim(),
@@ -283,15 +302,24 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       Object.entries(o).forEach(([k, v]) => { if (v !== '' && Number(v) > 0) out[k] = Math.round(Number(v)); });
       return out;
     };
+    const cleanMeta = {};
+    Object.entries(pkgMeta).forEach(([k, m]) => {
+      cleanMeta[k] = {
+        enabled: !!m.enabled,
+        description: (m.description || '').slice(0, 300),
+        deliveryDays: m.deliveryDays !== '' && Number(m.deliveryDays) > 0 ? Math.round(Number(m.deliveryDays)) : null,
+      };
+    });
     setBusy('rates');
     try {
       await ensureFirebase();
       await updateDoc(doc(db(), 'creators', uid), {
-        prices: clean(prices), discountedPrices: clean(dPrices), updatedAt: serverTimestamp(),
+        prices: clean(prices), discountedPrices: clean(dPrices),
+        packages: cleanMeta, updatedAt: serverTimestamp(),
       });
-      toast.ok('Rate card saved.');
+      toast.ok('Packages saved.');
     } catch (e2) {
-      setErr('Could not save your rate card. Please try again.');
+      setErr('Could not save your packages. Please try again.');
     } finally {
       setBusy(null);
     }
@@ -426,6 +454,10 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     <Lock style={{ position: 'absolute', right: 13, top: 14, width: 14, height: 14, color: 'var(--faint)' }} />
                   )}
                 </div>
+              </Field>
+              <Field label="Headline" hint="One-line tagline shown big on your public profile — e.g. FASHION, BEAUTY & LIFESTYLE CREATOR">
+                <Input value={p.headline} onChange={setPField('headline')}
+                  placeholder="FASHION, BEAUTY & LIFESTYLE CREATOR" maxLength={80} />
               </Field>
               <div className="cl-row" style={{ gap: 10 }}>
                 <div className="cl-grow">
@@ -563,33 +595,62 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         {tab === 'ratecard' && (
           <form onSubmit={saveRates} className="cl-fade">
             <Card>
-              <h3 style={{ fontSize: 16, marginBottom: 4 }}>Rate card</h3>
+              <h3 style={{ fontSize: 16, marginBottom: 4 }}>Your Packages</h3>
               <p className="cl-small cl-muted" style={{ marginBottom: 14, lineHeight: 1.6 }}>
-                Brands book at these prices — they cannot be edited during booking. Set a discounted
-                price to stand out in Pro discovery.
+                Brands hire you by package — like a shop. Enable the services you offer,
+                write what each includes, and set your price. Set a discounted price to
+                stand out in discovery.
               </p>
               <div style={{ display: 'grid', gap: 12 }}>
-                {PRICE_KEYS.map((k) => (
-                  <div key={k} className="cl-row" style={{ gap: 10, alignItems: 'flex-end' }}>
-                    <div className="cl-grow">
-                      <div className="cl-small" style={{ fontWeight: 700, marginBottom: 6 }}>{promoLabel(k)}</div>
-                      <Input value={prices[k]} onChange={(e) => setPrices((p2) => ({ ...p2, [k]: e.target.value }))}
-                        placeholder="MRP" inputMode="numeric" />
+                {PROMO_TYPES.filter((p) => PRICE_KEYS.includes(p.key)).map((p) => {
+                  const k = p.key;
+                  const meta = pkgMeta[k] || {};
+                  return (
+                    <div key={k} style={{
+                      border: '1px solid var(--line)', borderRadius: 12, padding: 12,
+                      opacity: meta.enabled === false ? 0.55 : 1,
+                      background: meta.enabled === false ? 'var(--wash)' : 'transparent',
+                    }}>
+                      <div className="cl-row" style={{ alignItems: 'center', marginBottom: 8 }}>
+                        <Toggle on={meta.enabled !== false} onChange={(v) => setPkgMeta((pr) => ({ ...pr, [k]: { ...pr[k], enabled: v } }))} />
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>1 × {p.label}</div>
+                      </div>
+                      {meta.enabled !== false && (
+                        <>
+                          <div className="cl-small cl-muted" style={{ marginBottom: 8 }}>{p.desc}</div>
+                          <TextArea
+                            value={meta.description || ''}
+                            onChange={setPkg(k, 'description')}
+                            placeholder="What's included? e.g. 1 reel up to 60s, 2 revisions, posted within 5 days…"
+                            rows={2}
+                            style={{ marginBottom: 10 }}
+                          />
+                          <div className="cl-row" style={{ gap: 10, alignItems: 'flex-end' }}>
+                            <div className="cl-grow">
+                              <div className="cl-small" style={{ fontWeight: 700, marginBottom: 6 }}>Price (₹)</div>
+                              <Input value={prices[k]} onChange={(e) => setPrices((p2) => ({ ...p2, [k]: e.target.value }))}
+                                placeholder="e.g. 2500" inputMode="numeric" />
+                            </div>
+                            <div className="cl-grow">
+                              <div className="cl-small cl-muted" style={{ fontWeight: 600, marginBottom: 6 }}>Sale price (₹)</div>
+                              <Input value={dPrices[k]} onChange={(e) => setDPrices((p2) => ({ ...p2, [k]: e.target.value }))}
+                                placeholder="Optional" inputMode="numeric" />
+                            </div>
+                            <div style={{ width: 90 }}>
+                              <div className="cl-small cl-muted" style={{ fontWeight: 600, marginBottom: 6 }}>Delivery</div>
+                              <Input value={meta.deliveryDays || ''} onChange={setPkg(k, 'deliveryDays')}
+                                placeholder="Days" inputMode="numeric" />
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div style={{ width: 26, textAlign: 'center', paddingBottom: 12, color: 'var(--faint)' }}>
-                      <Percent style={{ width: 14, height: 14 }} />
-                    </div>
-                    <div className="cl-grow">
-                      <div className="cl-small cl-muted" style={{ fontWeight: 600, marginBottom: 6 }}>Discounted</div>
-                      <Input value={dPrices[k]} onChange={(e) => setDPrices((p2) => ({ ...p2, [k]: e.target.value }))}
-                        placeholder="Optional" inputMode="numeric" />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {err && <div className="cl-error-text" style={{ margin: '10px 0' }}>{err}</div>}
               <Button block size="lg" loading={busy === 'rates'} type="submit" icon={Wallet} style={{ marginTop: 14 }}>
-                Save rate card
+                Save packages
               </Button>
             </Card>
           </form>

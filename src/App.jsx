@@ -12,6 +12,7 @@ import { ToastProvider, Button, Page, Logo, getTheme, applyTheme } from './compo
 const BusinessApp = React.lazy(() => import('./business/BusinessApp.jsx'));
 const CreatorApp = React.lazy(() => import('./creator/CreatorApp.jsx'));
 const AdminApp = React.lazy(() => import('./admin/AdminApp.jsx'));
+const PublicCreatorProfile = React.lazy(() => import('./PublicCreatorProfile.jsx').then((m) => ({ default: m.PublicCreatorProfileWrap })));
 const PublicPrivacyPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicPrivacyPage })));
 const PublicDataDeletionPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicDataDeletionPage })));
 
@@ -145,6 +146,23 @@ export default function App() {
       <ToastProvider>
         <Suspense fallback={<Curtain />}>
           {legal === 'privacy' ? <PublicPrivacyPage /> : <PublicDataDeletionPage />}
+        </Suspense>
+      </ToastProvider>
+    );
+  }
+
+  // Public creator profile: /c/{handle} — no login required (Collabstr-style).
+  const publicHandle = (() => {
+    try {
+      const m = window.location.pathname.match(/^\/c\/([a-zA-Z0-9._]{1,30})\/?$/);
+      return m ? m[1] : null;
+    } catch { return null; }
+  })();
+  if (publicHandle) {
+    return (
+      <ToastProvider>
+        <Suspense fallback={<Curtain />}>
+          <PublicCreatorProfile handle={publicHandle} />
         </Suspense>
       </ToastProvider>
     );
