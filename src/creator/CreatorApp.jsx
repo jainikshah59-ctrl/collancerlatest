@@ -226,24 +226,45 @@ export default function CreatorApp({ onSwitchRole }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- Instagram live sync ----
-   * Firestore remains the live source for both creator and brand profiles.
-   * The client asks the server to refresh connected Instagram data every
-   * minute; the server enforces the same upstream throttle before calling Meta.
-   * No manual Instagram save/sync is required.
+   * Firestore is the canonical profile source. The server refresh is triggered
+   * immediately, when the tab becomes visible/focused, and every 60 seconds.
+   * Instagram itself is never called directly from the browser.
    */
   useEffect(() => {
     if (!uid || !creator?.instagram) return;
     let cancelled = false;
-    const sync = async () => {
+    let running = false;
+
+    const sync = async (force = false) => {
+      if (cancelled || running || document.visibilityState === 'hidden') return;
+      running = true;
       try {
-        const j = await refreshInstagram(false);
+        const j = await refreshInstagram(force);
         if (cancelled) return;
-        if (j?.reason === 'token-expired') toast.err('Instagram session expired — please reconnect.');
-      } catch { /* cached Firestore data remains visible */ }
+        if (j?.reason === 'token-expired') {
+          toast.err('Instagram session expired — please reconnect.');
+        }
+      } catch (e) {
+        console.warn('[instagram-live-sync]', e);
+      } finally {
+        running = false;
+      }
     };
-    sync();
-    const timer = setInterval(sync, 60 * 1000);
-    return () => { cancelled = true; clearInterval(timer); };
+
+    sync(false);
+    const timer = window.setInterval(() => sync(false), 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync(false);
+    };
+    const onFocus = () => sync(false);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [uid, !!creator?.instagram]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- navigation helpers ---- */
