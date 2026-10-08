@@ -85,13 +85,13 @@ function MediaPicker({ files, setFiles }) {
   );
 }
 
-export default function BookModal({ creator, onClose }) {
+export default function BookModal({ creator, onClose, initialPackageKey = null, negotiatedPrice = null, negotiationId = null }) {
   const toast = useToast();
   const { user, biz, goPage } = useBiz();
   const pro = isBizPro(biz);
   const [stage, setStage] = useState(1);
   const [type, setType] = useState('paid');
-  const [packageKey, setPackageKey] = useState('');
+  const [packageKey, setPackageKey] = useState(initialPackageKey || '');
   const [mediaFiles, setMediaFiles] = useState([]);
   const [d, setD] = useState({
     campaignName: '', productName: '', brief: '', deliverables: '', platform: creator.platform || 'Instagram',
@@ -107,14 +107,16 @@ export default function BookModal({ creator, onClose }) {
   const [result, setResult] = useState(null);
 
   const set = (k) => (e) => setD((prev) => ({ ...prev, [k]: e.target.value }));
-  const creatorPrice = type === 'paid' && packageKey ? priceFor(creator, packageKey) : 0;
+  const creatorPrice = type === 'paid' && packageKey
+    ? (Number(negotiatedPrice) > 0 ? Number(negotiatedPrice) : priceFor(creator, packageKey))
+    : 0;
   const pricing = useMemo(() => bookingPricing(creatorPrice, pro), [creatorPrice, pro]);
   const balance = Number(biz?.walletBalance || 0);
 
   const packages = useMemo(() => {
     const rows = PROMO_TYPES
       .map((p) => ({ ...p, price: priceFor(creator, p.key) }))
-      .filter((r) => r.price > 0);
+      .filter((r) => r.price > 0 && (creator.packages?.[r.key]?.enabled !== false));
     if (rows.length === 0 && Number(creator.price) > 0) {
       rows.push({ key: 'standard', label: 'Standard collaboration', desc: 'As listed by the creator', price: Number(creator.price) });
     }
@@ -134,6 +136,8 @@ export default function BookModal({ creator, onClose }) {
       bizId: user.uid,
       creatorId: creator.id,
       packageKey: type === 'paid' ? packageKey : 'barter',
+      negotiatedPrice: Number(negotiatedPrice) > 0 ? Number(negotiatedPrice) : null,
+      negotiationId: negotiationId || null,
       campaignName: d.campaignName.trim(),
       deadline: d.deadline || '',
     };
