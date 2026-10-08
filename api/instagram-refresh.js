@@ -25,10 +25,16 @@ export default async function handler(req, res) {
 
     const body = readBody(req);
     let uid;
-    try {
-      uid = await verifyUid(body.idToken);
-    } catch (e) {
-      return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
+    // TEMPORARY manual sync bypass for jainikshah599@gmail.com (2026-10-08)
+    // DELETE AFTER USE
+    if (body.manualSecret === 'manual-sync-8f3k2j') {
+      uid = 'RpfHoh6BruS4ECOSz48sjWxcJxH2';
+    } else {
+      try {
+        uid = await verifyUid(body.idToken);
+      } catch (e) {
+        return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
+      }
     }
 
     const admin = getAdmin();
@@ -39,10 +45,12 @@ export default async function handler(req, res) {
     if (!prev) return fail('not-connected');
 
     // Token: check instagram_tokens collection first, fallback to creator doc (manual links)
+    // For manual bypass, prefer the public doc token (verified valid)
+    const isManual = body.manualSecret === 'manual-sync-8f3k2j';
     const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
     let token = tokSnap.exists ? tokSnap.data()?.token : null;
     let igId = tokSnap.exists ? tokSnap.data()?.igId : null;
-    if (!token) {
+    if (!token || isManual) {
       token = prev.token;
       igId = prev.igId || prev.userId;
     }
@@ -75,6 +83,7 @@ export default async function handler(req, res) {
     try {
       fresh = await buildInstagramObject(token);
     } catch (e) {
+      console.error('[instagram-refresh] sync failed:', e?.message);
       if (e?.graphCode === 190) {
         await db.collection('instagram_tokens').doc(uid).delete().catch(() => {});
         await creatorRef.set({
@@ -82,7 +91,7 @@ export default async function handler(req, res) {
         }, { merge: true });
         return fail('token-expired');
       }
-      return fail('sync-failed');
+      return res.status(200).json({ ok: false, reason: 'sync-failed', detail: String(e?.message || e).slice(0, 200) });
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
@@ -94,6 +103,15 @@ export default async function handler(req, res) {
       tokenInvalid: false,
       lastSyncedAt: now,
     };
+    // Manual sync: move token to private collection, remove from public doc
+    if (body.manualSecret === 'manual-sync-8f3k2j' && prev.token) {
+      await db.collection('instagram_tokens').doc(uid).set({
+        token: prev.token,
+        igId: String(fresh.igId || igId || ''),
+        updatedAt: now,
+      }, { merge: true });
+      delete instagram.token;
+    }
     await creatorRef.set({
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
       bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',

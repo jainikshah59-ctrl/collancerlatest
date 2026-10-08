@@ -5,8 +5,9 @@
  */
 import { ensureFirebase, auth } from './firebase.js';
 
-/** Re-sync at most this often unless the user forces a refresh. */
-export const INSTAGRAM_SYNC_INTERVAL_MS = 6 * 3600 * 1000;
+/** Re-sync at most this often unless the user forces a refresh.
+ * 1 hour — keeps data feeling "live" without hammering the API. */
+export const INSTAGRAM_SYNC_INTERVAL_MS = 1 * 3600 * 1000;
 
 /** True when the creator connected Instagram but the cached data is stale. */
 export function needsInstagramSync(creator, now = Date.now()) {
