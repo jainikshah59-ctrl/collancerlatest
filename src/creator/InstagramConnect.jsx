@@ -156,7 +156,7 @@ export function InstagramConnectBanner({ onConnect }) {
 
 /* ---------- compact connected status banner (no profile duplication) ---------- */
 
-export function InstagramSyncCard({ creator, onDisconnected }) {
+export function InstagramSyncCard({ creator, onDisconnected, onSynced }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -169,6 +169,7 @@ export function InstagramSyncCard({ creator, onDisconnected }) {
       const j = await refreshInstagram(true);
       if (j?.ok) {
         toast.ok(j.fresh ? 'Already up to date.' : 'Instagram data refreshed.');
+        if (j?.instagram) onSynced?.(j.instagram);
         return;
       }
       // Server sync failed — fall back to direct browser sync
@@ -200,6 +201,7 @@ export function InstagramSyncCard({ creator, onDisconnected }) {
       const ig = await runDirectSync(creator.id, token, (msg) => {
         // progress updates could go here
       });
+      onSynced?.(ig);
       toast.ok(`Direct sync complete! ${ig.followersCount.toLocaleString('en-IN')} followers, ${ig.recentMedia.length} posts.`);
     } catch (e) {
       console.error('[direct-sync]', e);
