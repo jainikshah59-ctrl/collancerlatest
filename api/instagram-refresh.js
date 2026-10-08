@@ -42,6 +42,23 @@ export default async function handler(req, res) {
     const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
     let token = tokSnap.exists ? tokSnap.data()?.token : null;
     let igId = tokSnap.exists ? tokSnap.data()?.igId : null;
+
+    // One-time migration for accounts created by the legacy browser/public-token
+    // flow. Admin SDK can safely read the old field, move it to the private
+    // collection, and delete it from the public creator document.
+    if ((!token || !igId) && prev?.token) {
+      token = prev.token;
+      igId = prev.igId || prev.userId || null;
+      await db.collection('instagram_tokens').doc(uid).set({
+        token, igId: igId ? String(igId) : '',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      await creatorRef.update({
+        token: admin.firestore.FieldValue.delete(),
+        igId: admin.firestore.FieldValue.delete(),
+        userId: admin.firestore.FieldValue.delete(),
+      }).catch(() => {});
+    }
     if (!token || !igId) return fail('not-connected');
 
     const lastSync = prev.lastSyncedAt?.toMillis ? prev.lastSyncedAt.toMillis() : 0;
@@ -91,14 +108,14 @@ export default async function handler(req, res) {
       lastSyncedAt: now,
     };
     await creatorRef.set({
-      pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
-      bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',
-      followers: instagram.followersCount,
-      engagement: instagram.engagementRate || creatorSnap.data()?.engagement || 0,
-      avgViews: instagram.avgViews || creatorSnap.data()?.avgViews || 0,
-      avgLikes: instagram.avgLikes || creatorSnap.data()?.avgLikes || 0,
-      reach: instagram.reach || creatorSnap.data()?.reach || 0,
-      profileViews: instagram.profileViews || 0,
+      pfp: instagram.profilePic ?? '',
+      bio: typeof instagram.bio === 'string' ? instagram.bio : '',
+      followers: Number(instagram.followersCount ?? 0),
+      engagement: Number(instagram.engagementRate ?? 0),
+      avgViews: Number(instagram.avgViews ?? 0),
+      avgLikes: Number(instagram.avgLikes ?? 0),
+      reach: Number(instagram.reach ?? 0),
+      profileViews: Number(instagram.profileViews ?? 0),
       instagram,
       updatedAt: now,
     }, { merge: true });
