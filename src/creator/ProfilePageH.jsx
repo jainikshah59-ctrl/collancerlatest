@@ -155,17 +155,17 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const [syncedInstagram, setSyncedInstagram] = useState(null);
   const profileCreator = syncedInstagram
     ? {
-        ...profileCreator,
-        instagram: { ...(profileCreator.instagram || {}), ...syncedInstagram },
+        ...creator,
+        instagram: { ...(creator.instagram || {}), ...syncedInstagram },
         instagramClient: syncedInstagram,
-        followers: syncedInstagram.followersCount ?? profileCreator.followers,
-        engagement: syncedInstagram.engagementRate ?? profileCreator.engagement,
-        avgViews: syncedInstagram.avgViews ?? profileCreator.avgViews,
-        avgLikes: syncedInstagram.avgLikes ?? profileCreator.avgLikes,
-        reach: syncedInstagram.reach ?? profileCreator.reach,
-        profileViews: syncedInstagram.profileViews ?? profileCreator.profileViews,
+        followers: syncedInstagram.followersCount ?? creator.followers,
+        engagement: syncedInstagram.engagementRate ?? creator.engagement,
+        avgViews: syncedInstagram.avgViews ?? creator.avgViews,
+        avgLikes: syncedInstagram.avgLikes ?? creator.avgLikes,
+        reach: syncedInstagram.reach ?? creator.reach,
+        profileViews: syncedInstagram.profileViews ?? creator.profileViews,
       }
-    : profileCreator;
+    : creator;
 
   // ---- profile tab state ----
   const [p, setP] = useState({
@@ -178,6 +178,20 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     categories: profileCreator.categories || [], promotionTypes: profileCreator.promotionTypes || [],
   });
   const setPField = (k) => (e) => setP((prev) => ({ ...prev, [k]: e.target.value }));
+  const handleInstagramSynced = (instagram) => {
+    setSyncedInstagram(instagram);
+    setP((prev) => ({
+      ...prev,
+      name: instagram.name || prev.name,
+      handle: instagram.username || prev.handle,
+      bio: instagram.bio ?? prev.bio,
+      followers: String(instagram.followersCount ?? prev.followers),
+      engagement: String(instagram.engagementRate ?? prev.engagement),
+      avgViews: String(instagram.avgViews ?? prev.avgViews),
+      avgLikes: String(instagram.avgLikes ?? prev.avgLikes),
+      reach: String(instagram.reach ?? prev.reach),
+    }));
+  };
 
   // ---- rate card state ----
   const [prices, setPrices] = useState(() => {
@@ -328,7 +342,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       <TopBar title="Profile" subtitle={igConnected ? `@${profileCreator.instagram.username}` : (profileCreator.handleLower ? `@${profileCreator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
-        {igConnected ? <InstagramSyncCard creator={profileCreator} onSynced={(instagram) => setSyncedInstagram(instagram)} /> : (
+        {igConnected ? <InstagramSyncCard creator={profileCreator} onSynced={handleInstagramSynced} /> : (
           <InstagramConnectBanner onConnect={() => {
             startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
           }} />
