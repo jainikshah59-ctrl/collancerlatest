@@ -10,6 +10,7 @@
  */
 import { getAdmin } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 const APP_URL = 'https://collancer-app.vercel.app';
 const TOKEN_DAYS = 60;
@@ -62,18 +63,28 @@ export default async function handler(req, res) {
     const admin = getAdmin();
     const db = admin.firestore();
 
-    // 1. Validate + consume the one-time state record.
-    // TEMP-DIAG (2026-10-06): echo a fingerprint of the received state on
-    // mismatch so we can compare it against Firestore without server logs.
-    const stateRef = db.collection('instagram_oauth_states').doc(String(state));
-    const stateSnap = await stateRef.get();
-    if (!stateSnap.exists) {
+    // 1. Validate the stateless HMAC-signed state.
+    // Format: {uid}.{randomHex}.{hmacHex} — no Firestore lookup needed.
+    // This eliminates "bad-state" errors from state persistence failures.
+    let uid = null;
+    try {
+      const parts = String(state || '').split('.');
+      if (parts.length === 3) {
+        const [stateUid, stateRandom, stateSig] = parts;
+        const payload = `${stateUid}.${stateRandom}`;
+        const expectedSig = createHmac('sha256', appSecret).update(payload).digest('hex').slice(0, 32);
+        // timingSafeEqual requires equal-length buffers
+        const a = Buffer.from(stateSig, 'utf8');
+        const b = Buffer.from(expectedSig, 'utf8');
+        if (a.length === b.length && timingSafeEqual(a, b) && stateUid.length >= 10 && /^[a-zA-Z0-9]+$/.test(stateRandom)) {
+          uid = stateUid;
+        }
+      }
+    } catch { /* invalid state format */ }
+    if (!uid) {
       const got = String(state || '').slice(0, 12) || 'none';
       return go(res, `error=bad-state-got-${encodeURIComponent(got)}`);
     }
-    const uid = stateSnap.data()?.uid;
-    if (!uid) return go(res, 'error=bad-state');
-    await stateRef.delete().catch(() => {});
 
     // 2. Code -> short-lived token -> long-lived token (server-side only).
     let short;

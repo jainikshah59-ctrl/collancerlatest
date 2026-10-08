@@ -10,7 +10,7 @@
  *           are missing — the client shows an honest "being set up" state.
  *           { ok: false, reason } on other failures.
  */
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
 import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 
 const SCOPES = ['instagram_business_basic', 'instagram_business_manage_insights'].join(',');
@@ -31,38 +31,15 @@ export default async function handler(req, res) {
       return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
     }
 
-    // One-time state record (CSRF protection) — admin-only collection.
-    // Use 16 bytes (32 hex chars) — Instagram may truncate longer state
-    // params, causing "bad-state" on callback (2026-10-08).
-    const state = randomBytes(16).toString('hex');
-    const db = getAdmin().firestore();
-    // Clean up only EXPIRED states (older than 10 min) for this uid.
-    // Be conservative: if we cannot determine a state's age, KEEP it.
-    // Deleting a fresh state causes "bad-state" errors (2026-10-08).
-    const tenMinAgo = Date.now() - 10 * 60 * 1000;
-    const old = await db.collection('instagram_oauth_states').where('uid', '==', uid).get();
-    const batch = db.batch();
-    old.forEach((d) => {
-      let createdMs = 0;
-      try {
-        const c = d.data()?.createdAt;
-        if (c?.toDate) createdMs = c.toDate().getTime();
-        else if (c instanceof Date) createdMs = c.getTime();
-        else if (typeof c === 'number') createdMs = c;
-        else if (c) createdMs = new Date(c).getTime();
-      } catch { createdMs = 0; }
-      // Only delete if we are SURE it is old (valid timestamp + older than 10 min).
-      // If createdMs is 0/NaN (unknown age), keep the state.
-      if (createdMs > 0 && createdMs < tenMinAgo) batch.delete(d.ref);
-    });
-    const stateRef = db.collection('instagram_oauth_states').doc(state);
-    batch.set(stateRef, { uid, createdAt: new Date() });
-    // TEMP-DIAG: record the exact dialog params for this state so a later
-    // callback failure can be compared against what was actually issued.
-    batch.set(db.collection('instagram_debug').doc(state), {
-      uid, clientId: appId, redirectUri, createdAt: new Date(),
-    });
-    await batch.commit();
+    // STATELESS OAuth (2026-10-08): encode UID directly in the state param,
+    // signed with HMAC. No Firestore lookup needed on callback — eliminates
+    // the entire "bad-state" class of bugs from state persistence failures.
+    // Format: {uid}.{randomHex}.{hmacHex}
+    const appSecret = process.env.INSTAGRAM_APP_SECRET;
+    const random = randomBytes(16).toString('hex');
+    const payload = `${uid}.${random}`;
+    const sig = createHmac('sha256', appSecret).update(payload).digest('hex').slice(0, 32);
+    const state = `${payload}.${sig}`;
 
     const url =
       'https://www.instagram.com/oauth/authorize' +
