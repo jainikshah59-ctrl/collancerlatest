@@ -65,11 +65,12 @@ function Stars({ value, onPick, size = 22 }) {
 }
 
 function OverviewTab({ creator, pro, onBook }) {
-  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
-  const engagement = Number(creator.engagement || 0);
-  const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
-  const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
-  const reach = Number(creator.reach || Math.round(avgViews * 1.4));
+  const ig = creator.instagram || creator.instagramClient || null;
+  const followers = Number(ig?.followersCount || creator.followers || creator.ytSubscribers || 0);
+  const engagement = Number(creator.engagement || ig?.engagementRate || 0);
+  const avgViews = Number(creator.avgViews || ig?.avgViews || 0);
+  const avgLikes = Number(creator.avgLikes || ig?.avgLikes || 0);
+  const reach = Number(creator.reach || ig?.reach || 0);
   const convLo = (reach * 0.005).toFixed(0);
   const convHi = (reach * 0.02).toFixed(0);
 
