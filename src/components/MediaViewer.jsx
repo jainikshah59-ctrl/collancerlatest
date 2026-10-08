@@ -20,7 +20,11 @@ export default function MediaViewer({ media, onClose }) {
   }, [media, onClose]);
 
   if (!media) return null;
-  const isVideo = media.type === 'VIDEO' || media.type === 'REELS';
+  const mediaType = String(media.type || '').toUpperCase();
+  const productType = String(media.mediaProductType || '').toUpperCase();
+  const isVideo = mediaType === 'VIDEO' || mediaType === 'REELS' || productType === 'REELS';
+  const canPlayFile = isVideo && !!media.url;
+  const embedUrl = media.permalink ? String(media.permalink).replace(/\/$/, '') + '/embed/' : null;
   const ins = media.insights || {};
 
   return (
@@ -75,11 +79,19 @@ export default function MediaViewer({ media, onClose }) {
           padding: '0 12px',
         }}
       >
-        {isVideo ? (
+        {canPlayFile ? (
           <video
-            src={media.url} controls autoPlay playsInline preload="auto"
+            src={media.url} controls autoPlay playsInline preload="metadata"
             poster={media.thumbnail || undefined}
             style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 12, background: '#000' }}
+          />
+        ) : isVideo && embedUrl ? (
+          <iframe
+            title="Instagram Reel"
+            src={embedUrl}
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            allowFullScreen
+            style={{ width: 'min(540px, 100%)', height: 'min(760px, 82vh)', border: 0, borderRadius: 12, background: '#000' }}
           />
         ) : (
           <img
