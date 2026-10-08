@@ -148,7 +148,7 @@ function FeaturedContentPicker({ creator, toast }) {
 }
 
 function InstagramInsightsCard({ creator }) {
-  const ig = creator?.instagram || creator?.instagramClient;
+  const ig = creator?.instagram || null;
   const ins = ig?.accountInsights;
   if (!ig || !ins) return null;
   const t = ins.totals || {};
@@ -624,7 +624,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     Connect Instagram
                   </Button>
                 </div>
-              ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
+              ) : ((profileCreator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={profileCreator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
