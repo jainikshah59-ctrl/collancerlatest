@@ -420,7 +420,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               <Field label="Bio" hint={igConnected ? 'Synced from Instagram — managed there' : 'Minimum 10 characters for a complete profile'}>
                 <div style={{ position: 'relative' }}>
                   <TextArea value={igConnected ? (profileCreator.instagram.bio || '') : p.bio}
-                    onChange={setPField('bio')} placeholder="Fashion + lifestyle profileCreator from Mumbai…" maxLength={300}
+                    onChange={setPField('bio')} placeholder="Fashion + lifestyle creator from Mumbai…" maxLength={300}
                     disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
                   {igConnected && (
                     <Lock style={{ position: 'absolute', right: 13, top: 14, width: 14, height: 14, color: 'var(--faint)' }} />
@@ -547,7 +547,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   </Button>
                 </div>
               ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
-                <FeaturedContentPicker profileCreator={profileCreator} toast={toast} />
+                <FeaturedContentPicker creator={profileCreator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
@@ -628,7 +628,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
         title="Log out?"
-        body="You will be signed out of your profileCreator account on this device."
+        body="You will be signed out of your creator account on this device."
         confirmLabel="Log out"
         danger
         onConfirm={onLogout}
