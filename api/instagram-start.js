@@ -32,19 +32,28 @@ export default async function handler(req, res) {
     }
 
     // One-time state record (CSRF protection) — admin-only collection.
-    const state = randomBytes(24).toString('hex');
+    // Use 16 bytes (32 hex chars) — Instagram may truncate longer state
+    // params, causing "bad-state" on callback (2026-10-08).
+    const state = randomBytes(16).toString('hex');
     const db = getAdmin().firestore();
     // Clean up only EXPIRED states (older than 10 min) for this uid.
-    // Never delete fresh states — a double-tap on "Connect" creates two
-    // valid states, and Instagram may return either one. Deleting fresh
-    // states caused "bad-state" errors (2026-10-08).
-    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+    // Be conservative: if we cannot determine a state's age, KEEP it.
+    // Deleting a fresh state causes "bad-state" errors (2026-10-08).
+    const tenMinAgo = Date.now() - 10 * 60 * 1000;
     const old = await db.collection('instagram_oauth_states').where('uid', '==', uid).get();
     const batch = db.batch();
     old.forEach((d) => {
-      const created = d.data()?.createdAt?.toDate?.() || d.data()?.createdAt;
-      const createdMs = created instanceof Date ? created.getTime() : new Date(created).getTime();
-      if (!createdMs || createdMs < tenMinAgo.getTime()) batch.delete(d.ref);
+      let createdMs = 0;
+      try {
+        const c = d.data()?.createdAt;
+        if (c?.toDate) createdMs = c.toDate().getTime();
+        else if (c instanceof Date) createdMs = c.getTime();
+        else if (typeof c === 'number') createdMs = c;
+        else if (c) createdMs = new Date(c).getTime();
+      } catch { createdMs = 0; }
+      // Only delete if we are SURE it is old (valid timestamp + older than 10 min).
+      // If createdMs is 0/NaN (unknown age), keep the state.
+      if (createdMs > 0 && createdMs < tenMinAgo) batch.delete(d.ref);
     });
     const stateRef = db.collection('instagram_oauth_states').doc(state);
     batch.set(stateRef, { uid, createdAt: new Date() });

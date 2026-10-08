@@ -69,18 +69,6 @@ export default async function handler(req, res) {
     const stateSnap = await stateRef.get();
     if (!stateSnap.exists) {
       const got = String(state || '').slice(0, 12) || 'none';
-      // DIAG 2026-10-08: record what states DO exist to diagnose bad-state
-      try {
-        const allStates = await db.collection('instagram_oauth_states').limit(20).get();
-        const existing = [];
-        allStates.forEach((d) => existing.push(d.id.slice(0, 12)));
-        await db.collection('instagram_debug').doc(`fail-${Date.now()}`).set({
-          gotState: String(state || '').slice(0, 24),
-          existingStates: existing,
-          count: allStates.size,
-          at: new Date(),
-        });
-      } catch { /* diag best-effort */ }
       return go(res, `error=bad-state-got-${encodeURIComponent(got)}`);
     }
     const uid = stateSnap.data()?.uid;
