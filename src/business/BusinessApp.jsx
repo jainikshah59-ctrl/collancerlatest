@@ -223,7 +223,8 @@ export default function BusinessApp({ onSwitchRole }) {
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }, []);
 
-  const openCreator = useCallback((id) => { setBookingCreator(null); setCreatorId(id); }, []);
+  const openCreator = useCallback((id) => { setBookingCreator(null); setNegotiation(null); setCreatorId(id); }, []);
+  const openNegotiation = useCallback((creator, packageKey = null) => { setNegotiation({ creator, packageKey }); }, []);
   const openBooking = useCallback((creator, options = {}) => { setBookingOptions(options); setBookingCreator(creator); }, []);
 
   useEffect(() => {
@@ -291,7 +292,7 @@ export default function BusinessApp({ onSwitchRole }) {
   const ctx = {
     user, biz, creators, loadingCreators, bookings, bizCampaigns, notifs, reviews,
     boostedIds, boostedByCat, isPro: pro,
-    page, goPage, openCreator, openBooking, onLogout: handleLogout, onSwitchRole,
+    page, goPage, openCreator, openBooking, openNegotiation, onLogout: handleLogout, onSwitchRole,
   };
 
   const menuItems = [
