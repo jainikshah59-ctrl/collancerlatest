@@ -149,14 +149,14 @@ export default async function handler(req, res) {
     await creatorRef.set({
       handle: handleFree ? username : prev.handle || null,
       handleLower: handleFree ? handleLower : prev.handleLower || null,
-      pfp: instagram.profilePic || prev.pfp || '',
-      bio: instagram.bio || prev.bio || '',
-      followers: instagram.followersCount,
-      // Auto-fill profile stats from Instagram data
-      engagement: avgEngagement || prev.engagement || 0,
-      avgViews: avgViews || prev.avgViews || 0,
-      avgLikes: avgLikes || prev.avgLikes || 0,
-      reach: reachVal || prev.reach || 0,
+      pfp: instagram.profilePic ?? '',
+      bio: typeof instagram.bio === 'string' ? instagram.bio : '',
+      followers: Number(instagram.followersCount ?? 0),
+      // Instagram owns these values. Never fall back to stale profile values.
+      engagement: Number(avgEngagement ?? 0),
+      avgViews: Number(avgViews ?? 0),
+      avgLikes: Number(avgLikes ?? 0),
+      reach: Number(reachVal ?? 0),
       platform: 'Instagram',
       instagram,
       onboardingStep: 'done',
