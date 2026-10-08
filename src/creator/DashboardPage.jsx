@@ -34,8 +34,7 @@ export function completionPct(creator) {
 
 export function isLive(creator) {
   if (!creator) return false;
-  // Instagram-connected accounts go live instantly (no manual verification needed)
-  if (creator.instagram?.connected && creator.igGoLive) return true;
+  // All creators follow the same manual admin-review gate. Instagram is optional.
   return !!(creator.verified && creator.addedToCollancer);
 }
 
@@ -129,13 +128,13 @@ export default function DashboardPage({
                 {live
                   ? 'Brands can discover and book you right now.'
                   : igConnected
-                    ? 'Your Instagram is connected — you are ready to go live instantly. No verification needed.'
-                    : 'Connect Instagram to go live instantly, or complete your profile for manual verification.'}
+                    ? 'Your profile is ready for admin review. Instagram is optional during onboarding.'
+                    : 'Complete your profile and submit verification. Admin approval is required before you go live.'}
               </div>
             </div>
             {live && <Badge tone="cyan" icon={BadgeCheck}>Live</Badge>}
           </div>
-          {!live && igConnected && (
+          {false && igConnected && (
             <Button block size="lg" onClick={goLive} disabled={goingLive} icon={Rocket}
               style={{ marginTop: 14, background: 'linear-gradient(135deg, #06b6d4, #0891b2)', border: 'none' }}>
               {goingLive ? 'Going live…' : 'Go Live on Collancer'}

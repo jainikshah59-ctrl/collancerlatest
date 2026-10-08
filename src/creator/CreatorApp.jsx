@@ -274,18 +274,10 @@ export default function CreatorApp({ onSwitchRole }) {
   }
   if (creatorLoading || !creator) return <Curtain label="Loading your studio…" />;
 
-  /* ---- post-signup step: connect Instagram before entering the studio ---- */
-  if (creator.onboardingStep === 'connect-instagram' && !creator.instagram) {
-    return (
-      <InstagramConnectScreen
-        creatorName={creator.name}
-        onSkip={() => {
-          updateDoc(doc(db(), 'creators', uid), { onboardingStep: 'done', updatedAt: serverTimestamp() })
-            .catch(() => {});
-        }}
-      />
-    );
-  }
+  /* ---- manual onboarding: Instagram is optional during registration/review ---- */
+  // Do not block the creator studio on Instagram during the review rollout.
+  // Existing creators can connect Instagram later when integrations reopen.
+
 
   const overlayBooking = overlay?.type === 'booking'
     ? bookings.find((b) => b.id === overlay.id) || null

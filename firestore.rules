@@ -103,24 +103,9 @@ service cloud.firestore {
     }
 
     match /businesses/{uid} {
-      allow get: if isAuthed();
-      allow list: if isAdmin() || isOwner(uid);
-
-      allow create: if isOwner(uid)
-        && request.resource.data.walletBalance == 0;
-
-      allow update: if isAdmin()
-        || (isOwner(uid) && (
-          // profile-only update (wallet untouched)
-          request.resource.data.walletBalance == resource.data.walletBalance
-          // owner may only decrease the wallet (booking debits are transactional)
-          || request.resource.data.walletBalance < resource.data.walletBalance
-          // refund credit pinned to a valid cancelled wallet booking
-          || (request.resource.data.walletBalance > resource.data.walletBalance
-            && refundBookingValid(uid, request.resource.data.walletBalance - resource.data.walletBalance))
-        ));
-
-      allow delete: if false;
+      // Brand/business access is intentionally locked during the creator-first rollout.
+      // Existing business data remains available to server/admin tooling only.
+      allow get, list, create, update, delete: if isAdmin();
     }
 
     /* ---------------- bookings ---------------- */
