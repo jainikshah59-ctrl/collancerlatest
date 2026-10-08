@@ -106,7 +106,7 @@ function OverviewTab({ creator, pro, onBook }) {
       <Card style={{ marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimates</h4>
         <div className="cl-kv"><dt>{(creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
-        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
         <div className="cl-kv"><dt>Conversion range</dt><dd>{compact(convLo)} – {compact(convHi)} actions</dd></div>
         <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
           {(creator.instagramClient?.username || creator.instagram?.username)
