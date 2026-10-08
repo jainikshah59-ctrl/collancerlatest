@@ -147,6 +147,72 @@ function FeaturedContentPicker({ creator, toast }) {
   );
 }
 
+function InstagramInsightsCard({ creator }) {
+  const ig = creator?.instagram || creator?.instagramClient;
+  const ins = ig?.accountInsights;
+  if (!ig || !ins) return null;
+  const t = ins.totals || {};
+  const growth = ins.followerGrowth || [];
+  const firstFollowers = Number(growth[0]?.v || 0);
+  const lastFollowers = Number(growth[growth.length - 1]?.v || 0);
+  const followerDelta = growth.length > 1 ? lastFollowers - firstFollowers : 0;
+  const metrics = [
+    ['Views · 30 days', ig.views30d ?? t.views],
+    ['Reach · 30 days', ig.reach ?? t.reach],
+    ['Profile views', ig.profileViews ?? t.profile_views],
+    ['Accounts engaged', ig.accountsEngaged ?? t.accounts_engaged],
+    ['Total interactions', ig.totalInteractions ?? t.total_interactions],
+    ['Likes', ig.likes30d ?? t.likes],
+    ['Comments', ig.comments30d ?? t.comments],
+    ['Shares', ig.shares30d ?? t.shares],
+    ['Saves', ig.saves30d ?? t.saves],
+    ['Replies', ig.replies30d ?? t.replies],
+    ['Follows / unfollows', ig.followsAndUnfollows30d ?? t.follows_and_unfollows],
+    ['Profile link taps', ig.profileLinksTaps30d ?? t.profile_links_taps],
+  ];
+  const audience = ig.audience || {};
+  const top = (arr) => (arr || []).slice(0, 5);
+  return (
+    <Card className="cl-glass">
+      <div className="cl-row" style={{ marginBottom: 12 }}>
+        <div className="cl-grow">
+          <h3 style={{ fontSize: 16 }}>Instagram Insights</h3>
+          <p className="cl-small cl-muted" style={{ marginTop: 3 }}>Live data pulled from Instagram · last 30 days</p>
+        </div>
+        <Badge tone="cyan">Live</Badge>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
+        {metrics.map(([label, value]) => (
+          <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' }}>
+            <div className="cl-money" style={{ fontSize: 16 }}>{value == null ? '—' : compact(Number(value) || 0)}</div>
+            <div className="cl-small cl-muted" style={{ fontSize: 11 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      {growth.length > 1 && (
+        <div style={{ marginTop: 12 }} className="cl-kv">
+          <dt>Follower change · 30 days</dt>
+          <dd>{followerDelta >= 0 ? '+' : ''}{compact(followerDelta)}</dd>
+        </div>
+      )}
+      {(audience.countries?.length || audience.cities?.length || audience.genderAge?.length) > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="cl-small cl-muted" style={{ fontWeight: 700, marginBottom: 8 }}>Audience demographics</div>
+          {top(audience.countries).length > 0 && (
+            <div className="cl-small" style={{ marginBottom: 5 }}>Top countries: {top(audience.countries).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
+          )}
+          {top(audience.cities).length > 0 && (
+            <div className="cl-small" style={{ marginBottom: 5 }}>Top cities: {top(audience.cities).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
+          )}
+          {top(audience.genderAge).length > 0 && (
+            <div className="cl-small">Age / gender: {top(audience.genderAge).map(x => x.name + ' · ' + compact(x.value)).join(', ')}</div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function ProfilePageH({ creator, onBack, onLogout, initialTab, isPro }) {
   const toast = useToast();
   const photoRef = useRef(null);
@@ -350,7 +416,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
           }} />
         )}
-        {/* Header card */}
+        {igConnected && <InstagramInsightsCard creator={profileCreator} />}\n        {/* Header card */}
         <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 14 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
