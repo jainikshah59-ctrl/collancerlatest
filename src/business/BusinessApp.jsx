@@ -14,7 +14,7 @@ import {
 import { dedupeCreators } from '../ai/engine.js';
 import {
   ensureFirebase, watchAuth, logout, doc, onSnapshot, collection,
-  query, where, updateDoc, getDoc,
+  query, where, updateDoc,
 } from '../lib/firebase.js';
 import { BizProvider, tsMs, isBizPro } from './ctx.jsx';
 import BusinessAuthScreen from './auth.jsx';
@@ -29,7 +29,6 @@ import ReferralPage from './ReferralPage.jsx';
 import { SupportPage, PrivacyPage, TermsPage } from './SupportPages.jsx';
 import AIPage from './AIPage.jsx';
 import ChatToastHost from '../components/ChatToastHost.jsx';
-import NegotiationModal from '../components/NegotiationModal.jsx';
 import {
   TopBar, BottomNav, IconBtn, Badge, Sheet, Card, Button,
   EmptyState, Page, useToast, ThemeToggle, useEffectiveTheme,
@@ -70,8 +69,6 @@ export default function BusinessApp({ onSwitchRole }) {
   const [boostedByCat, setBoostedByCat] = useState({});
   const [creatorId, setCreatorId] = useState(null);
   const [bookingCreator, setBookingCreator] = useState(null);
-  const [bookingOptions, setBookingOptions] = useState({});
-  const [negotiation, setNegotiation] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   /* Pro subscribers automatically get the premium gold theme. */
@@ -223,25 +220,8 @@ export default function BusinessApp({ onSwitchRole }) {
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }, []);
 
-  const openCreator = useCallback((id) => { setBookingCreator(null); setNegotiation(null); setCreatorId(id); }, []);
-  const openNegotiation = useCallback((creator, packageKey = null) => { setNegotiation({ creator, packageKey }); }, []);
-  const openBooking = useCallback((creator, options = {}) => { setBookingOptions(options); setBookingCreator(creator); }, []);
-
-  useEffect(() => {
-    if (!user || !creators.length) return;
-    try {
-      const raw = sessionStorage.getItem('collancer_public_intent');
-      if (!raw) return;
-      const intent = JSON.parse(raw);
-      if (!intent?.creatorId) return;
-      const c = creators.find((x) => x.id === intent.creatorId);
-      if (!c) return;
-      sessionStorage.removeItem('collancer_public_intent');
-      const options = { initialPackageKey: intent.packageKey || null };
-      if (intent.action === 'negotiate') setNegotiation({ creator: c, packageKey: intent.packageKey || null });
-      else openBooking(c, options);
-    } catch (e) { console.error('[business] public intent', e); }
-  }, [user, creators, openBooking]);
+  const openCreator = useCallback((id) => { setBookingCreator(null); setCreatorId(id); }, []);
+  const openBooking = useCallback((creator) => { setBookingCreator(creator); }, []);
 
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
 
@@ -252,19 +232,6 @@ export default function BusinessApp({ onSwitchRole }) {
         updateDoc(doc(db, 'bizNotifs', n.id), { read: true }).catch(() => {})
       ));
     } catch (e) { /* noop */ }
-  }
-
-  async function openNegotiationNotification(n) {
-    if (!n?.negotiationId) return;
-    try {
-      const snap = await getDoc(doc(db(), 'negotiations', n.negotiationId));
-      if (!snap.exists()) return toast.err('This negotiation is no longer available.');
-      const d = { id: snap.id, ...snap.data() };
-      const c = creators.find((x) => x.id === d.creatorId);
-      if (!c) return toast.err('Creator is no longer available.');
-      setNegotiation({ creator: c, negotiationId: d.id, packageKey: d.packageKey });
-      setInboxOpen(false);
-    } catch { toast.err('Could not open the negotiation.'); }
   }
 
   async function markOneRead(id) {
@@ -292,7 +259,7 @@ export default function BusinessApp({ onSwitchRole }) {
   const ctx = {
     user, biz, creators, loadingCreators, bookings, bizCampaigns, notifs, reviews,
     boostedIds, boostedByCat, isPro: pro,
-    page, goPage, openCreator, openBooking, openNegotiation, onLogout: handleLogout, onSwitchRole,
+    page, goPage, openCreator, openBooking, onLogout: handleLogout, onSwitchRole,
   };
 
   const menuItems = [
@@ -349,32 +316,7 @@ export default function BusinessApp({ onSwitchRole }) {
         )}
 
         {bookingCreator && (
-          <BookModal
-            creator={bookingCreator}
-            initialPackageKey={bookingOptions.initialPackageKey}
-            negotiatedPrice={bookingOptions.negotiatedPrice}
-            negotiationId={bookingOptions.negotiationId}
-            onClose={() => { setBookingCreator(null); setBookingOptions({}); }}
-          />
-        )}
-        {negotiation && (
-          <NegotiationModal
-            mode="business"
-            creator={negotiation.creator}
-            biz={biz}
-            user={user}
-            negotiationId={negotiation.negotiationId}
-            packageKey={negotiation.packageKey}
-            onClose={() => setNegotiation(null)}
-            onBook={({ amount, negotiationId }) => {
-              setNegotiation(null);
-              openBooking(negotiation.creator, {
-                initialPackageKey: negotiation.packageKey,
-                negotiatedPrice: amount,
-                negotiationId,
-              });
-            }}
-          />
+          <BookModal creator={bookingCreator} onClose={() => setBookingCreator(null)} />
         )}
 
         {/* more menu */}
@@ -421,7 +363,7 @@ export default function BusinessApp({ onSwitchRole }) {
             notifs.map((n) => (
               <Card
                 key={n.id}
-                onClick={() => { markOneRead(n.id); if (n.negotiationId) openNegotiationNotification(n); }}
+                onClick={() => markOneRead(n.id)}
                 style={{
                   marginBottom: 10, cursor: 'pointer',
                   borderLeft: n.read ? undefined : '3px solid var(--cyan)',

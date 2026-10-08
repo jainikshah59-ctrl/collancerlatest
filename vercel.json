@@ -1,18 +1,1 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": false
-  },
-  "crons": [
-    {
-      "path": "/api/booking-deadlines",
-      "schedule": "0 2 * * *"
-    }
-  ],
-  "rewrites": [
-    {
-      "destination": "/index.html",
-      "source": "/(.*)"
-    }
-  ]
-}
+{"crons":[{"path":"/api/booking-deadlines","schedule":"0 2 * * *"}],"rewrites":[{"destination":"/index.html","source":"/(.*)"}]}

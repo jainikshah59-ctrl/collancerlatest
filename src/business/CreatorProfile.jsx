@@ -64,7 +64,7 @@ function Stars({ value, onPick, size = 22 }) {
   );
 }
 
-function OverviewTab({ creator, pro, onBook, onNegotiate }) {
+function OverviewTab({ creator, pro, onBook }) {
   const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
   const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
@@ -155,10 +155,7 @@ function OverviewTab({ creator, pro, onBook, onNegotiate }) {
         </Card>
       )}
 
-      <div className="cl-row" style={{ gap: 8 }}>
-        <Button variant="secondary" block onClick={() => onNegotiate?.(creator, rows[0]?.key || null)}>Negotiate</Button>
-        <Button block size="lg" icon={CalendarCheck} onClick={() => onBook(creator)}>Book this creator</Button>
-      </div>
+      <Button block size="lg" icon={CalendarCheck} onClick={() => onBook(creator)}>Book this creator</Button>
     </div>
   );
 }
@@ -473,7 +470,6 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
   const { user, biz } = useBiz();
   const [reviews, setReviews] = useState(null);
   const [stars, setStars] = useState(5);
-  const [categories, setCategories] = useState({ communication: 5, timeliness: 5, satisfaction: 5 });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -499,7 +495,6 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
       await addDoc(collection(db, 'reviews'), {
         creatorId: creator.id,
         stars,
-        categories,
         text: text.trim(),
         bizId: user.uid,
         bizName: biz?.bizName || 'Business',
@@ -511,7 +506,7 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
       const all = snap.docs.map((d) => d.data());
       const avg = all.reduce((s, r) => s + (Number(r.stars) || 0), 0) / Math.max(1, all.length);
       await updateDoc(doc(db, 'creators', creator.id), { rating: Math.round(avg * 10) / 10 });
-      setText(''); setStars(5); setCategories({ communication: 5, timeliness: 5, satisfaction: 5 });
+      setText(''); setStars(5);
       toast.ok('Review published. Thank you.');
       onSubmitted?.();
     } catch (err) {
@@ -522,46 +517,12 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
 
   return (
     <div className="cl-fade">
-      {reviews && reviews.length > 0 && (
-        <Card style={{ marginBottom: 12 }}>
-          <h4 style={{ fontSize: 14, marginBottom: 10 }}>Review breakdown</h4>
-          {[
-            ['communication', 'Communication'],
-            ['timeliness', 'Timeliness'],
-            ['satisfaction', 'Satisfaction'],
-          ].map(([key, label]) => {
-            const vals = reviews.map((r) => Number(r.categories?.[key] || r.stars || 0)).filter(Boolean);
-            const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-            return (
-              <div key={key} className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-                <span className="cl-small" style={{ fontWeight: 600 }}>{label}</span>
-                <span className="cl-row" style={{ gap: 6 }}>
-                  <Stars value={avg} size={14} />
-                  <span className="cl-small cl-muted">{avg.toFixed(1)}</span>
-                </span>
-              </div>
-            );
-          })}
-        </Card>
-      )}
       {canReview && (
         <Card style={{ marginBottom: 12 }}>
           <h4 style={{ fontSize: 14, marginBottom: 10 }}>Rate this collaboration</h4>
           <form onSubmit={submitReview}>
-            <div className="cl-small cl-muted" style={{ marginBottom: 6 }}>Overall rating</div>
             <Stars value={stars} onPick={setStars} />
-            <div style={{ height: 12 }} />
-            {[
-              ['communication', 'Communication'],
-              ['timeliness', 'Timeliness'],
-              ['satisfaction', 'Satisfaction'],
-            ].map(([key, label]) => (
-              <div key={key} className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-                <span className="cl-small" style={{ fontWeight: 600 }}>{label}</span>
-                <Stars value={categories[key]} onPick={(v) => setCategories((c) => ({ ...c, [key]: v }))} size={17} />
-              </div>
-            ))
-            <div style={{ height: 4 }} />
+            <div style={{ height: 10 }} />
             <Field>
               <TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="How was the collaboration? Delivery quality, communication, results…" />
             </Field>
@@ -591,7 +552,7 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
 }
 
 export default function CreatorProfile({ creatorId, onBack }) {
-  const { creators, bookings, user, openBooking, openNegotiation, goPage } = useBiz();
+  const { creators, bookings, user, openBooking, goPage } = useBiz();
   const [tab, setTab] = useState('overview');
   const creator = useMemo(
     () => (creators || []).find((c) => c.id === creatorId),
@@ -642,7 +603,6 @@ export default function CreatorProfile({ creatorId, onBack }) {
               <div className="cl-row" style={{ gap: 6 }}>
                 <h2 style={{ fontSize: 19 }}>{creator.name || 'Creator'}</h2>
                 {creator.verified && <VerifiedTick size={18} />}
-                {(creator.completedOrders || 0) >= 5 && Number(creator.rating || 0) >= 4.5 && <Badge tone="gold">★ Top Creator</Badge>}
               </div>
               <div className="cl-small cl-muted" style={{ marginTop: 3 }}>@{creator.handle || 'creator'}</div>
               <div className="cl-row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -666,7 +626,7 @@ export default function CreatorProfile({ creatorId, onBack }) {
 
         <Tabs tabs={tabs} value={tab} onChange={setTab} style={{ marginBottom: 14 }} />
 
-        {tab === 'overview' && <OverviewTab creator={creator} pro={pro} onBook={openBooking} onNegotiate={openNegotiation} />}
+        {tab === 'overview' && <OverviewTab creator={creator} pro={pro} onBook={openBooking} />}
         {tab === 'demos' && <DemosTab creator={creator} pro={pro} goPage={goPage} />}
         {tab === 'analytics' && <AnalyticsTab creator={creator} pro={pro} goPage={goPage} />}
         {tab === 'reviews' && <ReviewsTab creator={creator} canReview={canReview} />}

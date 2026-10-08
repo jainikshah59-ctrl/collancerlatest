@@ -308,32 +308,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /* ---------------- price negotiations ---------------- */
-    match /negotiations/{id} {
-      allow read: if isAdmin() || (isAuthed() && (
-        resource.data.bizId == request.auth.uid
-        || resource.data.creatorId == request.auth.uid));
-
-      allow create: if isAuthed()
-        && request.resource.data.bizId == request.auth.uid
-        && request.resource.data.creatorId is string
-        && request.resource.data.status == 'pending_creator'
-        && request.resource.data.currentOffer >= 1
-        && request.resource.data.history is list;
-
-      allow update: if isAdmin()
-        || (isAuthed()
-          && (resource.data.bizId == request.auth.uid || resource.data.creatorId == request.auth.uid)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'currentOffer', 'proposedBy', 'message', 'history', 'status',
-            'updatedAt', 'acceptedAt', 'acceptedBy', 'rejectedAt', 'rejectedBy'
-          ])
-          && request.resource.data.currentOffer >= 1
-          && request.resource.data.status in ['pending_creator', 'countered', 'accepted', 'rejected']);
-
-      allow delete: if false;
-    }
-
     /* ---------------- reviews ---------------- */
 
     match /reviews/{id} {

@@ -31,7 +31,6 @@ import MarketplacePage from './MarketplacePage.jsx';
 import CreatorProPage from './CreatorProPage.jsx';
 import CreatorAIPage from './CreatorAIPage.jsx';
 import NotificationsPage from './NotificationsPage.jsx';
-import NegotiationModal from '../components/NegotiationModal.jsx';
 import { HomeSupportPage, PrivacyPage, TermsPage } from './SupportPages.jsx';
 
 /* ---------- live data hooks ---------- */
@@ -126,7 +125,7 @@ export default function CreatorApp({ onSwitchRole }) {
   const [authUser, setAuthUser] = useState(undefined); // undefined = resolving
   const [page, setPage] = useState('dashboard');
   const [profileTab, setProfileTab] = useState('profile');
-  const [overlay, setOverlay] = useState(null); // verification | beontop | demos | logout | booking | negotiation
+  const [overlay, setOverlay] = useState(null); // 'verification' | 'beontop' | 'demos' | 'logout' | {type:'booking', id}
   const [fbReady, setFbReady] = useState(false);
 
   /* ---- auth ---- */
@@ -247,7 +246,6 @@ export default function CreatorApp({ onSwitchRole }) {
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { /* noop */ }
   };
   const openBooking = (id) => setOverlay({ type: 'booking', id });
-  const openNegotiation = (id) => setOverlay({ type: 'negotiation', id });
   const backTo = (p) => go(p || 'dashboard');
 
   async function doLogout() {
@@ -313,16 +311,6 @@ export default function CreatorApp({ onSwitchRole }) {
         <BookingDetailModal booking={overlayBooking} creator={creator}
           onClose={() => setOverlay(null)} onChanged={() => {}} />
       )}
-      {overlay?.type === 'negotiation' && (
-        <NegotiationModal
-          mode="creator"
-          creator={creator}
-          user={authUser}
-          negotiationId={overlay.id}
-          packageKey={null}
-          onClose={() => setOverlay(null)}
-        />
-      )}
 
       {/* ---- main / secondary pages ---- */}
       {!overlay && page === 'dashboard' && (
@@ -354,7 +342,7 @@ export default function CreatorApp({ onSwitchRole }) {
       )}
       {!overlay && page === 'notifications' && (
         <NotificationsPage notifs={notifs} loading={notifsLoading}
-          onBack={() => backTo('dashboard')} onOpenBooking={openBooking} onOpenNegotiation={openNegotiation} />
+          onBack={() => backTo('dashboard')} onOpenBooking={openBooking} />
       )}
       {!overlay && page === 'support' && (
         <HomeSupportPage onBack={() => backTo('dashboard')} onNav={go} />

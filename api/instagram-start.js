@@ -34,11 +34,18 @@ export default async function handler(req, res) {
     // One-time state record (CSRF protection) — admin-only collection.
     const state = randomBytes(24).toString('hex');
     const db = getAdmin().firestore();
-    // Invalidate any previous unconsumed states for this uid so a stale
-    // Instagram tab can never be authorized against an old state.
+    // Clean up only EXPIRED states (older than 10 min) for this uid.
+    // Never delete fresh states — a double-tap on "Connect" creates two
+    // valid states, and Instagram may return either one. Deleting fresh
+    // states caused "bad-state" errors (2026-10-08).
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
     const old = await db.collection('instagram_oauth_states').where('uid', '==', uid).get();
     const batch = db.batch();
-    old.forEach((d) => batch.delete(d.ref));
+    old.forEach((d) => {
+      const created = d.data()?.createdAt?.toDate?.() || d.data()?.createdAt;
+      const createdMs = created instanceof Date ? created.getTime() : new Date(created).getTime();
+      if (!createdMs || createdMs < tenMinAgo.getTime()) batch.delete(d.ref);
+    });
     const stateRef = db.collection('instagram_oauth_states').doc(state);
     batch.set(stateRef, { uid, createdAt: new Date() });
     // TEMP-DIAG: record the exact dialog params for this state so a later

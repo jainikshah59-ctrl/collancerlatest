@@ -20,7 +20,7 @@ export function demoRef() {
 export function buildBookingDoc({
   biz, creator, type, packageKey, creatorPrice, fee, discount, total,
   details, paymentMethod, paymentReference, demoPayment, cashfreeEnv,
-  fromMarketplace, requirementId, offerId, negotiatedPrice, negotiationId,
+  fromMarketplace, requirementId, offerId,
 }) {
   const d = details || {};
   const barter = type === 'barter';
@@ -70,8 +70,6 @@ export function buildBookingDoc({
     // pricing / payment
     amount: total,
     creatorPrice,
-    negotiatedPrice: Number(negotiatedPrice) > 0 ? Number(negotiatedPrice) : null,
-    negotiationId: negotiationId || null,
     escrowAmount: barter ? 0 : total,
     platformFee: fee,
     proDiscount: discount,

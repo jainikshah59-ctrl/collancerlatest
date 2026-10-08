@@ -11,7 +11,6 @@ import {
   ensureFirebase, db, doc, getDoc, collection, query, where, getDocs,
 } from './lib/firebase.js';
 import { PROMO_TYPES } from './lib/constants.js';
-import NegotiationModal from './components/NegotiationModal.jsx';
 import { compact, inr, timeAgo } from './lib/format.js';
 import {
   Page, TopBar, Card, Button, Avatar, Badge, Chip, EmptyState,
@@ -39,7 +38,6 @@ export default function PublicCreatorProfile({ handle }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selPkg, setSelPkg] = useState(null);
-  const [negotiationOpen, setNegotiationOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -95,14 +93,6 @@ export default function PublicCreatorProfile({ handle }) {
     return all.filter((m) => ids.includes(m.id)).slice(0, 12);
   }, [creator]);
 
-  const reviewBreakdown = useMemo(() => {
-    const keys = [['communication', 'Communication'], ['timeliness', 'Timeliness'], ['satisfaction', 'Satisfaction']];
-    return keys.map(([key, label]) => {
-      const vals = reviews.map((r) => Number(r.categories?.[key] || 0)).filter(Boolean);
-      return { key, label, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0 };
-    });
-  }, [reviews]);
-
   const avgRating = useMemo(() => {
     if (!reviews.length) return Number(creator?.rating || 0);
     return reviews.reduce((a, r) => a + Number(r.stars || 0), 0) / reviews.length;
@@ -134,14 +124,6 @@ export default function PublicCreatorProfile({ handle }) {
   const ig = creator.instagramClient || creator.instagram || {};
   const sel = packages.find((p) => p.key === selPkg);
   const isTop = (creator.completedOrders || 0) >= 5 && avgRating >= 4.5;
-  const beginBusinessFlow = (action) => {
-    try {
-      sessionStorage.setItem('collancer_public_intent', JSON.stringify({
-        action, creatorId: creator.id, packageKey: selPkg,
-      }));
-    } catch {}
-    window.location.href = '/?role=business';
-  };
 
   return (
     <Page>
@@ -278,17 +260,6 @@ export default function PublicCreatorProfile({ handle }) {
         <h3 style={{ fontSize: 16, marginBottom: 10 }}>
           Reviews {reviews.length > 0 && <span className="cl-muted" style={{ fontWeight: 400 }}>({reviews.length})</span>}
         </h3>
-        {reviews.length > 0 && (
-          <Card style={{ marginBottom: 10 }}>
-            <div className="cl-small cl-muted" style={{ marginBottom: 8 }}>Category ratings</div>
-            {reviewBreakdown.map((r) => r.avg > 0 && (
-              <div key={r.key} className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-                <span className="cl-small" style={{ fontWeight: 600 }}>{r.label}</span>
-                <span className="cl-small"><b>{r.avg.toFixed(1)}</b> / 5</span>
-              </div>
-            ))}
-          </Card>
-        )}
         {reviews.length === 0 ? (
           <p className="cl-small cl-muted">No reviews yet.</p>
         ) : (
@@ -325,10 +296,10 @@ export default function PublicCreatorProfile({ handle }) {
               <div style={{ fontWeight: 800, fontSize: 20 }}>{inr(sel.salePrice || sel.price)}</div>
             </div>
             <div className="cl-row" style={{ gap: 8 }}>
-              <Button variant="secondary" onClick={() => beginBusinessFlow('negotiate')}>
+              <Button variant="secondary" onClick={() => { window.location.href = '/?role=business'; }}>
                 Negotiate
               </Button>
-              <Button icon={ShoppingBag} onClick={() => beginBusinessFlow('book')}>
+              <Button icon={ShoppingBag} onClick={() => { window.location.href = '/?role=business'; }}>
                 Book Now
               </Button>
             </div>
@@ -337,16 +308,6 @@ export default function PublicCreatorProfile({ handle }) {
             Payments are protected — released only after delivery approval.
           </p>
         </div>
-      )}
-
-      {negotiationOpen && sel && (
-        <NegotiationModal
-          mode="business"
-          creator={creator}
-          user={null}
-          packageKey={sel.key}
-          onClose={() => setNegotiationOpen(false)}
-        />
       )}
 
       {viewerMedia && (
