@@ -84,9 +84,8 @@ export default async function handler(req, res) {
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
-      ...prev,
       ...fresh,
-      // keep server-side bookkeeping
+      // Keep only non-secret server bookkeeping in the public creator document.
       connectedAt: prev.connectedAt || now,
       tokenInvalid: false,
       lastSyncedAt: now,
