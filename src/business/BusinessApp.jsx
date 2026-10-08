@@ -29,6 +29,7 @@ import ReferralPage from './ReferralPage.jsx';
 import { SupportPage, PrivacyPage, TermsPage } from './SupportPages.jsx';
 import AIPage from './AIPage.jsx';
 import ChatToastHost from '../components/ChatToastHost.jsx';
+import NegotiationModal from '../components/NegotiationModal.jsx';
 import {
   TopBar, BottomNav, IconBtn, Badge, Sheet, Card, Button,
   EmptyState, Page, useToast, ThemeToggle, useEffectiveTheme,
@@ -69,6 +70,8 @@ export default function BusinessApp({ onSwitchRole }) {
   const [boostedByCat, setBoostedByCat] = useState({});
   const [creatorId, setCreatorId] = useState(null);
   const [bookingCreator, setBookingCreator] = useState(null);
+  const [bookingOptions, setBookingOptions] = useState({});
+  const [negotiation, setNegotiation] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   /* Pro subscribers automatically get the premium gold theme. */
@@ -221,7 +224,23 @@ export default function BusinessApp({ onSwitchRole }) {
   }, []);
 
   const openCreator = useCallback((id) => { setBookingCreator(null); setCreatorId(id); }, []);
-  const openBooking = useCallback((creator) => { setBookingCreator(creator); }, []);
+  const openBooking = useCallback((creator, options = {}) => { setBookingOptions(options); setBookingCreator(creator); }, []);
+
+  useEffect(() => {
+    if (!user || !creators.length) return;
+    try {
+      const raw = sessionStorage.getItem('collancer_public_intent');
+      if (!raw) return;
+      const intent = JSON.parse(raw);
+      if (!intent?.creatorId) return;
+      const c = creators.find((x) => x.id === intent.creatorId);
+      if (!c) return;
+      sessionStorage.removeItem('collancer_public_intent');
+      const options = { initialPackageKey: intent.packageKey || null };
+      if (intent.action === 'negotiate') setNegotiation({ creator: c, packageKey: intent.packageKey || null });
+      else openBooking(c, options);
+    } catch (e) { console.error('[business] public intent', e); }
+  }, [user, creators, openBooking]);
 
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
 
@@ -316,7 +335,32 @@ export default function BusinessApp({ onSwitchRole }) {
         )}
 
         {bookingCreator && (
-          <BookModal creator={bookingCreator} onClose={() => setBookingCreator(null)} />
+          <BookModal
+            creator={bookingCreator}
+            initialPackageKey={bookingOptions.initialPackageKey}
+            negotiatedPrice={bookingOptions.negotiatedPrice}
+            negotiationId={bookingOptions.negotiationId}
+            onClose={() => { setBookingCreator(null); setBookingOptions({}); }}
+          />
+        )}
+        {negotiation && (
+          <NegotiationModal
+            mode="business"
+            creator={negotiation.creator}
+            biz={biz}
+            user={user}
+            negotiationId={negotiation.negotiationId}
+            packageKey={negotiation.packageKey}
+            onClose={() => setNegotiation(null)}
+            onBook={({ amount, negotiationId }) => {
+              setNegotiation(null);
+              openBooking(negotiation.creator, {
+                initialPackageKey: negotiation.packageKey,
+                negotiatedPrice: amount,
+                negotiationId,
+              });
+            }}
+          />
         )}
 
         {/* more menu */}
