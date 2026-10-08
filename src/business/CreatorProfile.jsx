@@ -65,7 +65,7 @@ function Stars({ value, onPick, size = 22 }) {
 }
 
 function OverviewTab({ creator, pro, onBook }) {
-  const followers = Number(creator.followers || creator.ytSubscribers || 0);
+  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
   const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
   const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
@@ -274,7 +274,7 @@ function AnalyticsTab({ creator, pro, goPage }) {
   const audience = ig.audience || {};
   const growth = ig.accountInsights?.followerGrowth || [];
 
-  const followers = Number(creator.followers || creator.ytSubscribers || 0);
+  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
   const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
   const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));

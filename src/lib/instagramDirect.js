@@ -160,10 +160,11 @@ export async function runDirectSync(creatorId, token, onProgress) {
   const instagram = await fetchInstagramDirect(token);
   
   onProgress?.('Saving...');
+  // NOTE: Firestore rules block owner from updating `followers`, `bio`, `pfp`,
+  // `handle` when `instagram` exists. Only write allowed fields.
   await updateDoc(doc(db, 'creators', creatorId), {
     instagramClient: instagram,
-    // Also update top-level convenience fields
-    followers: instagram.followersCount,
+    // Convenience fields (not blocked by rules)
     engagement: instagram.engagementRate,
     avgViews: instagram.avgViews,
     avgLikes: instagram.avgLikes,
