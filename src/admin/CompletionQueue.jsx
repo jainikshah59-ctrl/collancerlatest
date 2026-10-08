@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { ExternalLink, PackageCheck, Undo2, LockKeyhole, Clock3 } from 'lucide-react';
 import {
   ensureFirebase, db, auth, doc, collection, where,
-  runTransaction, serverTimestamp, updateDoc,
+  runTransaction, serverTimestamp, updateDoc, increment,
 } from '../lib/firebase.js';
 import { inr, timeAgo } from '../lib/format.js';
 import { creatorShareOf } from '../lib/constants.js';
@@ -47,6 +47,7 @@ function CompletionCard({ booking }) {
         if (b.status !== 'PendingCompletion') throw new Error('Booking is no longer awaiting completion.');
         const creatorShare = creatorShareOf(b);
         const grossAmount = Number(b.amount ?? 0);
+        tx.update(doc(db(), 'creators', b.creatorId), { completedOrders: increment(1), updatedAt: serverTimestamp() });
         tx.update(bRef, {
           status: 'Completed',
           paymentApproved: true,
