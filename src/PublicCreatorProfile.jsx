@@ -11,6 +11,7 @@ import {
   ensureFirebase, db, doc, getDoc, collection, query, where, getDocs,
 } from './lib/firebase.js';
 import { PROMO_TYPES } from './lib/constants.js';
+import NegotiationModal from './components/NegotiationModal.jsx';
 import { compact, inr, timeAgo } from './lib/format.js';
 import {
   Page, TopBar, Card, Button, Avatar, Badge, Chip, EmptyState,
@@ -38,6 +39,7 @@ export default function PublicCreatorProfile({ handle }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selPkg, setSelPkg] = useState(null);
+  const [negotiationOpen, setNegotiationOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -124,6 +126,14 @@ export default function PublicCreatorProfile({ handle }) {
   const ig = creator.instagramClient || creator.instagram || {};
   const sel = packages.find((p) => p.key === selPkg);
   const isTop = (creator.completedOrders || 0) >= 5 && avgRating >= 4.5;
+  const beginBusinessFlow = (action) => {
+    try {
+      sessionStorage.setItem('collancer_public_intent', JSON.stringify({
+        action, creatorId: creator.id, packageKey: selPkg,
+      }));
+    } catch {}
+    window.location.href = '/?role=business';
+  };
 
   return (
     <Page>
@@ -296,10 +306,10 @@ export default function PublicCreatorProfile({ handle }) {
               <div style={{ fontWeight: 800, fontSize: 20 }}>{inr(sel.salePrice || sel.price)}</div>
             </div>
             <div className="cl-row" style={{ gap: 8 }}>
-              <Button variant="secondary" onClick={() => { window.location.href = '/?role=business'; }}>
+              <Button variant="secondary" onClick={() => beginBusinessFlow('negotiate')}>
                 Negotiate
               </Button>
-              <Button icon={ShoppingBag} onClick={() => { window.location.href = '/?role=business'; }}>
+              <Button icon={ShoppingBag} onClick={() => beginBusinessFlow('book')}>
                 Book Now
               </Button>
             </div>
@@ -308,6 +318,16 @@ export default function PublicCreatorProfile({ handle }) {
             Payments are protected — released only after delivery approval.
           </p>
         </div>
+      )}
+
+      {negotiationOpen && sel && (
+        <NegotiationModal
+          mode="business"
+          creator={creator}
+          user={null}
+          packageKey={sel.key}
+          onClose={() => setNegotiationOpen(false)}
+        />
       )}
 
       {viewerMedia && (
