@@ -12,21 +12,10 @@
  *          sync-failed | fresh (nothing to do)
  */
 import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
+import { buildInstagramObject } from './_instagramSync.js';
 
-const GRAPH = 'https://graph.instagram.com/v21.0';
 const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
-
-async function graphGet(path, token) {
-  const r = await fetch(`${GRAPH}${path}${path.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(token)}`);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const e = new Error(j?.error?.message || `graph call failed (${r.status})`);
-    e.graphCode = j?.error?.code;
-    throw e;
-  }
-  return j;
-}
 
 export default async function handler(req, res) {
   const fail = (reason) => res.status(200).json({ ok: false, reason });
@@ -81,12 +70,12 @@ export default async function handler(req, res) {
       }
     } catch { /* keep the existing token */ }
 
-    // Re-pull profile + insights.
-    let me, acct = {}, insights = {};
+    // Full re-sync via the shared module (same shape as initial connect).
+    let fresh;
     try {
-      me = await graphGet('/me?fields=id,username,account_type,media_count', token);
+      fresh = await buildInstagramObject(token);
     } catch (e) {
-      if (e.graphCode === 190) {
+      if (e?.graphCode === 190) {
         await db.collection('instagram_tokens').doc(uid).delete().catch(() => {});
         await creatorRef.set({
           instagram: { ...prev, tokenInvalid: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
@@ -95,72 +84,13 @@ export default async function handler(req, res) {
       }
       return fail('sync-failed');
     }
-    try {
-      acct = await graphGet(`/${igId}?fields=name,biography,profile_picture_url,followers_count,follows_count`, token);
-    } catch { /* keep previous */ }
-    try {
-      const ins = await graphGet(`/${igId}/insights?metric=reach,profile_views&period=day`, token);
-      const vals = {};
-      for (const m of ins?.data || []) {
-        const v = m?.values?.[0]?.value;
-        if (typeof v === 'number') vals[m.name] = v;
-      }
-      insights = vals;
-    } catch { /* keep previous */ }
-
-    // Media stats for avg likes/views + engagement rate — paginate ALL media.
-    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0, videoCount: 0 };
-    let recentMedia = prev.recentMedia || [];
-    try {
-      let allItems = [];
-      let url = `/me/media?fields=id,media_type,like_count,comments_count,view_count,media_url,thumbnail_url,permalink,timestamp&limit=50`;
-      for (let page = 0; page < 20 && url; page++) {
-        const m = await graphGet(url, token);
-        const items = m?.data || [];
-        allItems = allItems.concat(items);
-        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com', '') : null;
-        if (items.length < 50) break;
-      }
-      recentMedia = allItems.slice(0, 12).map(x => ({
-        id: x.id, type: x.media_type, likes: x.like_count || 0,
-        comments: x.comments_count || 0, views: x.view_count || 0,
-        url: x.media_url || null, thumbnail: x.thumbnail_url || null,
-        permalink: x.permalink || null, timestamp: x.timestamp || null,
-      }));
-      for (const x of allItems) {
-        mediaStats.count++;
-        mediaStats.totalLikes += Number(x.like_count) || 0;
-        mediaStats.totalComments += Number(x.comments_count) || 0;
-        if (x.media_type === 'VIDEO' && x.view_count) {
-          mediaStats.videoCount++;
-          mediaStats.totalViews += Number(x.view_count) || 0;
-        }
-      }
-    } catch { /* keep previous */ }
-
-    const followersNum = Number(acct.followers_count) || prev.followersCount || 0;
-    const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : (prev.avgLikes || 0);
-    const videoCount = mediaStats.videoCount || 0;
-    const avgViews = videoCount ? Math.round(mediaStats.totalViews / videoCount) : (prev.avgViews || 0);
-    const avgEngagement = mediaStats.count && followersNum
-      ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
-      : (prev.engagementRate || 0);
-    const reachVal = Number(insights.reach) || prev.reach || 0;
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
       ...prev,
-      username: me.username || prev.username,
-      name: acct.name ?? prev.name,
-      profilePic: acct.profile_picture_url || prev.profilePic,
-      bio: acct.biography ?? prev.bio,
-      followersCount: followersNum,
-      followsCount: Number(acct.follows_count) || prev.followsCount || 0,
-      mediaCount: Number(me.media_count) || prev.mediaCount || 0,
-      accountType: me.account_type || prev.accountType,
-      insights: Object.keys(insights).length ? insights : prev.insights || {},
-      recentMedia,
-      avgLikes, avgViews, engagementRate: avgEngagement, reach: reachVal,
+      ...fresh,
+      // keep server-side bookkeeping
+      connectedAt: prev.connectedAt || now,
       tokenInvalid: false,
       lastSyncedAt: now,
     };
@@ -168,10 +98,11 @@ export default async function handler(req, res) {
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
       bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',
       followers: instagram.followersCount,
-      engagement: avgEngagement || creatorSnap.data()?.engagement || 0,
-      avgViews: avgViews || creatorSnap.data()?.avgViews || 0,
-      avgLikes: avgLikes || creatorSnap.data()?.avgLikes || 0,
-      reach: reachVal || creatorSnap.data()?.reach || 0,
+      engagement: instagram.engagementRate || creatorSnap.data()?.engagement || 0,
+      avgViews: instagram.avgViews || creatorSnap.data()?.avgViews || 0,
+      avgLikes: instagram.avgLikes || creatorSnap.data()?.avgLikes || 0,
+      reach: instagram.reach || creatorSnap.data()?.reach || 0,
+      profileViews: instagram.profileViews || 0,
       instagram,
       updatedAt: now,
     }, { merge: true });

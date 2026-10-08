@@ -19,12 +19,130 @@ import {
   Page, TopBar, IconBtn, Card, Button, Field, Input, TextArea, Select,
   Tabs, Chip, Badge, Avatar, Toggle, useToast, ConfirmDialog, ThemeToggle,
 } from '../components/ui.jsx';
+import MediaViewer from '../components/MediaViewer.jsx';
 import { completionPct, isLive } from './DashboardPage.jsx';
 
 const normHandle = (h) => String(h || '').trim().replace(/^@/, '').toLowerCase();
 const handleOk = (h) => /^[a-z0-9._]{3,30}$/.test(normHandle(h));
 
 const PRICE_KEYS = ['story', 'reel', 'video', 'personalad', 'ytshorts'];
+
+/* Creator picks which Instagram posts brands see on their profile.
+ * Selection is stored in creators/{uid}.featuredMediaIds (top-level —
+ * the `instagram` object is server-synced and locked by Firestore rules).
+ * Empty selection = brands see all recent media (back-compat). */
+function FeaturedContentPicker({ creator, toast }) {
+  const allMedia = creator?.instagram?.recentMedia || [];
+  const [selected, setSelected] = useState(() => new Set(creator?.featuredMediaIds || []));
+  const [saving, setSaving] = useState(false);
+  const [viewerMedia, setViewerMedia] = useState(null);
+  const dirty = (() => {
+    const prev = new Set(creator?.featuredMediaIds || []);
+    if (prev.size !== selected.size) return true;
+    for (const id of selected) if (!prev.has(id)) return true;
+    return false;
+  })();
+
+  const toggle = (id) => {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { db } = await ensureFirebase();
+      await updateDoc(doc(db, 'creators', creator.id), {
+        featuredMediaIds: Array.from(selected),
+        updatedAt: serverTimestamp(),
+      });
+      toast.ok(selected.size === 0
+        ? 'Cleared — brands will see all your recent posts.'
+        : `${selected.size} post${selected.size > 1 ? 's' : ''} featured on your brand profile.`);
+    } catch (e) {
+      console.error('[featured] save', e);
+      toast.err('Could not save selection. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <p className="cl-small cl-muted" style={{ marginBottom: 12, lineHeight: 1.5 }}>
+        Tap posts to feature them on your brand-facing profile.
+        {selected.size > 0
+          ? ` ${selected.size} selected — brands see only these.`
+          : ' Nothing selected — brands see all recent posts.'}
+        Tap a play icon to preview.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+        {allMedia.map((m) => {
+          const isSel = selected.has(m.id);
+          const isVideo = m.type === 'VIDEO' || m.type === 'REELS' || m.type === 'reel';
+          return (
+            <div key={m.id} style={{ position: 'relative' }}>
+              <button
+                onClick={() => toggle(m.id)}
+                aria-pressed={isSel}
+                style={{
+                  position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden',
+                  background: 'var(--surface-2)', border: isSel ? '2.5px solid var(--cyan)' : '2.5px solid transparent',
+                  padding: 0, cursor: 'pointer', width: '100%', display: 'block',
+                  opacity: selected.size > 0 && !isSel ? 0.45 : 1,
+                  transition: 'opacity .15s, border-color .15s',
+                }}
+              >
+                {(m.url || m.thumbnail) ? (
+                  <img src={m.thumbnail || m.url} alt="" loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                    {isVideo
+                      ? <Play style={{ width: 24, height: 24, color: 'var(--faint)' }} />
+                      : <ImageIcon style={{ width: 24, height: 24, color: 'var(--faint)' }} />}
+                  </div>
+                )}
+                {isSel && (
+                  <span style={{
+                    position: 'absolute', top: 6, right: 6, width: 24, height: 24,
+                    borderRadius: '50%', background: 'var(--cyan)', display: 'grid', placeItems: 'center',
+                  }}>
+                    <CheckCircle2 style={{ width: 16, height: 16, color: '#fff' }} />
+                  </span>
+                )}
+              </button>
+              {isVideo && (
+                <button
+                  onClick={() => setViewerMedia(m)}
+                  aria-label="Preview video"
+                  style={{
+                    position: 'absolute', bottom: 6, left: 6,
+                    background: 'rgba(0,0,0,.6)', border: 0, borderRadius: 6,
+                    color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px',
+                    display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer',
+                  }}
+                >
+                  <Play style={{ width: 10, height: 10 }} /> Preview
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <Button block disabled={!dirty || saving} onClick={save}>
+        {saving ? 'Saving…' : dirty
+          ? (selected.size === 0 ? 'Show all posts to brands' : `Feature ${selected.size} post${selected.size > 1 ? 's' : ''}`)
+          : 'Selection saved'}
+      </Button>
+      {viewerMedia && <MediaViewer media={viewerMedia} onClose={() => setViewerMedia(null)} />}
+    </div>
+  );
+}
 
 export default function ProfilePageH({ creator, onBack, onLogout, initialTab, isPro }) {
   const toast = useToast();
@@ -399,53 +517,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   </Button>
                 </div>
               ) : (creator.instagram?.recentMedia?.length > 0 ? (
-                <div>
-                  <p className="cl-small cl-muted" style={{ marginBottom: 12, lineHeight: 1.5 }}>
-                    This is exactly what brands see in your portfolio. Updates automatically when you sync.
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    {creator.instagram.recentMedia.map((m) => (
-                      <div key={m.id} style={{
-                        position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden',
-                        background: 'var(--surface-2)',
-                      }}>
-                        {(m.url || m.thumbnail || m.thumbnailUrl || m.thumbnail_url) ? (
-                          <img src={m.url || m.thumbnail || m.thumbnailUrl || m.thumbnail_url} alt="" loading="lazy"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
-                            {(m.type === 'VIDEO' || m.type === 'reel') ? (
-                              <Play style={{ width: 24, height: 24, color: 'var(--faint)' }} />
-                            ) : (
-                              <ImageIcon style={{ width: 24, height: 24, color: 'var(--faint)' }} />
-                            )}
-                          </div>
-                        )}
-                        {(m.type === 'VIDEO' || m.type === 'reel') && (
-                          <span style={{
-                            position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,.6)',
-                            color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                            display: 'flex', alignItems: 'center', gap: 3,
-                          }}>
-                            <Play style={{ width: 10, height: 10 }} /> Reel
-                          </span>
-                        )}
-                        <div style={{
-                          position: 'absolute', bottom: 0, left: 0, right: 0,
-                          background: 'linear-gradient(transparent, rgba(0,0,0,.7))',
-                          padding: '12px 6px 6px', display: 'flex', gap: 8, justifyContent: 'center',
-                        }}>
-                          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Heart style={{ width: 11, height: 11 }} /> {(m.likeCount || m.likes || 0).toLocaleString('en-IN')}
-                          </span>
-                          <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <MessageCircle style={{ width: 11, height: 11 }} /> {(m.commentCount || m.comments || 0).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <FeaturedContentPicker creator={creator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />

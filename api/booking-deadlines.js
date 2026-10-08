@@ -6,7 +6,16 @@
 import { getAdmin } from './_firebaseAdmin.js';
 
 export default async function handler(req, res) {
-  // Simple auth: require cron secret or allow Vercel cron
+  // Auth: when CRON_SECRET is configured on the project, Vercel Cron sends
+  // `Authorization: Bearer <CRON_SECRET>` automatically on every scheduled
+  // call; direct unauthenticated hits are rejected. If the secret is not
+  // configured yet, behavior is unchanged (allow), so nothing breaks until
+  // CRON_SECRET is set in the Vercel environment.
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const got = String(req.headers['authorization'] || '');
+    if (got !== 'Bearer ' + secret) return res.status(401).json({ ok: false });
+  }
   if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ ok: false });
   }

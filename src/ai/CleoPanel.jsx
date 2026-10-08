@@ -35,6 +35,7 @@ import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
 import { poolAnswer, isPoolableQuery } from './llmPool.js';
 import { checkScope, scopeRefusal, socialReply, isCreatorDataQuery } from './scopeGuard.js';
+import VoiceEnrollWizard from './VoiceEnrollWizard.jsx';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
 import {
   loadConvo, pushTurn, clearConvo, loadMemory, rememberCampaignFacts,
@@ -43,6 +44,7 @@ import { speak, stopSpeak, unlockAudio, playVoiceChime, playVoiceCloseChime, VOI
 import { compact, inr } from '../lib/format.js';
 
 const VOICE_KEY = 'cleo-voice';
+const HEY_KEY = 'collancer_heycollancer';
 
 /**
  * Merge two transcript pieces, collapsing word-level overlaps.
@@ -577,7 +579,7 @@ function isEchoResult(heard, spoken) {
   return overlap / hWords.length > 0.6;
 }
 
-function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, liveOn, onBackToChat }) {
+function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, liveOn, heyOn, setHeyOn, voiceMatchOn, setVoiceMatchOn, hasVoice, onRetrain, onBackToChat }) {
   // vState: idle | listening | speech-detected | researching | speaking | error
   // (no warming — the browser mic needs no model download)
   const [vState, setVState] = useState('idle');
@@ -1114,6 +1116,87 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
                 {voicePref === m.key && <Check size={16} />}
               </button>
             ))}
+            {/* Hey Collancer wake word toggle */}
+            <div style={{ borderTop: '1px solid var(--line)', marginTop: 8, paddingTop: 12 }}>
+              <button
+                className="cleo-vrow"
+                onClick={() => setHeyOn()}
+                aria-pressed={!!heyOn}
+                style={{ width: '100%' }}
+              >
+                <span className="cleo-vrow-name" style={{ textAlign: 'left' }}>
+                  <span style={{ display: 'block', fontWeight: 700 }}>"Hey Collancer"</span>
+                  <span className="cl-small cl-muted" style={{ display: 'block', fontWeight: 400, marginTop: 2, lineHeight: 1.4 }}>
+                    Say "Hey Collancer" anytime to open voice assistant. Uses mic while on — more battery.
+                  </span>
+                </span>
+                <span
+                  role="switch" aria-checked={!!heyOn}
+                  style={{
+                    width: 46, height: 26, borderRadius: 13, flexShrink: 0,
+                    background: heyOn ? 'var(--cyan)' : 'var(--surface-2)',
+                    border: '1px solid var(--line)',
+                    position: 'relative', transition: 'background 0.2s ease',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: heyOn ? 22 : 2,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                    transition: 'left 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
+                  }} />
+                </span>
+              </button>
+              {/* Voice Match: respond only to the enrolled voice */}
+              {heyOn && (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    className="cleo-vrow"
+                    onClick={() => setVoiceMatchOn(!voiceMatchOn)}
+                    aria-pressed={!!voiceMatchOn}
+                    style={{ width: '100%' }}
+                  >
+                    <span className="cleo-vrow-name" style={{ textAlign: 'left' }}>
+                      <span style={{ display: 'block', fontWeight: 700 }}>Voice Match</span>
+                      <span className="cl-small cl-muted" style={{ display: 'block', fontWeight: 400, marginTop: 2, lineHeight: 1.4 }}>
+                        {hasVoice
+                          ? 'Respond only to your enrolled voice. Others saying "Hey Collancer" will be ignored.'
+                          : 'No voice enrolled yet — turn "Hey Collancer" off and on to set it up.'}
+                      </span>
+                    </span>
+                    <span
+                      role="switch" aria-checked={!!voiceMatchOn}
+                      style={{
+                        width: 46, height: 26, borderRadius: 13, flexShrink: 0,
+                        background: voiceMatchOn && hasVoice ? 'var(--cyan)' : 'var(--surface-2)',
+                        border: '1px solid var(--line)',
+                        position: 'relative', transition: 'background 0.2s ease',
+                        opacity: hasVoice ? 1 : 0.4,
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 2, left: voiceMatchOn && hasVoice ? 22 : 2,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        transition: 'left 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
+                      }} />
+                    </span>
+                  </button>
+                  {hasVoice && (
+                    <button
+                      onClick={onRetrain}
+                      style={{
+                        marginTop: 8, width: '100%', padding: '10px 0',
+                        fontSize: 13.5, fontWeight: 600, color: 'var(--cyan-deep)',
+                        background: 'var(--cyan-soft)', borderRadius: 12,
+                      }}
+                    >
+                      Re-train my voice
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1156,6 +1239,42 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
     try { return localStorage.getItem(VOICE_KEY) || 'christopher'; }
     catch { return 'christopher'; }
   });
+  const [heyOn, setHeyOn] = useState(() => {
+    try { return localStorage.getItem(HEY_KEY) === 'on'; }
+    catch { return false; }
+  });
+  const setHeyOnPersist = (v) => {
+    setHeyOn(v);
+    try { localStorage.setItem(HEY_KEY, v ? 'on' : 'off'); } catch {}
+  };
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [voiceMatchOn, setVoiceMatchOn] = useState(() => {
+    try { return localStorage.getItem('collancer_voicematch') !== 'off'; }
+    catch { return true; }
+  });
+  const [hasVoice, setHasVoice] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { hasVoiceprint } = await import('./voiceprint.js');
+        setHasVoice(hasVoiceprint());
+      } catch {}
+    })();
+  }, [showEnroll]);
+  const setVoiceMatchPersist = (v) => {
+    setVoiceMatchOn(v);
+    try { localStorage.setItem('collancer_voicematch', v ? 'on' : 'off'); } catch {}
+  };
+  // Turning "Hey Collancer" ON: if no voiceprint enrolled, run the
+  // Voice Match setup wizard first (Google Voice Match style).
+  const handleHeyToggle = async () => {
+    if (heyOn) { setHeyOnPersist(false); return; }
+    try {
+      const { hasVoiceprint } = await import('./voiceprint.js');
+      if (!hasVoiceprint()) { setShowEnroll(true); return; }
+    } catch {}
+    setHeyOnPersist(true);
+  };
   const creatorsByTurn = useRef(new Map());
 
   const setVoicePref = useCallback((v) => {
@@ -1179,6 +1298,35 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
     loadMemory();
   }, []);
 
+  // Hey Collancer wake word: when enabled, listen for the wake word and
+  // auto-open the voice assistant. 100% on-device, no API key.
+  useEffect(() => {
+    let cancelled = false;
+    let cleanup = null;
+    if (!heyOn) return;
+    (async () => {
+      try {
+        const { startWakeWord, stopWakeWord, setVoiceMatchEnabled } = await import('./wakeword.js');
+        if (cancelled) return;
+        setVoiceMatchEnabled(voiceMatchOn);
+        const ok = await startWakeWord((score) => {
+          if (cancelled) return;
+          // Wake word detected (and voice matched, if Voice Match is on)
+          // — open voice assistant (auto-starts listening)
+          setView('voice');
+        });
+        if (!ok && !cancelled) {
+          console.warn('[heycollancer] mic unavailable');
+        } else {
+          cleanup = () => { try { stopWakeWord(); } catch {} };
+        }
+      } catch (e) {
+        console.error('[heycollancer] failed', e);
+      }
+    })();
+    return () => { cancelled = true; if (cleanup) cleanup(); };
+  }, [heyOn, voiceMatchOn]);
+
   return (
     <div className="cl-page-anim" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {view === 'chat' ? (
@@ -1196,6 +1344,22 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
               </div>
             </div>
             <div className="cl-grow" />
+            {heyOn && (
+              <span
+                title='"Hey Collancer" is listening'
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 11.5, fontWeight: 700, color: 'var(--cyan-deep)',
+                  background: 'var(--cyan-soft)', borderRadius: 10, padding: '5px 10px',
+                }}
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', background: '#ef4444',
+                  animation: 'cl-pulse-red 1.6s ease-in-out infinite',
+                }} />
+                "Hey Collancer" on
+              </span>
+            )}
             <LiveToggle on={liveOn} onChange={setLive} />
             <IconBtn icon={Plus} label="New chat" onClick={handleNewChat} />
           </div>
@@ -1221,7 +1385,19 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
           voicePref={voicePref}
           setVoicePref={setVoicePref}
           liveOn={liveOn}
+          heyOn={heyOn}
+          setHeyOn={handleHeyToggle}
+          voiceMatchOn={voiceMatchOn}
+          setVoiceMatchOn={setVoiceMatchPersist}
+          hasVoice={hasVoice}
+          onRetrain={() => setShowEnroll(true)}
           onBackToChat={() => setView('chat')}
+        />
+      )}
+      {showEnroll && (
+        <VoiceEnrollWizard
+          onDone={() => { setShowEnroll(false); setHasVoice(true); setHeyOnPersist(true); }}
+          onCancel={() => setShowEnroll(false)}
         />
       )}
     </div>

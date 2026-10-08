@@ -19,6 +19,7 @@ import {
   Card, Avatar, Badge, Chip, Tabs, Button, EmptyState, SkeletonCard,
   Field, TextArea, Page, useToast, ProgressBar, IconBtn, VerifiedTick,
 } from '../components/ui.jsx';
+import MediaViewer from '../components/MediaViewer.jsx';
 
 function ProLock({ goPage }) {
   return (
@@ -161,8 +162,14 @@ function OverviewTab({ creator, pro, onBook }) {
 
 function DemosTab({ creator, pro, goPage }) {
   const [demos, setDemos] = useState(null);
-  // Instagram reels/posts synced from the connected account
-  const igMedia = creator?.instagram?.recentMedia || [];
+  const [viewerMedia, setViewerMedia] = useState(null);
+  // Instagram reels/posts — creator picks which ones brands see
+  // (creator.featuredMediaIds); falls back to recent sync when unset.
+  const allIg = creator?.instagram?.recentMedia || [];
+  const featuredIds = creator?.featuredMediaIds || [];
+  const igMedia = featuredIds.length > 0
+    ? allIg.filter((m) => featuredIds.includes(m.id))
+    : allIg;
   const igUsername = creator?.instagram?.username || '';
   useEffect(() => {
     if (!pro) return;
@@ -191,11 +198,16 @@ function DemosTab({ creator, pro, goPage }) {
             <strong style={{ fontSize: 14 }}>Instagram posts</strong>
             {igUsername && <span className="cl-small cl-muted">@{igUsername}</span>}
             <Chip cyan>{igMedia.length}</Chip>
+            {featuredIds.length > 0 && (
+              <span className="cl-small cl-muted" style={{ fontSize: 11 }}>· handpicked by creator</span>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {igMedia.map((m) => (
-              <a key={m.id} href={m.permalink || (igUsername ? `https://instagram.com/${igUsername}` : '#')} target="_blank" rel="noreferrer"
-                 style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2)', display: 'block' }}>
+              <button key={m.id} onClick={() => setViewerMedia(m)}
+                 style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
+                   background: 'var(--surface-2)', display: 'block', border: 0, padding: 0, cursor: 'pointer' }}
+                 aria-label="Play media">
                 {(m.url || m.thumbnail) ? (
                   m.type === 'VIDEO' || m.type === 'REELS'
                     ? <video src={m.url || m.thumbnail} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -216,11 +228,15 @@ function DemosTab({ creator, pro, goPage }) {
                     {m.comments > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MessageSquare style={{ width: 11, height: 11 }} />{compact(m.comments)}</span>}
                   </span>
                 )}
-              </a>
+              </button>
             ))}
           </div>
+          <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+            Tap any post to play it.
+          </p>
         </Card>
       )}
+      {viewerMedia && <MediaViewer media={viewerMedia} onClose={() => setViewerMedia(null)} />}
       {demos.map((d) => (
         <Card key={d.id} style={{ padding: 0, overflow: 'hidden' }}>
           {d.mediaUrl && (d.format === 'Video' || /\.(mp4|webm|mov)/i.test(d.mediaUrl)) ? (
@@ -247,52 +263,201 @@ function DemosTab({ creator, pro, goPage }) {
 }
 
 function AnalyticsTab({ creator, pro, goPage }) {
+  const [viewerMedia, setViewerMedia] = useState(null);
   if (!pro) return <ProLock goPage={goPage} />;
+  const ig = creator?.instagram || {};
+  const hasIg = !!ig.username;
+  const totals = ig.accountInsights?.totals || {};
+  const audience = ig.audience || {};
+  const growth = ig.accountInsights?.followerGrowth || [];
+
   const followers = Number(creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
   const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
   const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
   const likeRate = avgViews > 0 ? (avgLikes / avgViews) * 100 : 0;
   const viewRate = followers > 0 ? (avgViews / followers) * 100 : 0;
-  const bars = PROMO_TYPES.map((p) => {
-    const mult = { story: 0.7, reel: 1, video: 0.85, personalvideo: 0.6, personalad: 0.9, ytshorts: 1.1 }[p.key] || 1;
-    return { label: p.label, v: Math.round(avgViews * mult) };
-  });
-  const max = Math.max(...bars.map((b) => b.v), 1);
+
+  // follower growth over the synced window
+  const growthVals = growth.map((g) => g.v).filter((v) => v > 0);
+  const growthDelta = growthVals.length >= 2
+    ? growthVals[growthVals.length - 1] - growthVals[0]
+    : 0;
+
+  // top posts by real reach (fall back to likes)
+  const ranked = [...(ig.recentMedia || [])]
+    .sort((a, b) => ((b.insights?.reach || b.likes || 0) - (a.insights?.reach || a.likes || 0)))
+    .slice(0, 6);
+
+  const syncedLabel = ig.syncedAt
+    ? `Synced ${timeAgo(ig.syncedAt)} · live from @${ig.username}`
+    : hasIg ? `Live from @${ig.username}` : null;
 
   return (
     <div className="cl-fade">
+      {/* ---- LIVE INSTAGRAM INSIGHTS ---- */}
       <Card style={{ marginBottom: 12 }}>
-        <h4 style={{ fontSize: 14, marginBottom: 12 }}>Engagement</h4>
-        <div className="cl-kv"><dt>Engagement rate</dt><dd>{engagement ? `${engagement.toFixed(1)}%` : '—'}</dd></div>
-        <div className="cl-kv"><dt>Like-to-view rate</dt><dd>{likeRate.toFixed(1)}%</dd></div>
-        <div className="cl-kv"><dt>View-to-follower rate</dt><dd>{viewRate.toFixed(1)}%</dd></div>
-        <div style={{ marginTop: 10 }}>
-          <div className="cl-small cl-muted" style={{ marginBottom: 6 }}>Audience quality score</div>
-          <ProgressBar value={Math.min(100, (engagement || 2) * 14)} />
+        <div className="cl-row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h4 style={{ fontSize: 14 }}>
+            {hasIg ? 'Instagram insights' : 'Engagement'}
+          </h4>
+          {hasIg && (
+            <span className="cl-small" style={{
+              color: 'var(--cyan-deep)', background: 'var(--cyan-soft)',
+              padding: '3px 10px', borderRadius: 20, fontWeight: 700, fontSize: 11,
+            }}>
+              ● Live data
+            </span>
+          )}
         </div>
-      </Card>
-      <Card style={{ marginBottom: 12 }}>
-        <h4 style={{ fontSize: 14, marginBottom: 12 }}>Estimated views by format</h4>
-        {bars.map((b) => (
-          <div key={b.label} style={{ marginBottom: 10 }}>
-            <div className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>
-              <span className="cl-small" style={{ fontWeight: 600 }}>{b.label}</span>
-              <span className="cl-small cl-muted cl-money">{compact(b.v)}</span>
+        {hasIg && Object.keys(totals).length > 0 ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              {[
+                { label: 'Reach (30d)', value: compact(totals.reach || 0) },
+                { label: 'Profile views (30d)', value: compact(totals.profile_views || 0) },
+                { label: 'Website taps (30d)', value: compact(totals.website_clicks || 0) },
+                { label: 'Accounts engaged', value: compact(totals.accounts_engaged || 0) },
+                { label: 'Total interactions', value: compact(totals.total_interactions || 0) },
+                { label: 'Follower growth (30d)', value: (growthDelta >= 0 ? '+' : '') + compact(growthDelta) },
+              ].map((s) => (
+                <div key={s.label} style={{
+                  background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px',
+                }}>
+                  <div className="cl-money" style={{ fontSize: 16 }}>{s.value}</div>
+                  <div className="cl-small cl-muted" style={{ fontSize: 11 }}>{s.label}</div>
+                </div>
+              ))}
             </div>
-            <div className="cl-progress"><i style={{ width: `${Math.round((b.v / max) * 100)}%` }} /></div>
-          </div>
-        ))}
-        <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
-          Derived from reported averages. Actual campaign performance varies.
-        </p>
+            <div className="cl-kv"><dt>Engagement rate</dt><dd>{engagement ? `${engagement.toFixed(1)}%` : '—'}</dd></div>
+            <div className="cl-kv"><dt>Like-to-view rate</dt><dd>{likeRate.toFixed(1)}%</dd></div>
+            <div className="cl-kv"><dt>View-to-follower rate</dt><dd>{viewRate.toFixed(1)}%</dd></div>
+            {syncedLabel && (
+              <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+                {syncedLabel} — pulled directly from the creator's connected Instagram account.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="cl-kv"><dt>Engagement rate</dt><dd>{engagement ? `${engagement.toFixed(1)}%` : '—'}</dd></div>
+            <div className="cl-kv"><dt>Like-to-view rate</dt><dd>{likeRate.toFixed(1)}%</dd></div>
+            <div className="cl-kv"><dt>View-to-follower rate</dt><dd>{viewRate.toFixed(1)}%</dd></div>
+            <div style={{ marginTop: 10 }}>
+              <div className="cl-small cl-muted" style={{ marginBottom: 6 }}>Audience quality score</div>
+              <ProgressBar value={Math.min(100, (engagement || 2) * 14)} />
+            </div>
+            {!hasIg && (
+              <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+                This creator hasn't connected Instagram — showing profile-based figures.
+                Ask them to connect for live insights.
+              </p>
+            )}
+          </>
+        )}
       </Card>
+
+      {/* ---- AUDIENCE DEMOGRAPHICS (real) ---- */}
+      {hasIg && (audience.countries?.length > 0 || audience.cities?.length > 0) && (
+        <Card style={{ marginBottom: 12 }}>
+          <h4 style={{ fontSize: 14, marginBottom: 12 }}>Audience</h4>
+          {audience.countries?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div className="cl-small cl-muted" style={{ marginBottom: 8, fontWeight: 600 }}>Top countries</div>
+              {audience.countries.slice(0, 5).map((c) => {
+                const max = audience.countries[0]?.value || 1;
+                return (
+                  <div key={c.name} style={{ marginBottom: 8 }}>
+                    <div className="cl-row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span className="cl-small" style={{ fontWeight: 600 }}>{c.name}</span>
+                      <span className="cl-small cl-muted cl-money">{compact(c.value)}</span>
+                    </div>
+                    <div className="cl-progress"><i style={{ width: `${Math.round((c.value / max) * 100)}%` }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {audience.cities?.length > 0 && (
+            <div>
+              <div className="cl-small cl-muted" style={{ marginBottom: 8, fontWeight: 600 }}>Top cities</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {audience.cities.slice(0, 5).map((c) => (
+                  <Chip key={c.name}>{c.name} · {compact(c.value)}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+            Live follower demographics from Instagram.
+          </p>
+        </Card>
+      )}
+
+      {/* ---- TOP CONTENT (real per-post insights) ---- */}
+      {ranked.length > 0 && (
+        <Card style={{ marginBottom: 12 }}>
+          <h4 style={{ fontSize: 14, marginBottom: 12 }}>Top performing content</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {ranked.map((m) => (
+              <button
+                key={m.id} onClick={() => setViewerMedia(m)}
+                style={{
+                  position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
+                  background: 'var(--surface-2)', border: 0, padding: 0, cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                aria-label="View post"
+              >
+                {(m.thumbnail || m.url) ? (
+                  <img src={m.thumbnail || m.url} alt="" loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                    <ImageIcon style={{ width: 20, height: 20, color: 'var(--faint)' }} />
+                  </div>
+                )}
+                {(m.type === 'VIDEO' || m.type === 'REELS') && (
+                  <span style={{ position: 'absolute', top: 6, right: 6, color: '#fff',
+                    background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '2px 6px', fontSize: 10,
+                    display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Play style={{ width: 10, height: 10 }} /> Reel
+                  </span>
+                )}
+                <span style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0, padding: '14px 6px 6px',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,.75)',
+                  color: '#fff', fontSize: 10, fontWeight: 700,
+                  display: 'flex', gap: 8, alignItems: 'center',
+                }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Eye style={{ width: 11, height: 11 }} />{compact(m.insights?.reach || m.views || m.likes || 0)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Heart style={{ width: 11, height: 11 }} />{compact(m.likes || 0)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.55 }}>
+            Ranked by real reach from Instagram. Tap any post to play it.
+          </p>
+        </Card>
+      )}
+
+      {/* ---- CAMPAIGN ESTIMATION (clearly labeled) ---- */}
       <Card>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimation</h4>
         <div className="cl-kv"><dt>Projected reach / post</dt><dd>{compact(Math.round(avgViews * 1.4))}</dd></div>
         <div className="cl-kv"><dt>Projected clicks (1.5%)</dt><dd>{compact(Math.round(avgViews * 1.4 * 0.015))}</dd></div>
-        <div className="cl-kv"><dt>Best format for reach</dt><dd>{bars.reduce((a, b) => (b.v > a.v ? b : a), bars[0]).label}</dd></div>
+        <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
+          Estimates based on {hasIg ? 'live Instagram averages' : 'reported averages'}.
+          Actual campaign performance varies.
+        </p>
       </Card>
+
+      {viewerMedia && <MediaViewer media={viewerMedia} onClose={() => setViewerMedia(null)} />}
     </div>
   );
 }

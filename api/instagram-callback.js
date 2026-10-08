@@ -9,9 +9,9 @@
  * Failure -> 302 to https://collancer-app.vercel.app/?ig=error=<reason>
  */
 import { getAdmin } from './_firebaseAdmin.js';
+import { buildInstagramObject } from './_instagramSync.js';
 
 const APP_URL = 'https://collancer-app.vercel.app';
-const GRAPH = 'https://graph.instagram.com/v21.0';
 const TOKEN_DAYS = 60;
 
 const go = (res, reason) =>
@@ -44,13 +44,6 @@ async function postForm(url, params) {
     if (/validating verification code/i.test(raw)) e.code = 'CODE_EXPIRED';
     throw e;
   }
-  return j;
-}
-
-async function graphGet(path, token) {
-  const r = await fetch(`${GRAPH}${path}${path.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(token)}`);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error?.message || `graph call failed (${r.status})`);
   return j;
 }
 
@@ -110,94 +103,26 @@ export default async function handler(req, res) {
     const token = ll.access_token || shortToken;
     const expiresAt = new Date(Date.now() + TOKEN_DAYS * 86400000);
 
-    // 3. Instagram profile + account + insights (each best-effort).
-    // TEMP-DIAG (2026-10-06): surface /me failure reason (e.g. personal
-    // account instead of Business/Creator) without server logs.
-    let me;
+    // 3. Full Instagram sync — profile + account insights + audience +
+    //    ALL media + per-media insights (shared module, same as refresh).
+    let instagram;
     try {
-      me = await graphGet('/me?fields=id,username,account_type,media_count', token);
+      instagram = await buildInstagramObject(token);
     } catch (e) {
-      const msg = String(e?.message || 'profile failed').replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
-      return go(res, `error=${encodeURIComponent(`profile-failed: ${msg}`)}`);
+      const msg = String(e?.message || 'sync failed').replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
+      return go(res, `error=${encodeURIComponent(`sync-failed: ${msg}`)}`);
     }
-    const igId = me.id;
-    if (!igId || !me.username) return go(res, 'error=profile-failed');
-    let acct = {};
-    try {
-      acct = await graphGet(`/${igId}?fields=name,biography,profile_picture_url,followers_count,follows_count`, token);
-    } catch { /* basic profile is enough */ }
-    let insights = {};
-    try {
-      const ins = await graphGet(`/${igId}/insights?metric=reach,profile_views&period=day`, token);
-      const vals = {};
-      for (const m of ins?.data || []) {
-        const v = m?.values?.[0]?.value;
-        if (typeof v === 'number') vals[m.name] = v;
-      }
-      insights = vals;
-    } catch { /* insights need extra approval on some apps */ }
-
-    // Fetch ALL media via pagination to calculate accurate stats.
-    let mediaStats = { count: 0, totalLikes: 0, totalComments: 0, totalViews: 0, videoCount: 0 };
-    let recentMedia = [];
-    try {
-      let allItems = [];
-      let url = `/me/media?fields=id,media_type,like_count,comments_count,view_count,media_url,thumbnail_url,permalink,timestamp&limit=50`;
-      // Paginate through all media (Instagram returns max 50 per page)
-      for (let page = 0; page < 20 && url; page++) {
-        const m = await graphGet(url, token);
-        const items = m?.data || [];
-        allItems = allItems.concat(items);
-        url = m?.paging?.next ? m.paging.next.replace('https://graph.instagram.com', '') : null;
-        if (items.length < 50) break;
-      }
-      recentMedia = allItems.slice(0, 12).map(x => ({
-        id: x.id, type: x.media_type, likes: x.like_count || 0,
-        comments: x.comments_count || 0, views: x.view_count || 0,
-        url: x.media_url || null, thumbnail: x.thumbnail_url || null,
-        permalink: x.permalink || null, timestamp: x.timestamp || null,
-      }));
-      for (const x of allItems) {
-        mediaStats.count++;
-        mediaStats.totalLikes += Number(x.like_count) || 0;
-        mediaStats.totalComments += Number(x.comments_count) || 0;
-        // Only videos have view_count — track separately for accurate avgViews
-        if (x.media_type === 'VIDEO' && x.view_count) {
-          mediaStats.videoCount++;
-          mediaStats.totalViews += Number(x.view_count) || 0;
-        }
-      }
-    } catch { /* media stats best-effort */ }
-
-    const followersNum = Number(acct.followers_count) || 0;
-    const avgLikes = mediaStats.count ? Math.round(mediaStats.totalLikes / mediaStats.count) : 0;
-    // avgViews: only count videos (photos don't have view_count, would skew average down)
-    const videoCount = mediaStats.videoCount || 0;
-    const avgViews = videoCount ? Math.round(mediaStats.totalViews / videoCount) : 0;
-    const avgEngagement = mediaStats.count && followersNum
-      ? Number((((mediaStats.totalLikes + mediaStats.totalComments) / mediaStats.count / followersNum) * 100).toFixed(1))
-      : 0;
-    const reachVal = Number(insights.reach) || 0;
+    const followersNum = instagram.followersCount;
+    const avgLikes = instagram.avgLikes;
+    const avgViews = instagram.avgViews;
+    const avgEngagement = instagram.engagementRate;
+    const reachVal = instagram.reach;
 
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const username = me.username;
+    const username = instagram.username;
     const handleLower = username.toLowerCase();
-    const instagram = {
-      igId: String(igId),
-      username,
-      name: acct.name || '',
-      profilePic: acct.profile_picture_url || '',
-      bio: acct.biography || '',
-      followersCount: followersNum,
-      followsCount: Number(acct.follows_count) || 0,
-      mediaCount: Number(me.media_count) || 0,
-      accountType: me.account_type || '',
-      insights,
-      recentMedia,
-      avgLikes, avgViews, engagementRate: avgEngagement, reach: reachVal,
-      connectedAt: now,
-      lastSyncedAt: now,
-    };
+    instagram.connectedAt = now;
+    instagram.lastSyncedAt = now;
 
     // 4. Persist: token (server-only collection) + creator doc + handle reservation.
     const creatorRef = db.collection('creators').doc(uid);
