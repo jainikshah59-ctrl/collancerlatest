@@ -10,7 +10,7 @@ import {
 } from '../components/ui.jsx';
 
 const TYPE_TONE = {
-  booking_received: 'amber', verification_approved: 'green', verification_rejected: 'red',
+  booking_received: 'amber', negotiation_received: 'gold', negotiation_counter: 'cyan', negotiation_accept: 'green', negotiation_reject: 'red', verification_approved: 'green', verification_rejected: 'red',
   payment_approved: 'green', completion_rejected: 'red', payout_approved: 'cyan',
   payout_rejected: 'red', payout_paid: 'green', offer_rejected: 'red', ad_success: 'cyan',
   video_removed: 'red', chat_message: 'cyan',
@@ -20,7 +20,7 @@ function typeLabel(t) {
   return String(t || 'update').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function NotificationsPage({ notifs, loading, onBack, onOpenBooking }) {
+export default function NotificationsPage({ notifs, loading, onBack, onOpenBooking, onOpenNegotiation }) {
   const toast = useToast();
   const [filter, setFilter] = useState('all');
   const [busyAll, setBusyAll] = useState(false);
@@ -66,7 +66,8 @@ export default function NotificationsPage({ notifs, loading, onBack, onOpenBooki
 
   function open(n) {
     markRead(n);
-    if (n.bookingId) onOpenBooking?.(n.bookingId);
+    if (n.negotiationId) onOpenNegotiation?.(n.negotiationId);
+    else if (n.bookingId) onOpenBooking?.(n.bookingId);
   }
 
   return (
@@ -93,7 +94,7 @@ export default function NotificationsPage({ notifs, loading, onBack, onOpenBooki
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
             {list.map((n) => (
-              <Card key={n.id} pressable={!!n.bookingId} onClick={() => open(n)}
+              <Card key={n.id} pressable={!!n.bookingId || !!n.negotiationId} onClick={() => open(n)}
                 style={{
                   padding: 14,
                   borderLeft: n.read ? undefined : '3px solid var(--cyan)',
@@ -110,7 +111,7 @@ export default function NotificationsPage({ notifs, loading, onBack, onOpenBooki
                       <p className="cl-small cl-muted" style={{ marginTop: 4, lineHeight: 1.6 }}>{n.body}</p>
                     )}
                   </div>
-                  {n.bookingId && <ChevronRight style={{ width: 17, height: 17, color: 'var(--faint)', flexShrink: 0, marginTop: 4 }} />}
+                  {(n.bookingId || n.negotiationId) && <ChevronRight style={{ width: 17, height: 17, color: 'var(--faint)', flexShrink: 0, marginTop: 4 }} />}
                 </div>
               </Card>
             ))}
