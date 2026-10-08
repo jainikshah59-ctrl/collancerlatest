@@ -56,8 +56,11 @@ function FeaturedContentPicker({ creator, toast }) {
     setSaving(true);
     try {
       const { db } = await ensureFirebase();
+      const selectedIds = Array.from(selected);
+      const selectedMedia = allMedia.filter((m) => selected.has(m.id));
       await updateDoc(doc(db, 'creators', creator.id), {
-        featuredMediaIds: Array.from(selected),
+        featuredMediaIds: selectedIds,
+        featuredMedia: selectedMedia,
         updatedAt: serverTimestamp(),
       });
       toast.ok(selected.size === 0
