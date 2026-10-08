@@ -14,7 +14,7 @@
 import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
 
-const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
+const STALE_MS = 60 * 1000; // automatic live sync, throttled to once/minute per creator
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
 
 export default async function handler(req, res) {
@@ -25,16 +25,10 @@ export default async function handler(req, res) {
 
     const body = readBody(req);
     let uid;
-    // TEMPORARY manual sync bypass for jainikshah599@gmail.com (2026-10-08)
-    // DELETE AFTER USE
-    if (body.manualSecret === 'manual-sync-8f3k2j') {
-      uid = 'RpfHoh6BruS4ECOSz48sjWxcJxH2';
-    } else {
-      try {
-        uid = await verifyUid(body.idToken);
-      } catch (e) {
-        return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
-      }
+    try {
+      uid = await verifyUid(body.idToken);
+    } catch (e) {
+      return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
     }
 
     const admin = getAdmin();
@@ -44,16 +38,10 @@ export default async function handler(req, res) {
     const prev = creatorSnap.exists ? creatorSnap.data()?.instagram : null;
     if (!prev) return fail('not-connected');
 
-    // Token: check instagram_tokens collection first, fallback to creator doc (manual links)
-    // For manual bypass, prefer the public doc token (verified valid)
-    const isManual = body.manualSecret === 'manual-sync-8f3k2j';
+    // Access tokens are private server-side only.
     const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
     let token = tokSnap.exists ? tokSnap.data()?.token : null;
     let igId = tokSnap.exists ? tokSnap.data()?.igId : null;
-    if (!token || isManual) {
-      token = prev.token;
-      igId = prev.igId || prev.userId;
-    }
     if (!token || !igId) return fail('not-connected');
 
     const lastSync = prev.lastSyncedAt?.toMillis ? prev.lastSyncedAt.toMillis() : 0;
@@ -103,15 +91,6 @@ export default async function handler(req, res) {
       tokenInvalid: false,
       lastSyncedAt: now,
     };
-    // Manual sync: move token to private collection, remove from public doc
-    if (body.manualSecret === 'manual-sync-8f3k2j' && prev.token) {
-      await db.collection('instagram_tokens').doc(uid).set({
-        token: prev.token,
-        igId: String(fresh.igId || igId || ''),
-        updatedAt: now,
-      }, { merge: true });
-      delete instagram.token;
-    }
     await creatorRef.set({
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
       bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',
