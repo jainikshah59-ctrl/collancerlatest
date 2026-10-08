@@ -11,8 +11,8 @@
  * Reasons: not-configured | bad-token | not-connected | token-expired |
  *          sync-failed | fresh (nothing to do)
  */
-import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
-import { buildInstagramObject } from './_instagramSync.js';
+import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
+import { buildInstagramObject } from '../lib/instagramSync.js';
 
 const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;

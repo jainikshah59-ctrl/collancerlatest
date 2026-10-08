@@ -3,7 +3,7 @@
  * 1. Pending bookings past acceptDeadline → auto-cancel + refund brand
  * 2. PendingCompletion bookings past reviewDeadline → auto-approve + payout creator
  */
-import { getAdmin } from './_firebaseAdmin.js';
+import { getAdmin } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   // Auth: when CRON_SECRET is configured on the project, Vercel Cron sends

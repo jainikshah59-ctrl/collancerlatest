@@ -1,7 +1,7 @@
 /* Creator go-live: Instagram-connected accounts go live instantly, no admin verification.
  * Verifies the user owns the account and has Instagram connected, then marks them live
  * via Admin SDK (bypasses client Firestore rules for verified/addedToCollancer). */
-import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
+import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, reason: 'method' });

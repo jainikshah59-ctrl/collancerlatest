@@ -11,7 +11,7 @@
  *           { ok: false, reason } on other failures.
  */
 import { randomBytes } from 'crypto';
-import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
+import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 
 const SCOPES = ['instagram_business_basic', 'instagram_business_manage_insights'].join(',');
 

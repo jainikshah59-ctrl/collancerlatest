@@ -8,8 +8,8 @@
  * Success -> 302 to https://collancer-app.vercel.app/?ig=connected
  * Failure -> 302 to https://collancer-app.vercel.app/?ig=error=<reason>
  */
-import { getAdmin } from './_firebaseAdmin.js';
-import { buildInstagramObject } from './_instagramSync.js';
+import { getAdmin } from '../lib/firebaseAdmin.js';
+import { buildInstagramObject } from '../lib/instagramSync.js';
 
 const APP_URL = 'https://collancer-app.vercel.app';
 const TOKEN_DAYS = 60;

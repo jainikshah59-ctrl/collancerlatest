@@ -7,7 +7,7 @@
  * Request:  { idToken }  (Firebase ID token of the logged-in creator)
  * Response: { ok: true } | { ok: false, reason }
  */
-import { getAdmin, verifyUid, readBody } from './_firebaseAdmin.js';
+import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export default async function handler(req, res) {
