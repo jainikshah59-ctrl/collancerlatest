@@ -151,41 +151,57 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
 
+  // Keep the mounted profile in sync immediately after Instagram refresh.
+  const [syncedInstagram, setSyncedInstagram] = useState(null);
+  const profileCreator = syncedInstagram
+    ? {
+        ...profileCreator,
+        instagram: { ...(profileCreator.instagram || {}), ...syncedInstagram },
+        instagramClient: syncedInstagram,
+        followers: syncedInstagram.followersCount ?? profileCreator.followers,
+        engagement: syncedInstagram.engagementRate ?? profileCreator.engagement,
+        avgViews: syncedInstagram.avgViews ?? profileCreator.avgViews,
+        avgLikes: syncedInstagram.avgLikes ?? profileCreator.avgLikes,
+        reach: syncedInstagram.reach ?? profileCreator.reach,
+        profileViews: syncedInstagram.profileViews ?? profileCreator.profileViews,
+      }
+    : profileCreator;
+
   // ---- profile tab state ----
   const [p, setP] = useState({
-    name: creator.name || '', handle: creator.handle || '', bio: creator.bio || '',
-    platform: creator.platform || 'Instagram', niche: creator.niche || NICHES[0],
-    city: creator.city || 'Mumbai', followers: String(creator.followers || ''),
-    engagement: String(creator.engagement || ''), avgViews: String(creator.avgViews || ''),
-    avgLikes: String(creator.avgLikes || ''), reach: String(creator.reach || ''),
-    profileLink: creator.profileLink || '', ytChannel: creator.ytChannel || '',
-    categories: creator.categories || [], promotionTypes: creator.promotionTypes || [],
+    name: profileCreator.name || '', handle: profileCreator.handle || '', bio: profileCreator.bio || '',
+    platform: profileCreator.platform || 'Instagram', niche: profileCreator.niche || NICHES[0],
+    city: profileCreator.city || 'Mumbai', followers: String(profileCreator.followers || ''),
+    engagement: String(profileCreator.engagement || ''), avgViews: String(profileCreator.avgViews || ''),
+    avgLikes: String(profileCreator.avgLikes || ''), reach: String(profileCreator.reach || ''),
+    profileLink: profileCreator.profileLink || '', ytChannel: profileCreator.ytChannel || '',
+    categories: profileCreator.categories || [], promotionTypes: profileCreator.promotionTypes || [],
   });
   const setPField = (k) => (e) => setP((prev) => ({ ...prev, [k]: e.target.value }));
 
   // ---- rate card state ----
   const [prices, setPrices] = useState(() => {
     const o = {};
-    PRICE_KEYS.forEach((k) => { o[k] = creator.prices?.[k] ? String(creator.prices[k]) : ''; });
+    PRICE_KEYS.forEach((k) => { o[k] = profileCreator.prices?.[k] ? String(profileCreator.prices[k]) : ''; });
     return o;
   });
   const [dPrices, setDPrices] = useState(() => {
     const o = {};
-    PRICE_KEYS.forEach((k) => { o[k] = creator.discountedPrices?.[k] ? String(creator.discountedPrices[k]) : ''; });
+    PRICE_KEYS.forEach((k) => { o[k] = profileCreator.discountedPrices?.[k] ? String(profileCreator.discountedPrices[k]) : ''; });
     return o;
   });
 
   // ---- account tab state ----
   const [a, setA] = useState({
-    whatsapp: creator.whatsapp || '', address: creator.address || '',
-    barterEligible: creator.barterEligible !== false,
+    whatsapp: profileCreator.whatsapp || '', address: profileCreator.address || '',
+    barterEligible: profileCreator.barterEligible !== false,
   });
   const setAField = (k) => (e) => setA((prev) => ({ ...prev, [k]: e.target ? e.target.value : e }));
   const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const uid = creator.id;
-  const igConnected = !!creator.instagram;
-  const handleChanged = !igConnected && normHandle(p.handle) !== (creator.handleLower || normHandle(creator.handle));
+  const uid = profileCreator.id;
+  const igConnected = !!profileCreator.instagram;
+  const handleChanged = !igConnected && normHandle(p.handle) !== (profileCreator.handleLower || normHandle(profileCreator.handle));
 
   const toggleArr = (key, val) => setP((prev) => {
     const arr = prev[key] || [];
@@ -222,7 +238,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         // Atomic handle reservation swap (audit §3.6).
         const newLower = normHandle(p.handle);
         const newHandle = p.handle.trim().replace(/^@/, '');
-        const oldLower = creator.handleLower || normHandle(creator.handle);
+        const oldLower = profileCreator.handleLower || normHandle(profileCreator.handle);
         await runTransaction(db(), async (tx) => {
           const newRef = doc(db(), 'creatorHandles', newLower);
           const oldRef = doc(db(), 'creatorHandles', oldLower);
@@ -304,15 +320,15 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     }
   }
 
-  const pct = completionPct(creator);
-  const live = isLive(creator);
+  const pct = completionPct(profileCreator);
+  const live = isLive(profileCreator);
 
   return (
-    <Page pageKey="creator-profile">
-      <TopBar title="Profile" subtitle={igConnected ? `@${creator.instagram.username}` : (creator.handleLower ? `@${creator.handleLower}` : '')}
+    <Page pageKey="profileCreator-profile">
+      <TopBar title="Profile" subtitle={igConnected ? `@${profileCreator.instagram.username}` : (profileCreator.handleLower ? `@${profileCreator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
-        {igConnected ? <InstagramSyncCard creator={creator} /> : (
+        {igConnected ? <InstagramSyncCard creator={profileCreator} onSynced={(instagram) => setSyncedInstagram(instagram)} /> : (
           <InstagramConnectBanner onConnect={() => {
             startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
           }} />
@@ -321,7 +337,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 14 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              <Avatar src={creator.pfp} name={creator.name} size={72} className="lg" pro={!!creator.creatorIsPro} />
+              <Avatar src={profileCreator.pfp} name={profileCreator.name} size={72} className="lg" pro={!!profileCreator.creatorIsPro} />
               {!igConnected && (
                 <>
                   <button onClick={() => photoRef.current?.click()} aria-label="Change profile photo"
@@ -340,15 +356,15 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             </div>
             <div className="cl-grow" style={{ minWidth: 0 }}>
               <div className="cl-row" style={{ gap: 8 }}>
-                <h3 style={{ fontSize: 17, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{creator.name}</h3>
-                {creator.verified && <BadgeCheck style={{ width: 18, height: 18, color: 'var(--cyan-deep)', flexShrink: 0 }} />}
+                <h3 style={{ fontSize: 17, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profileCreator.name}</h3>
+                {profileCreator.verified && <BadgeCheck style={{ width: 18, height: 18, color: 'var(--cyan-deep)', flexShrink: 0 }} />}
               </div>
               <div className="cl-small cl-muted" style={{ marginTop: 2 }}>
-                {compact(creator.followers || 0)} followers · {creator.platform} · {creator.city}
+                {compact(profileCreator.followers || 0)} followers · {profileCreator.platform} · {profileCreator.city}
               </div>
               <div className="cl-row" style={{ gap: 6, marginTop: 8 }}>
                 {live ? <Badge tone="cyan">Live</Badge> : <Badge tone="grey">{pct}% complete</Badge>}
-                {creator.creatorIsPro && <Badge tone="dark">Pro</Badge>}
+                {profileCreator.creatorIsPro && <Badge tone="dark">Pro</Badge>}
               </div>
             </div>
           </div>
@@ -377,7 +393,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   <Field label="Handle" hint={igConnected ? 'Synced from Instagram — managed there' : (handleChanged ? 'Will be reserved atomically on save' : 'Unique, case-insensitive')}>
                     <div style={{ position: 'relative' }}>
                       <AtSign style={{ position: 'absolute', left: 13, top: 14, width: 16, height: 16, color: 'var(--faint)' }} />
-                      <Input value={igConnected ? (creator.instagram.username || '') : p.handle}
+                      <Input value={igConnected ? (profileCreator.instagram.username || '') : p.handle}
                         onChange={setPField('handle')} placeholder="aarav.creates" style={{ paddingLeft: 38 }}
                         disabled={igConnected} />
                       {igConnected && (
@@ -389,8 +405,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               </div>
               <Field label="Bio" hint={igConnected ? 'Synced from Instagram — managed there' : 'Minimum 10 characters for a complete profile'}>
                 <div style={{ position: 'relative' }}>
-                  <TextArea value={igConnected ? (creator.instagram.bio || '') : p.bio}
-                    onChange={setPField('bio')} placeholder="Fashion + lifestyle creator from Mumbai…" maxLength={300}
+                  <TextArea value={igConnected ? (profileCreator.instagram.bio || '') : p.bio}
+                    onChange={setPField('bio')} placeholder="Fashion + lifestyle profileCreator from Mumbai…" maxLength={300}
                     disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
                   {igConnected && (
                     <Lock style={{ position: 'absolute', right: 13, top: 14, width: 14, height: 14, color: 'var(--faint)' }} />
@@ -424,7 +440,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                 <div className="cl-grow">
                   <Field label="Followers" hint={igConnected ? 'Live from Instagram' : undefined}>
                     <div style={{ position: 'relative' }}>
-                      <Input value={igConnected ? String(creator.instagram.followersCount || '') : p.followers}
+                      <Input value={igConnected ? String(profileCreator.instagram.followersCount || '') : p.followers}
                         onChange={setPField('followers')} inputMode="numeric" placeholder="25000"
                         disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
                       {igConnected && (
@@ -499,8 +515,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               <div className="cl-row" style={{ gap: 8, marginBottom: 12 }}>
                 <Instagram style={{ width: 18, height: 18, color: '#E1306C' }} />
                 <h3 style={{ fontSize: 16 }}>Instagram content</h3>
-                {igConnected && creator.instagram?.username && (
-                  <span className="cl-small cl-muted">@{creator.instagram.username}</span>
+                {igConnected && profileCreator.instagram?.username && (
+                  <span className="cl-small cl-muted">@{profileCreator.instagram.username}</span>
                 )}
               </div>
               {!igConnected ? (
@@ -516,8 +532,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     Connect Instagram
                   </Button>
                 </div>
-              ) : ((creator.instagramClient?.recentMedia?.length || creator.instagram?.recentMedia?.length) > 0 ? (
-                <FeaturedContentPicker creator={creator} toast={toast} />
+              ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
+                <FeaturedContentPicker profileCreator={profileCreator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
@@ -570,7 +586,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             <Card>
               <h3 style={{ fontSize: 16, marginBottom: 12 }}>Account</h3>
               <Field label="Email" hint="Login email — cannot be changed here">
-                <Input value={creator.email || ''} disabled style={{ opacity: 0.6 }} />
+                <Input value={profileCreator.email || ''} disabled style={{ opacity: 0.6 }} />
               </Field>
               <Field label="WhatsApp">
                 <Input value={a.whatsapp} onChange={setAField('whatsapp')} placeholder="+91 98765 43210" inputMode="tel" />
@@ -598,7 +614,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
         title="Log out?"
-        body="You will be signed out of your creator account on this device."
+        body="You will be signed out of your profileCreator account on this device."
         confirmLabel="Log out"
         danger
         onConfirm={onLogout}
