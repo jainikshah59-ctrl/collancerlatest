@@ -149,6 +149,8 @@ export default function BookModal({ creator, onClose, initialPackageKey = null, 
       creatorPrice, fee: pricing.fee, discount: pricing.discount, total: pricing.total,
       details: { ...d, mediaFiles },
       paymentMethod, paymentReference, demoPayment, cashfreeEnv,
+      negotiatedPrice: Number(negotiatedPrice) > 0 ? Number(negotiatedPrice) : null,
+      negotiationId: negotiationId || null,
     });
   }
 
