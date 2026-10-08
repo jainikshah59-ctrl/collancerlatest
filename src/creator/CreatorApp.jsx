@@ -5,7 +5,7 @@
    requirementOffers. Maintains hasActiveBooking writeback + Pro expiry. */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, Store, CalendarCheck, IndianRupee, User,
+  LayoutDashboard, Store, CalendarCheck, IndianRupee, User, Wrench,
   Loader2, LogOut,
 } from 'lucide-react';
 import {
@@ -16,7 +16,7 @@ import {
   BottomNav, Page, useToast, ConfirmDialog, Button, EmptyState, useEffectiveTheme,
 } from '../components/ui.jsx';
 import CreatorAuthScreen from './auth.jsx';
-import { InstagramConnectScreen } from './InstagramConnect.jsx';
+import ToolsPage from './ToolsPage.jsx';
 import { needsInstagramSync, refreshInstagram } from '../lib/instagram.js';
 import DashboardPage from './DashboardPage.jsx';
 import VerificationPage from './VerificationPage.jsx';
@@ -105,6 +105,7 @@ const NAV_ITEMS = [
   { key: 'bookings', label: 'Bookings', icon: CalendarCheck },
   { key: 'earnings', label: 'Earnings', icon: IndianRupee },
   { key: 'profile', label: 'Profile', icon: User },
+  { key: 'tools', label: 'Tools', icon: Wrench },
 ];
 const MAIN_PAGES = new Set(NAV_ITEMS.map((i) => i.key));
 
@@ -327,6 +328,9 @@ export default function CreatorApp({ onSwitchRole }) {
       )}
       {!overlay && page === 'earnings' && (
         <EarningsPage creator={creator} bookings={bookings} payouts={payouts} loading={payoutsLoading} />
+      )}
+      {!overlay && page === 'tools' && (
+        <ToolsPage creator={creator} approved={!!(creator?.verified && creator?.addedToCollancer && !creator?.banned)} onBack={() => backTo('dashboard')} />
       )}
       {!overlay && page === 'collancer-ai' && (
         <CreatorAIPage creator={creator} bookings={bookings} payouts={payouts}

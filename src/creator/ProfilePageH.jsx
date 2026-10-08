@@ -11,8 +11,6 @@ import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
 } from '../lib/firebase.js';
 import { compressImage, uploadToCloudinary } from '../lib/cloudinary.js';
-import { startInstagramConnect } from '../lib/instagram.js';
-import { InstagramConnectBanner, InstagramSyncCard } from './InstagramConnect.jsx';
 import { PLATFORMS, NICHES, CITIES, CATEGORIES, PROMO_TYPES, promoLabel } from '../lib/constants.js';
 import { compact } from '../lib/format.js';
 import {
@@ -370,11 +368,13 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       <TopBar title="Profile" subtitle={igConnected ? `@${profileCreator.instagram.username}` : (profileCreator.handleLower ? `@${profileCreator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
-        {igConnected ? <InstagramSyncCard creator={profileCreator} onSynced={handleInstagramSynced} /> : (
-          <InstagramConnectBanner onConnect={() => {
-            startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
-          }} />
-        )}
+        <Card className="cl-glass" style={{ border: '1px solid var(--glass-border)', background: 'linear-gradient(135deg, var(--glass-hi), var(--glass-lo))' }}>
+          <div className="cl-row" style={{ gap: 12 }}>
+            <span style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', color: 'var(--cyan-deep)', flexShrink: 0 }}><Instagram style={{ width: 20, height: 20 }} /></span>
+            <div className="cl-grow"><div style={{ fontWeight: 800, fontSize: 14 }}>Instagram integration</div><div className="cl-small cl-muted" style={{ lineHeight: 1.5 }}>Live Instagram connection and syncing are temporarily unavailable during creator onboarding.</div></div>
+            <Badge tone="amber">Coming Soon</Badge>
+          </div>
+        </Card>
         {/* Header card */}
         <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 14 }}>
@@ -573,10 +573,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     exactly what brands will see.
                   </p>
                   <Button size="sm" onClick={() => {
-                    startInstagramConnect().catch(() => toast.err('Instagram connect is being set up. Please check back soon.'));
-                  }} icon={Instagram}>
-                    Connect Instagram
-                  </Button>
+                  <Badge tone="amber" style={{ marginTop: 10 }}>Coming Soon</Badge>
                 </div>
               ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={profileCreator} toast={toast} />
