@@ -272,7 +272,7 @@ function AnalyticsTab({ creator, pro, goPage }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   if (!pro) return <ProLock goPage={goPage} />;
   // Server-synced Instagram data is the canonical source of truth.
-  const ig = creator?.instagram || creator?.instagramClient || {};
+  const ig = creator?.instagram || {};
   const hasIg = !!ig.username;
   const totals = ig.accountInsights?.totals || {};
   const audience = ig.audience || {};
