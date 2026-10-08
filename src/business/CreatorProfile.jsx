@@ -65,7 +65,7 @@ function Stars({ value, onPick, size = 22 }) {
 }
 
 function OverviewTab({ creator, pro, onBook }) {
-  const ig = creator.instagram || creator.instagramClient || null;
+  const ig = creator.instagram || null;
   const followers = Number(ig?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || ig?.engagementRate || 0);
   const avgViews = Number(creator.avgViews || ig?.avgViews || 0);
@@ -105,7 +105,7 @@ function OverviewTab({ creator, pro, onBook }) {
       {/* estimates */}
       <Card style={{ marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimates</h4>
-        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
         <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
         <div className="cl-kv"><dt>Conversion range</dt><dd>{compact(convLo)} – {compact(convHi)} actions</dd></div>
         <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
@@ -167,7 +167,7 @@ function DemosTab({ creator, pro, goPage }) {
   // Instagram reels/posts — creator picks which ones brands see
   // (creator.featuredMediaIds); falls back to recent sync when unset.
   // Prefer instagramClient (direct browser sync) over instagram (server sync).
-  const igData = creator?.instagramClient || creator?.instagram || {};
+  const igData = creator?.instagram || {};
   const allIg = igData.recentMedia || [];
   const featuredIds = creator?.featuredMediaIds || [];
   const savedFeatured = creator?.featuredMedia || [];
@@ -278,10 +278,10 @@ function AnalyticsTab({ creator, pro, goPage }) {
   const audience = ig.audience || {};
   const growth = ig.accountInsights?.followerGrowth || [];
 
-  const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
+  const followers = Number(creator.instagram?.followersCount ?? creator.followers ?? creator.ytSubscribers ?? 0);
   const engagement = Number(creator.engagement || 0);
-  const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
-  const avgLikes = Number(creator.avgLikes || Math.round(avgViews * 0.06));
+  const avgViews = Number(creator.avgViews ?? 0);
+  const avgLikes = Number(creator.avgLikes ?? 0);
   const likeRate = avgViews > 0 ? (avgLikes / avgViews) * 100 : 0;
   const viewRate = followers > 0 ? (avgViews / followers) * 100 : 0;
 
