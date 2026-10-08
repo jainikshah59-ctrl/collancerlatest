@@ -271,8 +271,8 @@ function DemosTab({ creator, pro, goPage }) {
 function AnalyticsTab({ creator, pro, goPage }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   if (!pro) return <ProLock goPage={goPage} />;
-  // Prefer instagramClient (direct browser sync) over instagram (server sync)
-  const ig = creator?.instagramClient || creator?.instagram || {};
+  // Server-synced Instagram data is the canonical source of truth.
+  const ig = creator?.instagram || creator?.instagramClient || {};
   const hasIg = !!ig.username;
   const totals = ig.accountInsights?.totals || {};
   const audience = ig.audience || {};
@@ -321,11 +321,17 @@ function AnalyticsTab({ creator, pro, goPage }) {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               {[
+                { label: 'Views (30d)', value: compact(totals.views || 0) },
                 { label: 'Reach (30d)', value: compact(totals.reach || 0) },
-                { label: 'Profile views (30d)', value: compact(totals.profile_views || 0) },
-                { label: 'Website taps (30d)', value: compact(totals.website_clicks || 0) },
+                { label: 'Profile views', value: compact(totals.profile_views || 0) },
                 { label: 'Accounts engaged', value: compact(totals.accounts_engaged || 0) },
                 { label: 'Total interactions', value: compact(totals.total_interactions || 0) },
+                { label: 'Likes (30d)', value: compact(totals.likes || 0) },
+                { label: 'Comments (30d)', value: compact(totals.comments || 0) },
+                { label: 'Shares (30d)', value: compact(totals.shares || 0) },
+                { label: 'Saves (30d)', value: compact(totals.saves || 0) },
+                { label: 'Follows / unfollows', value: compact(totals.follows_and_unfollows || 0) },
+                { label: 'Profile link taps', value: compact(totals.profile_links_taps || 0) },
                 { label: 'Follower growth (30d)', value: (growthDelta >= 0 ? '+' : '') + compact(growthDelta) },
               ].map((s) => (
                 <div key={s.label} style={{
