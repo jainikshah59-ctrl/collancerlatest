@@ -565,22 +565,21 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   <span className="cl-small cl-muted">@{profileCreator.instagram.username}</span>
                 )}
               </div>
-               {!igConnected ? (
-                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
-                   <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 10 }}>
-                     Instagram content showcase is temporarily unavailable while the integration is being updated.
-                   </p>
-                   <Badge tone="amber" style={{ marginTop: 4 }}>Coming Soon</Badge>
-                 </div>
-               ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
+              {!igConnected ? (
+                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                  <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
+                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 10 }}>
+                    Instagram content showcase is temporarily unavailable while the integration is being updated.
+                  </p>
+                  <Badge tone="amber" style={{ marginTop: 4 }}>Coming Soon</Badge>
+                </div>
               ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={profileCreator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
                   <p className="cl-small cl-muted" style={{ lineHeight: 1.6 }}>
-                    No posts found. Tap Sync on the Instagram banner above to refresh.
+                    No posts found. Instagram content is unavailable right now.
                   </p>
                 </div>
               ))}
