@@ -225,18 +225,26 @@ export default function CreatorApp({ onSwitchRole }) {
     } catch { /* noop */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ---- Instagram live sync: refresh stale data in the background ---- */
+  /* ---- Instagram live sync ----
+   * Firestore remains the live source for both creator and brand profiles.
+   * The client asks the server to refresh connected Instagram data every
+   * minute; the server enforces the same upstream throttle before calling Meta.
+   * No manual Instagram save/sync is required.
+   */
   useEffect(() => {
-    if (!uid || !creator?.instagram || !needsInstagramSync(creator)) return;
+    if (!uid || !creator?.instagram) return;
     let cancelled = false;
-    (async () => {
+    const sync = async () => {
       try {
         const j = await refreshInstagram(false);
-        if (!cancelled && j?.ok && !j.fresh) toast.ok('Instagram data refreshed.');
-      } catch { /* silent — profile still shows cached data */ }
-    })();
-    return () => { cancelled = true; };
-  }, [uid, creator?.instagram?.lastSyncedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (cancelled) return;
+        if (j?.reason === 'token-expired') toast.err('Instagram session expired — please reconnect.');
+      } catch { /* cached Firestore data remains visible */ }
+    };
+    sync();
+    const timer = setInterval(sync, 60 * 1000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [uid, !!creator?.instagram]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- navigation helpers ---- */
   const go = (p, sub) => {
