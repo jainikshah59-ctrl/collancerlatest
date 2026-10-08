@@ -64,7 +64,7 @@ function Stars({ value, onPick, size = 22 }) {
   );
 }
 
-function OverviewTab({ creator, pro, onBook }) {
+function OverviewTab({ creator, pro, onBook, onNegotiate }) {
   const followers = Number(creator.instagramClient?.followersCount || creator.followers || creator.ytSubscribers || 0);
   const engagement = Number(creator.engagement || 0);
   const avgViews = Number(creator.avgViews || Math.round(followers * (engagement > 0 ? engagement : 3) / 100));
@@ -155,7 +155,10 @@ function OverviewTab({ creator, pro, onBook }) {
         </Card>
       )}
 
-      <Button block size="lg" icon={CalendarCheck} onClick={() => onBook(creator)}>Book this creator</Button>
+      <div className="cl-row" style={{ gap: 8 }}>
+        <Button variant="secondary" block onClick={() => onNegotiate?.(creator, rows[0]?.key || null)}>Negotiate</Button>
+        <Button block size="lg" icon={CalendarCheck} onClick={() => onBook(creator)}>Book this creator</Button>
+      </div>
     </div>
   );
 }
@@ -588,7 +591,7 @@ function ReviewsTab({ creator, canReview, onSubmitted }) {
 }
 
 export default function CreatorProfile({ creatorId, onBack }) {
-  const { creators, bookings, user, openBooking, goPage } = useBiz();
+  const { creators, bookings, user, openBooking, openNegotiation, goPage } = useBiz();
   const [tab, setTab] = useState('overview');
   const creator = useMemo(
     () => (creators || []).find((c) => c.id === creatorId),
@@ -663,7 +666,7 @@ export default function CreatorProfile({ creatorId, onBack }) {
 
         <Tabs tabs={tabs} value={tab} onChange={setTab} style={{ marginBottom: 14 }} />
 
-        {tab === 'overview' && <OverviewTab creator={creator} pro={pro} onBook={openBooking} />}
+        {tab === 'overview' && <OverviewTab creator={creator} pro={pro} onBook={openBooking} onNegotiate={openNegotiation} />}
         {tab === 'demos' && <DemosTab creator={creator} pro={pro} goPage={goPage} />}
         {tab === 'analytics' && <AnalyticsTab creator={creator} pro={pro} goPage={goPage} />}
         {tab === 'reviews' && <ReviewsTab creator={creator} canReview={canReview} />}
