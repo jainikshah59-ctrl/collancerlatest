@@ -104,11 +104,11 @@ function OverviewTab({ creator, pro, onBook }) {
       {/* estimates */}
       <Card style={{ marginBottom: 12 }}>
         <h4 style={{ fontSize: 14, marginBottom: 10 }}>Campaign estimates</h4>
-        <div className="cl-kv"><dt>{creator.instagram?.username ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
-        <div className="cl-kv"><dt>{creator.instagram?.username ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Avg likes (Instagram)' : 'Estimated likes'}</dt><dd>{compact(avgLikes)}</dd></div>
+        <div className="cl-kv"><dt>{(creator.instagramClient?.username || creator.instagram?.username) ? 'Reach (Instagram)' : 'Estimated reach'}</dt><dd>{compact(reach)}</dd></div>
         <div className="cl-kv"><dt>Conversion range</dt><dd>{compact(convLo)} – {compact(convHi)} actions</dd></div>
         <p className="cl-small cl-muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
-          {creator.instagram?.username
+          {(creator.instagramClient?.username || creator.instagram?.username)
             ? 'Stats synced directly from the creator\'s Instagram account.'
             : 'Estimates are derived from the creator\'s reported audience stats.'}
         </p>
@@ -165,12 +165,14 @@ function DemosTab({ creator, pro, goPage }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   // Instagram reels/posts — creator picks which ones brands see
   // (creator.featuredMediaIds); falls back to recent sync when unset.
-  const allIg = creator?.instagram?.recentMedia || [];
+  // Prefer instagramClient (direct browser sync) over instagram (server sync).
+  const igData = creator?.instagramClient || creator?.instagram || {};
+  const allIg = igData.recentMedia || [];
   const featuredIds = creator?.featuredMediaIds || [];
   const igMedia = featuredIds.length > 0
     ? allIg.filter((m) => featuredIds.includes(m.id))
     : allIg;
-  const igUsername = creator?.instagram?.username || '';
+  const igUsername = igData.username || '';
   useEffect(() => {
     if (!pro) return;
     let unsub = () => {};
@@ -265,7 +267,8 @@ function DemosTab({ creator, pro, goPage }) {
 function AnalyticsTab({ creator, pro, goPage }) {
   const [viewerMedia, setViewerMedia] = useState(null);
   if (!pro) return <ProLock goPage={goPage} />;
-  const ig = creator?.instagram || {};
+  // Prefer instagramClient (direct browser sync) over instagram (server sync)
+  const ig = creator?.instagramClient || creator?.instagram || {};
   const hasIg = !!ig.username;
   const totals = ig.accountInsights?.totals || {};
   const audience = ig.audience || {};

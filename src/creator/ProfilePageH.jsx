@@ -32,7 +32,7 @@ const PRICE_KEYS = ['story', 'reel', 'video', 'personalad', 'ytshorts'];
  * the `instagram` object is server-synced and locked by Firestore rules).
  * Empty selection = brands see all recent media (back-compat). */
 function FeaturedContentPicker({ creator, toast }) {
-  const allMedia = creator?.instagram?.recentMedia || [];
+  const allMedia = creator?.instagramClient?.recentMedia || creator?.instagram?.recentMedia || [];
   const [selected, setSelected] = useState(() => new Set(creator?.featuredMediaIds || []));
   const [saving, setSaving] = useState(false);
   const [viewerMedia, setViewerMedia] = useState(null);
@@ -516,7 +516,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                     Connect Instagram
                   </Button>
                 </div>
-              ) : (creator.instagram?.recentMedia?.length > 0 ? (
+              ) : ((creator.instagramClient?.recentMedia?.length || creator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={creator} toast={toast} />
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>

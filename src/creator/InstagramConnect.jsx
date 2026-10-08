@@ -12,6 +12,7 @@ import { Card, Button, useToast } from '../components/ui.jsx';
 import {
   startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel,
 } from '../lib/instagram.js';
+import { runDirectSync } from '../lib/instagramDirect.js';
 
 function SyncRow({ icon: Icon, label, value, last }) {
   return (
@@ -166,14 +167,43 @@ export function InstagramSyncCard({ creator, onDisconnected }) {
     setBusy(true);
     try {
       const j = await refreshInstagram(true);
-      if (j?.ok) toast.ok(j.fresh ? 'Already up to date.' : 'Instagram data refreshed.');
-      else if (j?.reason === 'token-expired') toast.err('Instagram session expired — please reconnect.');
-      else if (j?.reason === 'not-configured') toast.err('Instagram connect is being set up.');
-      else toast.err('Refresh failed. Please try again.');
+      if (j?.ok) {
+        toast.ok(j.fresh ? 'Already up to date.' : 'Instagram data refreshed.');
+        return;
+      }
+      // Server sync failed — fall back to direct browser sync
+      if (j?.reason === 'token-expired') {
+        toast.err('Instagram session expired — please reconnect.');
+        return;
+      }
+      if (j?.reason === 'not-configured') {
+        toast.err('Instagram connect is being set up.');
+        return;
+      }
+      // Try direct sync from browser
+      await onDirectSync();
     } catch {
-      toast.err('Refresh failed. Please try again.');
+      await onDirectSync();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onDirectSync() {
+    try {
+      const token = creator?.instagram?.token;
+      if (!token) {
+        toast.err('No Instagram token found. Please reconnect.');
+        return;
+      }
+      toast.info('Syncing directly from Instagram...');
+      const ig = await runDirectSync(creator.id, token, (msg) => {
+        // progress updates could go here
+      });
+      toast.ok(`Direct sync complete! ${ig.followersCount.toLocaleString('en-IN')} followers, ${ig.recentMedia.length} posts.`);
+    } catch (e) {
+      console.error('[direct-sync]', e);
+      toast.err('Direct sync failed: ' + (e?.message || 'unknown error').slice(0, 80));
     }
   }
 
