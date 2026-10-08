@@ -169,8 +169,11 @@ function DemosTab({ creator, pro, goPage }) {
   const igData = creator?.instagramClient || creator?.instagram || {};
   const allIg = igData.recentMedia || [];
   const featuredIds = creator?.featuredMediaIds || [];
+  const savedFeatured = creator?.featuredMedia || [];
   const igMedia = featuredIds.length > 0
-    ? allIg.filter((m) => featuredIds.includes(m.id))
+    ? featuredIds.map((id) =>
+        allIg.find((m) => m.id === id) || savedFeatured.find((m) => m.id === id)
+      ).filter(Boolean)
     : allIg;
   const igUsername = igData.username || '';
   useEffect(() => {
