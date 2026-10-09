@@ -13,7 +13,7 @@
  */
 import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
-import admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const STALE_MS = 1 * 3600 * 1000; // keep server freshness aligned with the client's 1h sync interval
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
@@ -32,8 +32,8 @@ export default async function handler(req, res) {
       return fail(e.code === 'NOT_CONFIGURED' ? 'server-not-configured' : 'bad-token');
     }
 
-    const admin = getAdmin();
-    const db = admin.firestore();
+    const firebaseAdmin = getAdmin();
+    const db = firebaseAdmin.firestore();
     const creatorRef = db.collection('creators').doc(uid);
     const creatorSnap = await creatorRef.get();
     const prev = creatorSnap.exists ? creatorSnap.data()?.instagram : null;
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         if (rj.access_token) {
           token = rj.access_token;
           await db.collection('instagram_tokens').doc(uid).set({
-            token, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            token, updatedAt: FieldValue.serverTimestamp(),
           }, { merge: true });
         }
       }
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       if (e?.graphCode === 190) {
         await db.collection('instagram_tokens').doc(uid).delete().catch(() => {});
         await creatorRef.set({
-          instagram: { ...prev, tokenInvalid: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+          instagram: { ...prev, tokenInvalid: true, updatedAt: FieldValue.serverTimestamp() },
         }, { merge: true });
         return fail('token-expired');
       }
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       fresh.recentMedia = prev.recentMedia;
       fresh.mediaCount = prev.mediaCount ?? fresh.mediaCount;
     }
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     const syncedAtMs = Date.now();
     const instagram = {
       ...prev,
