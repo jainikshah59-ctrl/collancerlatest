@@ -11,7 +11,7 @@
 import { getAdmin } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { FieldValue } from 'firebase-admin/firestore';
+import admin from 'firebase-admin';
 
 const APP_URL = 'https://collancer-app.vercel.app';
 const TOKEN_DAYS = 60;
@@ -32,7 +32,7 @@ function providerError(json, status, fallback) {
 }
 
 function classifyTokenError(message) {
-  if (/(expired|already used|already redeemed|invalid).*\bcode\b|\bcode\b.*(expired|already used|invalid)/i.test(message)) return 'CODE_EXPIRED';
+  if (/\bcode\b.*\b(used|redeemed|expired|invalid)\b|(?:expired|already used|already redeemed|invalid).*\bcode\b/i.test(message)) return 'CODE_EXPIRED';
   if (/redirect[_ ]?uri|redirect url/i.test(message)) return 'REDIRECT_MISMATCH';
   if (/client[_ ]?(secret|id)|invalid[_ ]?client|app secret/i.test(message)) return 'APP_CREDENTIALS';
   return 'TOKEN_FAILED_DIAG';
@@ -171,7 +171,7 @@ export default async function handler(req, res) {
     const avgEngagement = instagram.engagementRate;
     const reachVal = instagram.reach;
 
-    const now = FieldValue.serverTimestamp();
+    const now = admin.firestore.FieldValue.serverTimestamp();
     const username = instagram.username;
     const handleLower = username.toLowerCase();
     instagram.connectedAt = now;
