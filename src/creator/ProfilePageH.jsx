@@ -18,6 +18,7 @@ import {
   Tabs, Chip, Badge, Avatar, Toggle, useToast, ConfirmDialog, ThemeToggle,
 } from '../components/ui.jsx';
 import MediaViewer from '../components/MediaViewer.jsx';
+import { startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel } from '../lib/instagram.js';
 import { completionPct, isLive } from './DashboardPage.jsx';
 
 const normHandle = (h) => String(h || '').trim().replace(/^@/, '').toLowerCase();
@@ -371,8 +372,46 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         <Card className="cl-glass" style={{ border: '1px solid var(--glass-border)', background: 'linear-gradient(135deg, var(--glass-hi), var(--glass-lo))' }}>
           <div className="cl-row" style={{ gap: 12 }}>
             <span style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', color: 'var(--cyan-deep)', flexShrink: 0 }}><Instagram style={{ width: 20, height: 20 }} /></span>
-            <div className="cl-grow"><div style={{ fontWeight: 800, fontSize: 14 }}>Instagram integration</div><div className="cl-small cl-muted" style={{ lineHeight: 1.5 }}>Live Instagram connection and syncing are temporarily unavailable during creator onboarding.</div></div>
-            <Badge tone="amber">Coming Soon</Badge>
+            <div className="cl-grow">
+              <div style={{ fontWeight: 800, fontSize: 14 }}>Instagram integration</div>
+              <div className="cl-small cl-muted" style={{ lineHeight: 1.5 }}>
+                {igConnected ? <>Connected as <strong>@{profileCreator.instagram.username || profileCreator.instagram.userName}</strong> · Last synced {lastSyncedLabel(profileCreator)}</> : 'Connect Instagram to import your creator profile, audience metrics and content.'}
+              </div>
+            </div>
+            {igConnected ? (
+              <div className="cl-row" style={{ gap: 7 }}>
+                <Button size="sm" variant="light" icon={RefreshCw} disabled={busy === 'instagram'} onClick={async () => {
+                  setBusy('instagram');
+                  try {
+                    const j = await refreshInstagram(true);
+                    if (!j?.ok) throw new Error(j?.reason || 'refresh-failed');
+                    if (j.instagram) handleInstagramSynced(j.instagram);
+                    toast.ok(j.fresh ? 'Instagram data is already up to date.' : 'Instagram data refreshed.');
+                  } catch (e) {
+                    toast.err(e?.message === 'not-connected' ? 'Instagram is not connected.' : 'Could not refresh Instagram. Please try again.');
+                  } finally { setBusy(null); }
+                }}>Sync</Button>
+                <Button size="sm" variant="danger" disabled={busy === 'instagram'} onClick={async () => {
+                  if (!window.confirm('Disconnect Instagram from Collancer?')) return;
+                  setBusy('instagram');
+                  try {
+                    await disconnectInstagram();
+                    setSyncedInstagram(null);
+                    toast.ok('Instagram disconnected.');
+                  } catch { toast.err('Could not disconnect Instagram. Please try again.'); }
+                  finally { setBusy(null); }
+                }}>Disconnect</Button>
+              </div>
+            ) : (
+              <Button size="sm" icon={Instagram} onClick={async () => {
+                setBusy('instagram');
+                try { await startInstagramConnect(); }
+                catch (e) {
+                  setBusy(null);
+                  toast.err(e?.message === 'not-configured' ? 'Instagram connection is not configured yet.' : 'Could not start Instagram connection. Please try again.');
+                }
+              }}>Connect Instagram</Button>
+            )}
           </div>
         </Card>
         {/* Header card */}
