@@ -128,6 +128,7 @@ export default function CreatorApp({ onSwitchRole }) {
   const [profileTab, setProfileTab] = useState('profile');
   const [overlay, setOverlay] = useState(null); // 'verification' | 'beontop' | 'demos' | 'logout' | {type:'booking', id}
   const [fbReady, setFbReady] = useState(false);
+  const [instagramSuccessOpen, setInstagramSuccessOpen] = useState(false);
 
   /* ---- auth ---- */
   useEffect(() => {
@@ -209,7 +210,7 @@ export default function CreatorApp({ onSwitchRole }) {
       const params = new URLSearchParams(window.location.search);
       const ig = params.get('ig');
       if (!ig) return;
-      if (ig === 'connected') toast.ok('Instagram connected — your profile is live.');
+      if (ig === 'connected') setInstagramSuccessOpen(true);
       else if (ig.startsWith('error')) {
         const reason = decodeURIComponent(ig.slice(6));
         if (reason === 'code-expired') {
@@ -371,6 +372,18 @@ export default function CreatorApp({ onSwitchRole }) {
         danger
         onConfirm={doLogout}
       />
+      {instagramSuccessOpen && <div className="cl-ig-success-backdrop" role="presentation" onClick={() => setInstagramSuccessOpen(false)}>
+        <section className="cl-ig-success-modal" role="dialog" aria-modal="true" aria-labelledby="cl-ig-success-title" onClick={e => e.stopPropagation()}>
+          <button className="cl-ig-success-close" type="button" onClick={() => setInstagramSuccessOpen(false)} aria-label="Close success message">×</button>
+          <div className="cl-ig-success-orbit"><div className="cl-ig-success-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.3 4.3L19 6.8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg></div></div>
+          <div className="cl-ig-success-eyebrow">CONNECTION COMPLETE</div>
+          <h2 id="cl-ig-success-title">Instagram connected!</h2>
+          <p>Your creator profile is now linked. Your Instagram details can sync into Collancer so brands can discover your work.</p>
+          <div className="cl-ig-success-detail"><span className="cl-ig-success-dot"/>Account connection confirmed</div>
+          <button className="cl-ig-success-cta" type="button" onClick={() => setInstagramSuccessOpen(false)}>Continue to dashboard <span>→</span></button>
+        </section>
+        <style>{`.cl-ig-success-backdrop{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:18px;background:rgba(3,8,18,.62);backdrop-filter:blur(12px);animation:cl-ig-fade .25s ease both}.cl-ig-success-modal{position:relative;width:min(100%,420px);padding:34px 26px 26px;text-align:center;overflow:hidden;border:1px solid rgba(255,255,255,.36);border-radius:26px;color:var(--ink);background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(240,250,255,.68));box-shadow:0 32px 90px rgba(0,0,0,.3),inset 0 1px 0 #fff;backdrop-filter:blur(28px);animation:cl-ig-pop .55s cubic-bezier(.2,1.4,.4,1) both}.cl-ig-success-modal:before{content:'';position:absolute;z-index:-1;width:220px;height:220px;top:-130px;left:calc(50% - 110px);border-radius:50%;background:rgba(34,211,238,.25);filter:blur(18px)}[data-theme=dark] .cl-ig-success-modal,[data-theme=gold] .cl-ig-success-modal{color:#f4f7fb;background:linear-gradient(145deg,rgba(31,39,52,.92),rgba(18,25,38,.82));border-color:rgba(255,255,255,.16)}.cl-ig-success-close{position:absolute;right:13px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(128,128,128,.12);color:inherit;font-size:24px;cursor:pointer}.cl-ig-success-orbit{width:92px;height:92px;margin:0 auto 22px;border-radius:30px;display:grid;place-items:center;background:linear-gradient(135deg,#ddfaff,#fff);box-shadow:0 14px 30px rgba(6,182,212,.2),inset 0 1px 0 #fff;animation:cl-ig-float 3s ease-in-out infinite alternate}.cl-ig-success-icon{width:62px;height:62px;border-radius:22px;display:grid;place-items:center;color:white;background:linear-gradient(145deg,#06b6d4,#0e7490);box-shadow:inset 0 2px 2px rgba(255,255,255,.45),0 8px 16px rgba(6,182,212,.25);transform:rotate(-5deg)}.cl-ig-success-icon svg{width:32px;height:32px}.cl-ig-success-eyebrow{font-size:10px;letter-spacing:.17em;font-weight:850;color:var(--cyan-deep)}.cl-ig-success-modal h2{font-size:clamp(24px,6vw,30px);letter-spacing:-.04em;margin:9px 0}.cl-ig-success-modal p{font-size:14px;line-height:1.7;color:var(--muted);margin:0 auto;max-width:320px}.cl-ig-success-detail{display:flex;justify-content:center;align-items:center;gap:8px;margin:20px auto;padding:11px 12px;border:1px solid var(--glass-border);border-radius:12px;background:var(--glass-lo);font-size:12px;font-weight:700}.cl-ig-success-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}.cl-ig-success-cta{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:48px;border:0;border-radius:13px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;font-weight:800;cursor:pointer;box-shadow:0 9px 22px rgba(6,182,212,.22)}.cl-ig-success-cta span{font-size:19px}.cl-ig-success-cta:active{transform:scale(.985)}@keyframes cl-ig-fade{from{opacity:0}to{opacity:1}}@keyframes cl-ig-pop{from{opacity:0;transform:translateY(18px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes cl-ig-float{to{transform:translateY(-5px) rotate(2deg)}}@media(prefers-reduced-motion:reduce){.cl-ig-success-backdrop,.cl-ig-success-modal,.cl-ig-success-orbit{animation:none!important}}`}</style>
+      </div>}
       <ChatToastHost notifs={notifs} myType="creator" />
     </div>
   );
