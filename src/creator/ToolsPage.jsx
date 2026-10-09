@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calculator, Copy, Download, FileText, ShieldAlert, CheckCircle2, Share2, Upload, ExternalLink, Sparkles } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Field, Input, TextArea, Badge, Tabs, useToast } from '../components/ui.jsx';
-import { ensureFirebase, db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, setDoc } from '../lib/firebase.js';
+import { ensureFirebase, db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, getDoc, setDoc, updateDoc } from '../lib/firebase.js';
 import { uploadToCloudinary } from '../lib/cloudinary.js';
 
 const money = n => `₹${Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-IN')}`;
@@ -34,6 +34,20 @@ function MediaKit({ creator }) {
     setEmail(creator?.businessEmail || creator?.email || '');
     setCity(creator?.city || '');
   }, [creator?.bio, creator?.businessEmail, creator?.email, creator?.city]);
+  useEffect(() => {
+    if (!creator?.id) return;
+    let active = true;
+    (async () => {
+      try {
+        await ensureFirebase();
+        const ref = doc(db(), 'mediaKits', creator.id);
+        const snap = await getDoc(ref);
+        if (!active || !snap.exists() || snap.data().isPublic !== true) return;
+        await updateDoc(ref, { creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp() });
+      } catch { /* keep editing usable if a public kit has not been published or is offline */ }
+    })();
+    return () => { active = false; };
+  }, [creator?.id, creator?.name, creator?.handle, creator?.followers, creator?.avgViews, creator?.averageViews, creator?.engagement, creator?.engagementRate, creator?.niche, creator?.category, creator?.photoURL, creator?.photoUrl, creator?.avatar, creator?.instagramClient?.profilePictureUrl, creator?.instagram?.profilePictureUrl, theme, bio, email, city, services, name, handle, followers, views, engagement, photo]);
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); toast.ok('Media kit details copied.'); }
     catch { toast.err('Could not copy.'); }
