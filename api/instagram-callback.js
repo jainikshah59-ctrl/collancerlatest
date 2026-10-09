@@ -11,7 +11,7 @@
 import { getAdmin } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
 import { createHmac, timingSafeEqual } from 'crypto';
-import admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const APP_URL = 'https://collancer-app.vercel.app';
 const TOKEN_DAYS = 60;
@@ -70,8 +70,8 @@ export default async function handler(req, res) {
     const { code, state } = q;
     if (!code || !state) return go(res, 'error=missing-code');
 
-    const admin = getAdmin();
-    const db = admin.firestore();
+    const firebaseAdmin = getAdmin();
+    const db = firebaseAdmin.firestore();
 
     // 1. Validate the stateless HMAC-signed state.
     // Format: {uid}.{randomHex}.{hmacHex} — no Firestore lookup needed.
@@ -171,7 +171,7 @@ export default async function handler(req, res) {
     const avgEngagement = instagram.engagementRate;
     const reachVal = instagram.reach;
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     const username = instagram.username;
     const handleLower = username.toLowerCase();
     instagram.connectedAt = now;
