@@ -12,7 +12,6 @@ import { Card, Button, useToast } from '../components/ui.jsx';
 import {
   startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel,
 } from '../lib/instagram.js';
-import { runDirectSync } from '../lib/instagramDirect.js';
 
 function SyncRow({ icon: Icon, label, value, last }) {
   return (
@@ -172,40 +171,19 @@ export function InstagramSyncCard({ creator, onDisconnected, onSynced }) {
         if (j?.instagram) onSynced?.(j.instagram);
         return;
       }
-      // Server sync failed — fall back to direct browser sync
       if (j?.reason === 'token-expired') {
         toast.err('Instagram session expired — please reconnect.');
-        return;
+      } else if (j?.reason === 'not-configured' || j?.reason === 'server-not-configured') {
+        toast.err('Instagram sync is temporarily unavailable. Please try again later.');
+      } else if (j?.reason === 'not-connected') {
+        toast.err('Instagram is no longer connected. Please reconnect.');
+      } else {
+        toast.err('Instagram could not be refreshed. Your last saved data has been kept.');
       }
-      if (j?.reason === 'not-configured') {
-        toast.err('Instagram connect is being set up.');
-        return;
-      }
-      // Try direct sync from browser
-      await onDirectSync();
     } catch {
-      await onDirectSync();
+      toast.err('Instagram sync could not reach the server. Your last saved data has been kept.');
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function onDirectSync() {
-    try {
-      const token = creator?.instagram?.token;
-      if (!token) {
-        toast.err('No Instagram token found. Please reconnect.');
-        return;
-      }
-      toast.info('Syncing directly from Instagram...');
-      const ig = await runDirectSync(creator.id, token, (msg) => {
-        // progress updates could go here
-      });
-      onSynced?.(ig);
-      toast.ok(`Direct sync complete! ${ig.followersCount.toLocaleString('en-IN')} followers, ${ig.recentMedia.length} posts.`);
-    } catch (e) {
-      console.error('[direct-sync]', e);
-      toast.err('Direct sync failed: ' + (e?.message || 'unknown error').slice(0, 80));
     }
   }
 
