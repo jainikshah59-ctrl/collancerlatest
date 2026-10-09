@@ -39,14 +39,11 @@ export default async function handler(req, res) {
     const prev = creatorSnap.exists ? creatorSnap.data()?.instagram : null;
     if (!prev) return fail('not-connected');
 
-    // Token: check instagram_tokens collection first, fallback to creator doc (manual links)
+    // OAuth tokens must remain server-side in instagram_tokens. Never read
+    // a token from the public creator profile document as a fallback.
     const tokSnap = await db.collection('instagram_tokens').doc(uid).get();
     let token = tokSnap.exists ? tokSnap.data()?.token : null;
-    let igId = tokSnap.exists ? tokSnap.data()?.igId : null;
-    if (!token) {
-      token = prev.token;
-      igId = prev.igId || prev.userId;
-    }
+    const igId = tokSnap.exists ? tokSnap.data()?.igId : null;
     if (!token || !igId) return fail('not-connected');
 
     const lastSync = prev.lastSyncedAt?.toMillis ? prev.lastSyncedAt.toMillis() : 0;
@@ -103,8 +100,8 @@ export default async function handler(req, res) {
       engagement: instagram.engagementRate || creatorSnap.data()?.engagement || 0,
       avgViews: instagram.avgViews || creatorSnap.data()?.avgViews || 0,
       avgLikes: instagram.avgLikes || creatorSnap.data()?.avgLikes || 0,
-      reach: instagram.reach || creatorSnap.data()?.reach || 0,
-      profileViews: instagram.profileViews || 0,
+      reach: instagram.accountInsights?.metricStatus?.reach?.available ? instagram.reach : (creatorSnap.data()?.reach ?? 0),
+      profileViews: creatorSnap.data()?.profileViews ?? 0,
       instagram,
       updatedAt: now,
     }, { merge: true });
