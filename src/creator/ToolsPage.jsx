@@ -50,7 +50,7 @@ function MediaKit({ creator }) {
     setSaving(true);
     try {
       await ensureFirebase();
-      const payload = { creatorId: creator.id, creatorName: name, handle, theme, bio, email, city, services, updatedAt: serverTimestamp(), isPublic: true };
+      const payload = { creatorId: creator.id, creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
       await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
       const url = new URL('/media-kit/' + encodeURIComponent(handle), window.location.origin);
       url.searchParams.set('style', theme);
