@@ -64,14 +64,42 @@ function MediaKit({ creator }) {
     setSaving(true);
     try {
       await ensureFirebase();
-      const payload = { creatorId: creator.id, creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
+      const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, '');
+      if (!/^[a-z0-9._]{1,30}$/.test(normalizedHandle)) {
+        toast.err('Your Instagram handle contains unsupported characters. Update it in your profile and try again.');
+        return;
+      }
+      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
       await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
-      const url = new URL('/media-kit/' + encodeURIComponent(handle), window.location.origin);
+
+      // Register the public handle lookup used by /media-kit/:handle.
+      // Never overwrite a handle already owned by a different creator.
+      const handleRef = doc(db(), 'creatorHandles', normalizedHandle);
+      const handleSnap = await getDoc(handleRef);
+      if (handleSnap.exists()) {
+        if (handleSnap.data().creatorId !== creator.id) {
+          throw new Error('handle-taken');
+        }
+      } else {
+        await setDoc(handleRef, {
+          creatorId: creator.id,
+          handleLower: normalizedHandle,
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      const url = new URL('/media-kit/' + encodeURIComponent(normalizedHandle), window.location.origin);
       url.searchParams.set('style', theme);
       setShareUrl(url.toString());
       try { await navigator.clipboard.writeText(url.toString()); toast.ok('Public media kit link copied.'); }
       catch { toast.ok('Public media kit link created.'); }
-    } catch { toast.err('Could not create a share link. Please try again.'); }
+    } catch (error) {
+      if (error?.message === 'handle-taken') {
+        toast.err('That handle is already linked to another creator. Check your public handle and try again.');
+      } else {
+        toast.err('Could not create a share link. Please try again.');
+      }
+    }
     finally { setSaving(false); }
   };
   return <div className="cl-tools-stack">
@@ -106,7 +134,7 @@ function MediaKit({ creator }) {
       <Button variant="light" onClick={download} icon={Download}>Download text</Button>
       <Button onClick={share} loading={saving} icon={Share2}>Create share link</Button>
     </div>
-    {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your public media kit link</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>The public route must be enabled and readable in your Firebase rules for visitors to access this link.</p></Card>}
+    {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your public media kit link</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>Anyone with this link can view the details above without logging in. Only include contact details you want to make public.</p></Card>}
   </div>;
 }
 
@@ -151,7 +179,9 @@ function ScamAlerts({ creator }) {
     return () => { active = false; unsub(); };
   }, []);
   const uploadEvidence = async files => {
-    const chosen = Array.from(files || []).slice(0, 4);
+    const remaining = Math.max(0, 4 - evidence.length);
+    const chosen = Array.from(files || []).slice(0, remaining);
+    if (!chosen.length) { toast.err('You can attach up to 4 evidence images per report. Remove one before adding another.'); return; }
     if (chosen.some(f => !f.type.startsWith('image/'))) { toast.err('Please choose image files only.'); return; }
     if (chosen.some(f => f.size > 8 * 1024 * 1024)) { toast.err('Each image must be 8 MB or smaller.'); return; }
     setBusy(true);
