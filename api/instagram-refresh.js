@@ -13,7 +13,7 @@
  */
 import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
-import { FieldValue } from 'firebase-admin/firestore';
+import admin from 'firebase-admin';
 
 const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         if (rj.access_token) {
           token = rj.access_token;
           await db.collection('instagram_tokens').doc(uid).set({
-            token, updatedAt: FieldValue.serverTimestamp(),
+            token, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
         }
       }
@@ -80,14 +80,14 @@ export default async function handler(req, res) {
       if (e?.graphCode === 190) {
         await db.collection('instagram_tokens').doc(uid).delete().catch(() => {});
         await creatorRef.set({
-          instagram: { ...prev, tokenInvalid: true, updatedAt: FieldValue.serverTimestamp() },
+          instagram: { ...prev, tokenInvalid: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
         }, { merge: true });
         return fail('token-expired');
       }
       return res.status(200).json({ ok: false, reason: 'sync-failed', detail: String(e?.message || e).slice(0, 200) });
     }
 
-    const now = FieldValue.serverTimestamp();
+    const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
       ...prev,
       ...fresh,
