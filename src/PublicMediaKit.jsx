@@ -26,8 +26,8 @@ export default function PublicMediaKit({ handle }) {
   }, [handle]);
   if (loading) return <Page><div className="cl-container" style={{ maxWidth: 780, paddingTop: 28 }}><SkeletonCard/><SkeletonCard/></div></Page>;
   if (missing || !kit) return <Page><div className="cl-container" style={{ maxWidth: 560, paddingTop: 50 }}><Card><h2>Media kit unavailable</h2><p className="cl-small cl-muted" style={{ marginTop: 8 }}>This creator has not published a public media kit, or the link may have changed.</p><Button block style={{ marginTop: 16 }} onClick={() => { window.location.href = '/'; }}>Visit Collancer</Button></Card></div></Page>;
-  const theme = new URLSearchParams(window.location.search).get('style') || kit.theme || 'glass';
-  const cls = { basic: 'mk-essential', glass: 'mk-glass', clay: 'mk-clay', minimal: 'mk-minimal' }[theme] || 'mk-glass';
+  const theme = new URLSearchParams(window.location.search).get('style') || kit.theme || 'basic';
+  const cls = { basic: 'mk-essential', glass: 'mk-glass', clay: 'mk-clay', minimal: 'mk-minimal', neon: 'mk-neon', aurora: 'mk-aurora', chrome: 'mk-chrome', editorial: 'mk-editorial', bloom: 'mk-bloom', cyber: 'mk-cyber', obsidian: 'mk-obsidian', retro: 'mk-retro', holographic: 'mk-holographic' }[theme] || 'mk-essential';
   return <Page pageKey="public-media-kit"><main className="cl-container cl-public-kit" style={{ maxWidth: 850, paddingTop: 24, paddingBottom: 44 }}><div className={'cl-media-preview ' + cls}>
     <div className="cl-media-preview-top"><span>COLLANCER CREATOR KIT</span><span className="cl-media-pill">MEDIA KIT</span></div>
     <div className="cl-media-identity">{kit.photo ? <img className="cl-media-avatar" src={kit.photo} alt="" /> : <div className="cl-media-avatar cl-media-avatar-fallback"><Sparkles size={26}/></div>}<div className="cl-grow"><div className="cl-media-kicker">{kit.niche || 'CREATOR · DIGITAL STORYTELLER'}</div><h1>{kit.creatorName || handle}</h1><p><Instagram size={13} style={{ display: 'inline', verticalAlign: 'middle' }}/> @{kit.handle || handle}</p></div></div>
