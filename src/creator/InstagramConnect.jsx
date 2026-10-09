@@ -85,7 +85,7 @@ export function InstagramConnectScreen({ creatorName, onSkip }) {
           <SyncRow icon={Users} label="Audience" value="Follower and following counts, live" />
           <SyncRow icon={ImageIcon} label="Content" value="Post count and content insights" />
           <div>
-            <SyncRow icon={Eye} label="Insights" value="Reach and profile views refresh automatically" last />
+            <SyncRow icon={Eye} label="Insights" value="Reach, views and engagement refresh automatically where Instagram provides them" last />
           </div>
           <p className="cl-small cl-muted" style={{ marginTop: 10, lineHeight: 1.6 }}>
             Synced details are managed by Instagram and can't be edited here — they'll
