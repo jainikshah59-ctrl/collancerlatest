@@ -33,6 +33,13 @@ export default async function handler(req, res) {
       db.collection('creators').doc(uid),
       {
         instagram: FieldValue.delete(),
+        instagramClient: FieldValue.delete(),
+        followers: FieldValue.delete(),
+        reach: FieldValue.delete(),
+        profileViews: FieldValue.delete(),
+        engagement: FieldValue.delete(),
+        avgViews: FieldValue.delete(),
+        avgLikes: FieldValue.delete(),
         instagramConnected: false,
         updatedAt: new Date(),
       },
