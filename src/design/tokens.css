@@ -663,3 +663,44 @@ a { color: inherit; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes cl-spin { to { transform: rotate(360deg); } }
+
+
+/* Responsive hardening — dashboard, creator tools, brand workflows and dialogs */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 320px; overflow-x: clip; }
+#root, .cl-page { min-width: 0; max-width: 100%; }
+img, video, canvas, svg { max-width: 100%; }
+button, input, textarea, select { font: inherit; }
+button, a, input, textarea, select { touch-action: manipulation; }
+.cl-container, .cl-card, .cl-glass, .cl-row, .cl-grow { min-width: 0; }
+.cl-card, .cl-glass { overflow-wrap: anywhere; }
+.cl-small, p, h1, h2, h3, h4, label { overflow-wrap: anywhere; }
+.cl-input, input, textarea, select { max-width: 100%; min-width: 0; }
+textarea { resize: vertical; }
+.cl-row { flex-wrap: wrap; }
+.cl-row > .cl-grow { flex: 1 1 180px; }
+.cl-bottomnav { padding-bottom: env(safe-area-inset-bottom); }
+@media (max-width: 760px) {
+  .cl-container { width: 100%; padding-left: 14px !important; padding-right: 14px !important; }
+  .cl-card { max-width: 100%; }
+  .cl-row:has(.cl-field), .cl-row:has(input), .cl-row:has(select), .cl-row:has(textarea) {
+    flex-wrap: wrap; align-items: stretch;
+  }
+  .cl-row:has(.cl-field) > *, .cl-row:has(input) > *, .cl-row:has(select) > * { flex: 1 1 100%; min-width: 0; }
+  .cl-topbar { gap: 8px; }
+  .cl-topbar h1, .cl-topbar h2 { font-size: clamp(16px, 4.5vw, 21px); }
+  .cl-tabs { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+  .cl-tabs > * { flex-shrink: 0; }
+  .cl-modal, [role="dialog"] { max-width: calc(100vw - 20px); max-height: calc(100dvh - 24px); overflow-y: auto; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 420px) {
+  .cl-container { padding-left: 12px !important; padding-right: 12px !important; }
+  .cl-card { padding: 14px !important; }
+  .cl-small { font-size: 12px; }
+  .cl-bottomnav { gap: 2px; }
+  .cl-bottomnav button { min-width: 0; padding-left: 4px; padding-right: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
