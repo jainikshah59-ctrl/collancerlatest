@@ -27,7 +27,7 @@ function MediaKit({ creator }) {
   const engagement = Number(creator?.engagementRate || creator?.engagement || 0);
   const handle = String(creator?.handle || creator?.username || '').replace(/^@/, '');
   const name = creator?.name || creator?.fullName || 'Creator';
-  const photo = creator?.photoURL || creator?.photoUrl || creator?.avatar || creator?.instagramClient?.profilePictureUrl || creator?.instagram?.profilePictureUrl || '';
+  const photo = creator?.photoURL || creator?.photoUrl || creator?.avatar || creator?.pfp || creator?.instagramClient?.profilePictureUrl || creator?.instagram?.profilePictureUrl || '';
   const text = useMemo(() => [name, handle ? '@' + handle : '', creator?.niche || creator?.category || '', city, 'Followers: ' + count(followers), views ? 'Average views: ' + count(views) : '', engagement ? 'Engagement rate: ' + engagement + '%' : '', bio, 'Services: ' + services, email ? 'Contact: ' + email : ''].filter(Boolean).join('\n'), [name, handle, creator, city, followers, views, engagement, bio, services, email]);
   useEffect(() => {
     setBio(creator?.bio || creator?.instagram?.bio || creator?.instagramClient?.bio || '');
