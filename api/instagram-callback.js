@@ -182,6 +182,11 @@ export default async function handler(req, res) {
     const creatorSnap = await creatorRef.get();
     const prev = creatorSnap.exists ? creatorSnap.data() : {};
     const prevLower = prev.handleLower || null;
+    // A transient media API failure must not erase a previously saved library.
+    if (instagram.dataQuality?.mediaFetchError && Array.isArray(prev.instagram?.recentMedia)) {
+      instagram.recentMedia = prev.instagram.recentMedia;
+      instagram.mediaCount = prev.instagram.mediaCount ?? instagram.mediaCount;
+    }
 
     await db.collection('instagram_tokens').doc(uid).set({
       token, igId: String(instagram.igId), expiresAt, updatedAt: now,
@@ -209,7 +214,7 @@ export default async function handler(req, res) {
       engagement: avgEngagement || prev.engagement || 0,
       avgViews: avgViews || prev.avgViews || 0,
       avgLikes: avgLikes || prev.avgLikes || 0,
-      reach: reachVal || prev.reach || 0,
+      reach: instagram.accountInsights?.metricStatus?.reach?.available ? reachVal : (prev.reach ?? 0),
       platform: 'Instagram',
       instagram,
       onboardingStep: 'done',
