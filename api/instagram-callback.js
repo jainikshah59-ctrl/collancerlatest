@@ -18,31 +18,40 @@ const TOKEN_DAYS = 60;
 const go = (res, reason) =>
   res.writeHead(302, { Location: `${APP_URL}/?ig=${reason}` }).end();
 
+function providerError(json, status, fallback) {
+  const nested = json?.error && typeof json.error === 'object' ? json.error : {};
+  const message = json?.error_message || nested.message ||
+    (typeof json?.error === 'string' ? json.error : '') ||
+    json?.message || fallback || `Instagram request failed (${status})`;
+  return {
+    message: String(message).replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 180),
+    code: nested.code ?? json?.error_code ?? json?.code ?? null,
+    type: nested.type ?? null,
+  };
+}
+
+function classifyTokenError(message) {
+  if (/(expired|already used|already redeemed|invalid).*\bcode\b|\bcode\b.*(expired|already used|invalid)/i.test(message)) return 'CODE_EXPIRED';
+  if (/redirect[_ ]?uri|redirect url/i.test(message)) return 'REDIRECT_MISMATCH';
+  if (/client[_ ]?(secret|id)|invalid[_ ]?client|app secret/i.test(message)) return 'APP_CREDENTIALS';
+  return 'TOKEN_FAILED_DIAG';
+}
+
 async function postForm(url, params) {
-  // Meta documents the code->token exchange with multipart/form-data
-  // (curl -F). A urlencoded body is REJECTED with the misleading
-  // "Error validating verification code. Please make sure your redirect_uri
-  // is identical to the one you used in the OAuth dialog request" - which
-  // sends you hunting redirect URIs while the real problem is the encoding.
-  // (Root-caused 2026-10-07; see research notes.)
+  // Keep the app secret server-side and preserve the provider's error details
+  // in logs. Never log the authorization code or access token.
   const form = new FormData();
   for (const [k, v] of Object.entries(params)) form.append(k, String(v));
   const r = await fetch(url, { method: 'POST', body: form });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    // Surface Instagram's error so we can tell a bad client_secret apart
-    // from a bad/used code without server logs. Map expired/invalid codes
-    // to a user-friendly retry message.
-    const raw = String(j?.error_message || j?.error?.message || `token exchange failed (${r.status})`);
-    const msg = raw.replace(/[^a-zA-Z0-9 _.,:()/-]/g, '').slice(0, 90);
-    const e = new Error(`token-failed: ${msg}`);
-    e.code = 'TOKEN_FAILED_DIAG';
-    // Instagram's "Error validating verification code" is misleading: besides
-    // a genuinely expired/used code (codes are single-use, valid 1h per Meta
-    // docs - NOT minutes), Instagram returns this exact message when the
-    // exchange body isn't multipart/form-data (fixed above) or when the app
-    // secret doesn't match the Instagram use-case secret (Jainik-side check).
-    if (/validating verification code/i.test(raw)) e.code = 'CODE_EXPIRED';
+  const hasAccessToken = Boolean(j?.access_token || j?.data?.[0]?.access_token);
+  if (!r.ok || j?.error || !hasAccessToken) {
+    const info = providerError(j, r.status, 'Instagram did not return an access token.');
+    const e = new Error(info.message);
+    e.code = classifyTokenError(info.message);
+    e.status = r.status;
+    e.metaCode = info.code;
+    e.metaType = info.type;
     throw e;
   }
   return j;
@@ -86,7 +95,7 @@ export default async function handler(req, res) {
       return go(res, `error=bad-state-got-${encodeURIComponent(got)}`);
     }
 
-    // 2. Code -> short-lived token -> long-lived token (server-side only).
+    // 2. Exchange the one-time authorization code for a short-lived token.
     let short;
     try {
       short = await postForm('https://api.instagram.com/oauth/access_token', {
@@ -97,22 +106,54 @@ export default async function handler(req, res) {
         code: String(code),
       });
     } catch (e) {
-      // Expired/used authorization code (user took too long on Instagram's
-      // page) -> tell the app to ask for a fresh connect attempt.
+      console.error('[instagram-callback] short-token exchange failed', {
+        status: e?.status ?? null,
+        metaCode: e?.metaCode ?? null,
+        metaType: e?.metaType ?? null,
+        message: String(e?.message || 'token exchange failed').slice(0, 180),
+      });
       if (e?.code === 'CODE_EXPIRED') return go(res, 'error=code-expired');
+      if (e?.code === 'REDIRECT_MISMATCH') return go(res, 'error=redirect-uri-mismatch');
+      if (e?.code === 'APP_CREDENTIALS') return go(res, 'error=app-credentials-invalid');
       return go(res, 'error=token-failed');
     }
-    // Meta docs: token exchange returns { data: [{ access_token, user_id, permissions }] }.
-    // Handle both nested and flat formats for robustness.
+
+    // Meta can return either flat or wrapped response shapes.
     const shortToken = short?.access_token || short?.data?.[0]?.access_token;
     if (!shortToken) return go(res, 'error=token-failed');
-    const ll = await fetch(
-      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token` +
-      `&client_secret=${encodeURIComponent(appSecret)}` +
-      `&access_token=${encodeURIComponent(shortToken)}`,
-    ).then((r) => r.json().catch(() => ({})));
-    const token = ll.access_token || shortToken;
-    const expiresAt = new Date(Date.now() + TOKEN_DAYS * 86400000);
+
+    // Do not silently persist a short-lived token while claiming it lasts 60 days.
+    let ll;
+    let longTokenResponse;
+    try {
+      longTokenResponse = await fetch(
+        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token` +
+        `&client_secret=${encodeURIComponent(appSecret)}` +
+        `&access_token=${encodeURIComponent(shortToken)}`,
+      );
+      ll = await longTokenResponse.json().catch(() => ({}));
+      if (!longTokenResponse.ok || ll?.error || !ll?.access_token) {
+        const info = providerError(ll, longTokenResponse.status, 'Instagram did not return a long-lived access token.');
+        const e = new Error(info.message);
+        e.status = longTokenResponse.status;
+        e.metaCode = info.code;
+        e.metaType = info.type;
+        throw e;
+      }
+    } catch (e) {
+      console.error('[instagram-callback] long-lived token exchange failed', {
+        status: e?.status ?? null,
+        metaCode: e?.metaCode ?? null,
+        metaType: e?.metaType ?? null,
+        message: String(e?.message || 'long-lived token exchange failed').slice(0, 180),
+      });
+      return go(res, 'error=long-token-failed');
+    }
+
+    const token = ll.access_token;
+    const expiresIn = Number(ll.expires_in);
+    const expiresAt = new Date(Date.now() +
+      (Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : TOKEN_DAYS * 86400) * 1000);
 
     // 3. Full Instagram sync — profile + account insights + audience +
     //    ALL media + per-media insights (shared module, same as refresh).
@@ -177,7 +218,10 @@ export default async function handler(req, res) {
     return go(res, 'connected');
   } catch (e) {
     if (e && (e.code === 'NOT_CONFIGURED' || e.code === 'BAD_CONFIG')) return go(res, 'error=server-not-configured');
-    if (e && e.code === 'TOKEN_FAILED_DIAG') return go(res, `error=${encodeURIComponent(e.message)}`); // TEMP-DIAG
+    console.error('[instagram-callback] unexpected connection failure', {
+      code: e?.code || null,
+      message: String(e?.message || 'connection failed').slice(0, 180),
+    });
     return go(res, 'error=connect-failed');
   }
 }
