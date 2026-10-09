@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calculator, Copy, Download, FileText, ShieldAlert, CheckCircle2, Share2, Upload, ExternalLink, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calculator, Check, CheckCircle2, Copy, Download, FileText, Layers, Palette, ShieldAlert, Share2, Upload, ExternalLink, Sparkles } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Field, Input, TextArea, Badge, Tabs, useToast } from '../components/ui.jsx';
 import { ensureFirebase, db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, getDoc, setDoc, updateDoc } from '../lib/firebase.js';
 import { uploadToCloudinary } from '../lib/cloudinary.js';
@@ -7,35 +7,55 @@ import { uploadToCloudinary } from '../lib/cloudinary.js';
 const money = n => `₹${Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-IN')}`;
 const count = n => Math.max(0, Number(n) || 0).toLocaleString('en-IN');
 const themes = [
-  { id: 'basic', name: 'Essential', note: 'Clean & professional', cls: 'mk-essential' },
-  { id: 'glass', name: '3D Glass', note: 'Frosted glass layers', cls: 'mk-glass' },
-  { id: 'clay', name: 'Soft Clay', note: 'Rounded, tactile surfaces', cls: 'mk-clay' },
-  { id: 'minimal', name: 'Editorial', note: 'Bold, minimal typography', cls: 'mk-minimal' },
+  { id: 'basic', name: 'Collancer Signature', note: 'App-native cyan · crisp and confident', cls: 'mk-essential', family: 'Signature', marker: 'DEFAULT' },
+  { id: 'glass', name: 'iOS Liquid Glass', note: 'Transparent glass · refracted edges', cls: 'mk-glass', family: 'Glassmorphism', marker: '3D GLASS' },
+  { id: 'clay', name: 'Soft 3D Clay', note: 'Tactile depth · sculpted surfaces', cls: 'mk-clay', family: 'Claymorphism', marker: 'TACTILE' },
+  { id: 'minimal', name: '3D Minimal', note: 'Architectural grid · quiet luxury', cls: 'mk-minimal', family: 'Minimalism', marker: 'MINIMAL' },
+  { id: 'neon', name: 'Neon Pulse', note: 'Electric colour · luminous depth', cls: 'mk-neon', family: 'Neon futurism', marker: 'GLOW' },
+  { id: 'aurora', name: 'Aurora Prism', note: 'Iridescent haze · layered light', cls: 'mk-aurora', family: 'Aurora glass', marker: 'IRIDESCENT' },
+  { id: 'chrome', name: 'Liquid Chrome', note: 'Polished metal · reflective silver', cls: 'mk-chrome', family: 'Chrome 3D', marker: 'CHROME' },
+  { id: 'editorial', name: 'Editorial Luxe', note: 'Magazine typography · warm paper', cls: 'mk-editorial', family: 'Editorial', marker: 'EDITORIAL' },
+  { id: 'bloom', name: 'Solar Bloom', note: 'Sculpted gradients · warm optimism', cls: 'mk-bloom', family: 'Gradient sculpture', marker: 'BLOOM' },
+  { id: 'cyber', name: 'Cyber Matrix', note: 'Technical grid · precision energy', cls: 'mk-cyber', family: 'Cyber 3D', marker: 'SYSTEM' },
+  { id: 'obsidian', name: 'Obsidian Gold', note: 'Black glass · brushed gold accents', cls: 'mk-obsidian', family: 'Luxury', marker: 'SIGNATURE' },
+  { id: 'retro', name: 'Retro Future', note: 'Synthwave palette · dimensional lines', cls: 'mk-retro', family: 'Retro futurism', marker: 'FUTURE' },
+  { id: 'holographic', name: 'Holographic', note: 'Pearlescent spectrum · soft reflections', cls: 'mk-holographic', family: 'Holographic 3D', marker: 'SPECTRUM' },
 ];
 
 function MediaKit({ creator }) {
   const toast = useToast();
-  const [theme, setTheme] = useState('glass');
+  const [theme, setTheme] = useState('basic');
+  const [draftTheme, setDraftTheme] = useState('basic');
+  const [stage, setStage] = useState('intro');
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [freshCreator, setFreshCreator] = useState(null);
   const [bio, setBio] = useState(creator?.bio || creator?.instagram?.bio || creator?.instagramClient?.bio || '');
   const [email, setEmail] = useState(creator?.businessEmail || creator?.email || '');
   const [city, setCity] = useState(creator?.city || '');
   const [services, setServices] = useState('Instagram Reels, Stories, UGC');
   const [saving, setSaving] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
-  const followers = Number(creator?.followers || creator?.instagramClient?.followers || creator?.instagram?.followers || 0);
-  const views = Number(creator?.avgViews || creator?.averageViews || creator?.instagramClient?.avgViews || 0);
-  const engagement = Number(creator?.engagementRate || creator?.engagement || 0);
-  const handle = String(creator?.handle || creator?.username || '').replace(/^@/, '');
-  const name = creator?.name || creator?.fullName || 'Creator';
-  const photo = creator?.photoURL || creator?.photoUrl || creator?.avatar || creator?.pfp || creator?.instagramClient?.profilePictureUrl || creator?.instagram?.profilePictureUrl || '';
-  const text = useMemo(() => [name, handle ? '@' + handle : '', creator?.niche || creator?.category || '', city, 'Followers: ' + count(followers), views ? 'Average views: ' + count(views) : '', engagement ? 'Engagement rate: ' + engagement + '%' : '', bio, 'Services: ' + services, email ? 'Contact: ' + email : ''].filter(Boolean).join('\n'), [name, handle, creator, city, followers, views, engagement, bio, services, email]);
+  const data = freshCreator ? { ...creator, ...freshCreator } : (creator || {});
+  const followers = Number(data?.followers || data?.instagramClient?.followers || data?.instagram?.followers || 0);
+  const views = Number(data?.avgViews || data?.averageViews || data?.instagramClient?.avgViews || data?.instagram?.accountInsights?.totals?.views || 0);
+  const engagement = Number(data?.engagementRate || data?.engagement || data?.instagram?.engagementRate || 0);
+  const handle = String(data?.handle || data?.username || '').replace(/^@/, '');
+  const name = data?.name || data?.fullName || 'Creator';
+  const niche = data?.niche || data?.category || 'Creator · digital storyteller';
+  const photo = data?.photoURL || data?.photoUrl || data?.avatar || data?.pfp || data?.instagramClient?.profilePictureUrl || data?.instagram?.profilePictureUrl || '';
+  const activeTheme = themes.find(t => t.id === theme) || themes[0];
+  const previewTheme = themes.find(t => t.id === (showTemplates ? draftTheme : theme)) || themes[0];
+  const text = useMemo(() => [name, handle ? '@' + handle : '', niche, city, 'Followers: ' + count(followers), views ? 'Average views: ' + count(views) : '', engagement ? 'Engagement rate: ' + engagement + '%' : '', bio, 'Services: ' + services, email ? 'Contact: ' + email : ''].filter(Boolean).join('\n'), [name, handle, niche, city, followers, views, engagement, bio, services, email]);
+
   useEffect(() => {
     setBio(creator?.bio || creator?.instagram?.bio || creator?.instagramClient?.bio || '');
     setEmail(creator?.businessEmail || creator?.email || '');
     setCity(creator?.city || '');
   }, [creator?.bio, creator?.businessEmail, creator?.email, creator?.city]);
+
   useEffect(() => {
-    if (!creator?.id) return;
+    if (!creator?.id || stage !== 'kit') return;
     let active = true;
     (async () => {
       try {
@@ -43,11 +63,54 @@ function MediaKit({ creator }) {
         const ref = doc(db(), 'mediaKits', creator.id);
         const snap = await getDoc(ref);
         if (!active || !snap.exists() || snap.data().isPublic !== true) return;
-        await updateDoc(ref, { creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp() });
-      } catch { /* keep editing usable if a public kit has not been published or is offline */ }
+        await updateDoc(ref, { creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche, photo, updatedAt: serverTimestamp() });
+      } catch { /* editing remains usable if a public kit has not been published */ }
     })();
     return () => { active = false; };
-  }, [creator?.id, creator?.name, creator?.handle, creator?.followers, creator?.avgViews, creator?.averageViews, creator?.engagement, creator?.engagementRate, creator?.niche, creator?.category, creator?.photoURL, creator?.photoUrl, creator?.avatar, creator?.instagramClient?.profilePictureUrl, creator?.instagram?.profilePictureUrl, theme, bio, email, city, services, name, handle, followers, views, engagement, photo]);
+  }, [creator?.id, creator?.name, creator?.fullName, creator?.handle, creator?.username, creator?.followers, creator?.avgViews, creator?.averageViews, creator?.engagement, creator?.engagementRate, creator?.niche, creator?.category, creator?.photoURL, creator?.photoUrl, creator?.avatar, creator?.instagramClient?.profilePictureUrl, creator?.instagram?.profilePictureUrl, stage, theme, bio, email, city, services, name, handle, followers, views, engagement, photo, niche]);
+
+  const wait = ms => new Promise(resolve => window.setTimeout(resolve, ms));
+  const createMediaKit = async () => {
+    if (stage !== 'intro') return;
+    setStage('loading');
+    setLoadingStep(0);
+    let latest = creator || {};
+    try {
+      await ensureFirebase();
+      if (creator?.id) {
+        const snap = await getDoc(doc(db(), 'creators', creator.id));
+        if (snap.exists()) latest = { ...creator, ...snap.data(), id: creator.id };
+      }
+    } catch { /* use the creator profile already held by the live studio */ }
+    setFreshCreator(latest);
+    setBio(latest?.bio || latest?.instagram?.bio || latest?.instagramClient?.bio || '');
+    setEmail(latest?.businessEmail || latest?.email || '');
+    setCity(latest?.city || '');
+    await wait(700);
+    setLoadingStep(1);
+    await wait(1050);
+    setStage('success');
+    await wait(1700);
+    setStage('kit');
+  };
+
+  const applyTemplate = () => {
+    setTheme(draftTheme);
+    setShowTemplates(false);
+    setShareUrl(current => {
+      if (!current) return current;
+      try {
+        const url = new URL(current);
+        url.searchParams.set('style', draftTheme);
+        return url.toString();
+      } catch { return current; }
+    });
+    toast.ok('Template applied to your media kit.');
+    window.setTimeout(() => {
+      document.querySelector('.cl-media-kit-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); toast.ok('Media kit details copied.'); }
     catch { toast.err('Could not copy.'); }
@@ -56,7 +119,7 @@ function MediaKit({ creator }) {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'collancer-media-kit.txt'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const share = async () => {
     if (!creator?.id) { toast.err('Your profile is still loading.'); return; }
@@ -69,71 +132,107 @@ function MediaKit({ creator }) {
         toast.err('Your Instagram handle contains unsupported characters. Update it in your profile and try again.');
         return;
       }
-      // Register the public handle lookup used by /media-kit/:handle.
-      // Never overwrite a handle already owned by a different creator.
       const handleRef = doc(db(), 'creatorHandles', normalizedHandle);
       const handleSnap = await getDoc(handleRef);
-      if (handleSnap.exists() && handleSnap.data().creatorId !== creator.id) {
-        throw new Error('handle-taken');
-      }
-
-      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
+      if (handleSnap.exists() && handleSnap.data().creatorId !== creator.id) throw new Error('handle-taken');
+      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche, photo, updatedAt: serverTimestamp(), isPublic: true };
       await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
       if (!handleSnap.exists()) {
-        await setDoc(handleRef, {
-          creatorId: creator.id,
-          handleLower: normalizedHandle,
-          updatedAt: serverTimestamp(),
-        });
+        await setDoc(handleRef, { creatorId: creator.id, handleLower: normalizedHandle, updatedAt: serverTimestamp() });
       }
-
       const url = new URL('/media-kit/' + encodeURIComponent(normalizedHandle), window.location.origin);
       url.searchParams.set('style', theme);
       setShareUrl(url.toString());
       try { await navigator.clipboard.writeText(url.toString()); toast.ok('Public media kit link copied.'); }
       catch { toast.ok('Public media kit link created.'); }
     } catch (error) {
-      if (error?.message === 'handle-taken') {
-        toast.err('That handle is already linked to another creator. Check your public handle and try again.');
-      } else {
-        toast.err('Could not create a share link. Please try again.');
-      }
-    }
-    finally { setSaving(false); }
+      if (error?.message === 'handle-taken') toast.err('That handle is already linked to another creator. Check your public handle and try again.');
+      else toast.err('Could not create a share link. Please try again.');
+    } finally { setSaving(false); }
   };
-  return <div className="cl-tools-stack">
-    <Card>
-      <div className="cl-row" style={{ gap: 10, marginBottom: 14 }}>
-        <FileText style={{ width: 22, height: 22, color: 'var(--cyan-deep)', flexShrink: 0 }} />
-        <div className="cl-grow"><h3 style={{ fontSize: 17 }}>Media Kit Studio</h3><p className="cl-small cl-muted">Your audience, niche and creator identity — styled into a brand-ready portfolio.</p></div>
-        <Badge tone="green">Live preview</Badge>
+
+  const loadingTitles = ['Fetching your account details', 'Creating your media kit'];
+  return <div className="cl-tools-stack cl-media-kit-workspace">
+    {stage === 'intro' && <section className="cl-kit-intro">
+      <div className="cl-kit-intro-copy">
+        <div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> CREATOR STUDIO <span>/</span> MEDIA KIT</div>
+        <h2>Make your influence <span>impossible to ignore.</span></h2>
+        <p className="cl-kit-intro-description">Turn your creator profile into a polished, brand-ready media kit in seconds. Your audience, niche and key performance details are pulled into a portfolio you can refine, style and share with brands.</p>
+        <div className="cl-kit-intro-proof">
+          <span><strong>{count(followers)}</strong> followers</span>
+          <i />
+          <span><strong>{niche}</strong></span>
+          <i />
+          <span><strong>13</strong> premium styles</span>
+        </div>
+        <Button block size="lg" onClick={createMediaKit} icon={Sparkles}>Create your media kit <ArrowRight size={16} /></Button>
+        <div className="cl-kit-intro-note"><CheckCircle2 size={14} /> Uses your saved creator profile · fully customizable before sharing</div>
       </div>
-      <div className="cl-template-grid">{themes.map(t => <button type="button" key={t.id} onClick={() => setTheme(t.id)} className={'cl-template-choice ' + (theme === t.id ? 'is-active' : '')}><span className={'cl-template-swatch ' + t.cls}><i/><i/><i/></span><strong>{t.name}</strong><small>{t.note}</small></button>)}</div>
-      <div className="cl-row cl-kit-fields" style={{ gap: 10, marginTop: 16 }}>
-        <div className="cl-grow"><Field label="City / location"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Your city" /></Field></div>
-        <div className="cl-grow"><Field label="Business contact email"><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="hello@example.com" inputType="email" /></Field></div>
+      <div className="cl-kit-intro-art" aria-hidden="true">
+        <div className="cl-kit-orbit cl-kit-orbit-a" /><div className="cl-kit-orbit cl-kit-orbit-b" />
+        <div className="cl-kit-art-glass"><div className="cl-kit-art-shine" /><div className="cl-kit-art-top"><span>COLLANCER</span><span>CREATOR / 001</span></div>
+          <div className="cl-kit-art-avatar">{photo ? <img src={photo} alt="" /> : <Sparkles size={30}/>}</div>
+          <div className="cl-kit-art-kicker">{niche}</div><div className="cl-kit-art-name">{name}</div><div className="cl-kit-art-handle">{handle ? '@' + handle : '@yourhandle'}</div>
+          <div className="cl-kit-art-stats"><span><strong>{count(followers)}</strong><small>FOLLOWERS</small></span><span><strong>{views ? count(views) : '—'}</strong><small>AVG. VIEWS</small></span><span><strong>{engagement ? engagement + '%' : '—'}</strong><small>ENGAGEMENT</small></span></div>
+          <div className="cl-kit-art-foot"><span>CREATOR MEDIA KIT</span><Sparkles size={14}/></div>
+        </div>
+        <div className="cl-kit-orbit-chip"><Sparkles size={15}/><span>Built around your story</span></div>
       </div>
-      <Field label="Creator bio"><TextArea value={bio} onChange={e => setBio(e.target.value)} maxLength={500} placeholder="A short introduction for potential brand partners" /></Field>
-      <Field label="Services"><Input value={services} onChange={e => setServices(e.target.value)} placeholder="Reels, Stories, UGC..." /></Field>
-    </Card>
-    <section className={'cl-media-preview ' + themes.find(t => t.id === theme).cls}>
-      <div className="cl-media-preview-top"><span>COLLANCER CREATOR KIT</span><span className="cl-media-pill">MEDIA KIT · 2026</span></div>
-      <div className="cl-media-identity">
-        {photo ? <img className="cl-media-avatar" src={photo} alt="" /> : <div className="cl-media-avatar cl-media-avatar-fallback"><Sparkles size={26}/></div>}
-        <div className="cl-grow"><div className="cl-media-kicker">{creator?.niche || creator?.category || 'CREATOR · DIGITAL STORYTELLER'}</div><h2>{name}</h2><p>{handle ? '@' + handle : 'Your Instagram handle'}</p></div>
+    </section>}
+
+    {stage === 'loading' && <section className="cl-kit-flow-screen" role="status" aria-live="polite">
+      <div className="cl-kit-loader-emblem"><span className="cl-kit-loader-ring" /><span className="cl-kit-loader-ring cl-kit-loader-ring-two" /><span className="cl-kit-loader-core"><Sparkles size={28}/></span></div>
+      <span className="cl-kit-flow-kicker">COLLANCER MEDIA KIT STUDIO</span>
+      <h2 key={loadingStep}>{loadingTitles[loadingStep]}</h2>
+      <p>{loadingStep === 0 ? 'Bringing your latest creator profile details together.' : 'Composing your audience snapshot and creator identity.'}</p>
+      <div className="cl-kit-progress-track"><span style={{ width: loadingStep === 0 ? '46%' : '100%' }} /></div>
+      <div className="cl-kit-loading-steps">{loadingTitles.map((label, i) => <div className={'cl-kit-loading-step ' + (i < loadingStep ? 'is-done' : i === loadingStep ? 'is-current' : '')} key={label}><span>{i < loadingStep ? <Check size={13}/> : <span className="cl-kit-step-dot" />}</span>{label}</div>)}</div>
+    </section>}
+
+    {stage === 'success' && <div className="cl-kit-success-overlay" role="dialog" aria-modal="true" aria-label="Media kit successfully created">
+      <div className="cl-kit-success-card"><div className="cl-kit-success-orbit"><span/><span/><span/><div><CheckCircle2 size={34}/></div></div>
+        <div className="cl-kit-success-eyebrow">YOUR CREATOR STORY, BEAUTIFULLY PACKAGED</div><h2>Media kit successfully created</h2><p>Your details are ready. Next, make the design feel unmistakably yours.</p><div className="cl-kit-success-bottom"><span/><span/><span/></div>
       </div>
-      <p className="cl-media-bio">{bio || 'Add a short bio to tell brands what makes your content and community unique.'}</p>
-      <div className="cl-media-stats"><div><strong>{count(followers)}</strong><span>Followers</span></div><div><strong>{views ? count(views) : '—'}</strong><span>Avg. views</span></div><div><strong>{engagement ? engagement + '%' : '—'}</strong><span>Engagement</span></div></div>
-      <div className="cl-media-bottom"><div><span>LOCATION</span><strong>{city || 'Add your city'}</strong></div><div><span>COLLABORATIONS</span><strong>{services || 'Add your services'}</strong></div></div>
-      {email && <div className="cl-media-contact">{email}</div>}
-      <div className="cl-media-footer"><span>Where Indian brands meet verified creators</span><span>COLLANCER ↗</span></div>
-    </section>
-    <div className="cl-row cl-kit-actions" style={{ gap: 8 }}>
-      <Button onClick={copy} icon={Copy}>Copy details</Button>
-      <Button variant="light" onClick={download} icon={Download}>Download text</Button>
-      <Button onClick={share} loading={saving} icon={Share2}>Create share link</Button>
-    </div>
-    {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your public media kit link</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>Anyone with this link can view the details above without logging in. Only include contact details you want to make public.</p></Card>}
+    </div>}
+
+    {stage === 'kit' && <>
+      {showTemplates && <section className="cl-kit-template-gallery">
+        <div className="cl-kit-gallery-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> TEMPLATE LIBRARY <span>/</span> 13 STYLES</div><h2>Choose your visual signature.</h2><p>Every template has its own palette, depth, lighting and material treatment. Select a style to preview it, then confirm to apply it to your kit.</p></div><button type="button" className="cl-kit-gallery-close" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }} aria-label="Close templates">×</button></div>
+        <div className="cl-template-grid cl-template-grid-premium">{themes.map(t => <button type="button" key={t.id} aria-pressed={draftTheme === t.id} onClick={() => setDraftTheme(t.id)} className={'cl-template-choice cl-template-choice-premium ' + t.cls + (draftTheme === t.id ? ' is-active' : '')}>
+          <span className={'cl-template-swatch ' + t.cls}><i/><i/><i/><b/></span>
+          <span className="cl-template-choice-meta"><small>{t.family}</small>{theme === t.id && <em>APPLIED</em>}</span>
+          <strong>{t.name}</strong><small className="cl-template-description">{t.note}</small>
+          <span className="cl-template-select-cue">{draftTheme === t.id ? <><CheckCircle2 size={15}/> Selected</> : <>Preview style <ArrowRight size={13}/></>}</span>
+        </button>)}</div>
+        <div className="cl-kit-gallery-actions"><p><strong>{(themes.find(t => t.id === draftTheme) || themes[0]).name}</strong> is selected. Confirm to apply this design to your media kit.</p><div><Button variant="light" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }}>Cancel</Button><Button onClick={applyTemplate} icon={CheckCircle2}>Confirm and apply template</Button></div></div>
+      </section>}
+
+      <div className="cl-kit-ready-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> MEDIA KIT READY</div><h2>Your creator story, made share-worthy.</h2><p>Built from your saved profile. Your selected design is applied to every preview and public share link.</p></div><span className="cl-kit-ready-check"><CheckCircle2 size={17}/> Created</span></div>
+
+      <section key={previewTheme.id} className={'cl-media-preview cl-media-kit-preview ' + previewTheme.cls}>
+        <div className="cl-media-preview-top"><span>COLLANCER CREATOR KIT</span><span className="cl-media-pill">{previewTheme.marker} · MEDIA KIT</span></div>
+        <div className="cl-media-identity">
+          {photo ? <img className="cl-media-avatar" src={photo} alt="" /> : <div className="cl-media-avatar cl-media-avatar-fallback"><Sparkles size={26}/></div>}
+          <div className="cl-grow"><div className="cl-media-kicker">{niche}</div><h2>{name}</h2><p>{handle ? '@' + handle : 'Your Instagram handle'}</p></div>
+        </div>
+        <p className="cl-media-bio">{bio || 'Add a short bio to tell brands what makes your content and community unique.'}</p>
+        <div className="cl-media-stats"><div><strong>{count(followers)}</strong><span>Followers</span></div><div><strong>{views ? count(views) : '—'}</strong><span>Avg. views</span></div><div><strong>{engagement ? engagement + '%' : '—'}</strong><span>Engagement</span></div></div>
+        <div className="cl-media-bottom"><div><span>LOCATION</span><strong>{city || 'Add your city'}</strong></div><div><span>COLLABORATIONS</span><strong>{services || 'Add your services'}</strong></div></div>
+        {email && <div className="cl-media-contact">{email}</div>}
+        <div className="cl-media-footer"><span>Where Indian brands meet verified creators</span><span>COLLANCER ↗</span></div>
+      </section>
+
+      <div className="cl-kit-primary-actions"><Button onClick={() => { setDraftTheme(theme); setShowTemplates(true); }} icon={Palette}>Explore templates</Button><Button variant="light" onClick={copy} icon={Copy}>Copy details</Button><Button variant="light" onClick={download} icon={Download}>Download details</Button><Button onClick={share} loading={saving} icon={Share2}>Create share link</Button></div>
+      <details className="cl-kit-edit-details"><summary><span><FileText size={17}/> Customize your details</span><small>Edit your bio, location, services and contact information</small><span className="cl-kit-edit-chevron">＋</span></summary>
+        <Card><div className="cl-row cl-kit-fields" style={{ gap: 10 }}>
+          <div className="cl-grow"><Field label="City / location"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Your city" /></Field></div>
+          <div className="cl-grow"><Field label="Business contact email"><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="hello@example.com" inputType="email" /></Field></div>
+        </div>
+        <Field label="Creator bio"><TextArea value={bio} onChange={e => setBio(e.target.value)} maxLength={500} placeholder="A short introduction for potential brand partners" /></Field>
+        <Field label="Services"><Input value={services} onChange={e => setServices(e.target.value)} placeholder="Reels, Stories, UGC..." /></Field></Card>
+      </details>
+      {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your public media kit link</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>Anyone with this link can view the details above without logging in. Only include contact details you want to make public.</p></Card>}
+    </>}
   </div>;
 }
 
@@ -219,5 +318,153 @@ export default function ToolsPage({ creator, onBack }) {
   const [tab, setTab] = useState('media');
   return <Page pageKey="creator-tools"><TopBar title="Creator Tools" subtitle="Build, price and protect your creator business" left={<IconBtn icon={ArrowLeft} label="Back" onClick={onBack}/>}/><div className="cl-container cl-tools-container" style={{ paddingTop: 14, paddingBottom: 28 }}><Tabs tabs={[{ key: 'media', label: 'Media Kit', icon: FileText }, { key: 'calculator', label: 'Charges', icon: Calculator }, { key: 'scams', label: 'Scam Alerts', icon: ShieldAlert }]} value={tab} onChange={setTab}/><div style={{ marginTop: 14 }}>{tab === 'media' && <MediaKit creator={creator}/>} {tab === 'calculator' && <ChargesCalculator creator={creator}/>} {tab === 'scams' && <ScamAlerts creator={creator}/>}</div></div><style>{`
     .cl-tools-container{max-width:980px}.cl-tools-stack{display:grid;gap:14px}.cl-template-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.cl-template-choice{min-width:0;text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--surface-2);color:var(--ink);display:grid;gap:5px;cursor:pointer;transition:transform .22s ease,border-color .22s ease}.cl-template-choice:hover{transform:translateY(-2px)}.cl-template-choice.is-active{border-color:var(--cyan);box-shadow:0 0 0 2px var(--cyan-glow)}.cl-template-choice strong{font-size:12px}.cl-template-choice small{font-size:11px;color:var(--muted);line-height:1.35}.cl-template-swatch{height:48px;border-radius:8px;display:flex;gap:4px;align-items:flex-end;padding:6px;overflow:hidden}.cl-template-swatch i{display:block;height:70%;width:24%;border-radius:4px;background:rgba(255,255,255,.65)}.mk-essential{--kit-a:#d9f6fb;--kit-b:#fff;--kit-ink:#14232c}.mk-glass{--kit-a:#17283d;--kit-b:#3d7190;--kit-ink:#fff}.mk-clay{--kit-a:#f4c7b8;--kit-b:#f8e8d9;--kit-ink:#4c2d2c}.mk-minimal{--kit-a:#f2eee7;--kit-b:#ded8cd;--kit-ink:#1b1b1b}.cl-template-swatch.mk-essential{background:linear-gradient(135deg,#d9f6fb,#fff)}.cl-template-swatch.mk-glass{background:linear-gradient(135deg,#17283d,#3d7190)}.cl-template-swatch.mk-clay{background:linear-gradient(135deg,#f4c7b8,#f8e8d9)}.cl-template-swatch.mk-minimal{background:linear-gradient(135deg,#f2eee7,#ded8cd)}.cl-media-preview{position:relative;isolation:isolate;overflow:hidden;border-radius:22px;padding:clamp(18px,4vw,34px);color:var(--kit-ink);background:linear-gradient(135deg,var(--kit-a),var(--kit-b));box-shadow:0 22px 60px rgba(0,0,0,.13);animation:cl-kit-enter .65s cubic-bezier(.2,.8,.2,1) both}.cl-media-preview:before{content:'';position:absolute;z-index:-1;width:230px;height:230px;border-radius:50%;right:-60px;top:-85px;background:rgba(255,255,255,.22);filter:blur(2px);animation:cl-kit-float 8s ease-in-out infinite alternate}.mk-glass.cl-media-preview{border:1px solid rgba(255,255,255,.4);background:linear-gradient(135deg,rgba(25,45,67,.96),rgba(35,112,139,.85));backdrop-filter:blur(18px);--kit-ink:#fff}.mk-clay.cl-media-preview{border-radius:30px;box-shadow:inset 8px 8px 20px rgba(255,255,255,.28),inset -8px -8px 20px rgba(90,40,35,.08),0 18px 36px rgba(0,0,0,.12)}.mk-minimal.cl-media-preview{border-radius:2px;box-shadow:none}.cl-media-preview-top,.cl-media-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:10px;font-weight:800;letter-spacing:.12em}.cl-media-pill{border:1px solid currentColor;border-radius:999px;padding:5px 8px;letter-spacing:.06em}.cl-media-identity{display:flex;gap:16px;align-items:center;margin:32px 0 20px;min-width:0}.cl-media-avatar{width:78px;height:78px;object-fit:cover;border-radius:22px;border:1px solid rgba(255,255,255,.6);box-shadow:0 8px 22px rgba(0,0,0,.16);flex-shrink:0}.mk-clay .cl-media-avatar{border-radius:26px}.mk-minimal .cl-media-avatar{border-radius:0}.cl-media-avatar-fallback{display:grid;place-items:center;background:rgba(255,255,255,.25)}.cl-media-kicker{font-size:10px;letter-spacing:.12em;font-weight:800;opacity:.75}.cl-media-identity h2{font-size:clamp(24px,5vw,42px);line-height:1.06;margin:5px 0;overflow-wrap:anywhere}.cl-media-identity p{margin:0;opacity:.75;font-size:13px}.cl-media-bio{max-width:650px;line-height:1.7;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.cl-media-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:24px 0}.cl-media-stats>div{padding:14px;border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(255,255,255,.12);min-width:0}.mk-glass .cl-media-stats>div{backdrop-filter:blur(10px)}.mk-clay .cl-media-stats>div{border-radius:20px;box-shadow:inset 3px 3px 7px rgba(255,255,255,.18),inset -3px -3px 7px rgba(0,0,0,.04)}.mk-minimal .cl-media-stats>div{border-radius:0;background:transparent;border-color:currentColor}.cl-media-stats strong,.cl-media-stats span{display:block;overflow-wrap:anywhere}.cl-media-stats strong{font-size:clamp(16px,3vw,25px);font-variant-numeric:tabular-nums}.cl-media-stats span{font-size:11px;opacity:.75;margin-top:4px}.cl-media-bottom{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,.28)}.cl-media-bottom span,.cl-media-bottom strong{display:block}.cl-media-bottom span{font-size:9px;letter-spacing:.12em;opacity:.7;margin-bottom:5px}.cl-media-bottom strong{font-size:12px;overflow-wrap:anywhere}.cl-media-contact{margin-top:16px;font-size:12px;overflow-wrap:anywhere}.cl-media-footer{margin-top:28px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2);font-size:9px;letter-spacing:.07em}.cl-kit-actions{flex-wrap:wrap}.cl-share-url{padding:10px;border-radius:8px;background:var(--surface-2);font-size:12px;overflow-wrap:anywhere}.cl-price-result{padding:20px;margin-top:14px;border:1px solid var(--glass-border);border-radius:16px;background:linear-gradient(135deg,var(--glass-hi),var(--glass-lo));box-shadow:var(--shadow-card)}.cl-price-main{font-size:clamp(25px,5vw,34px);font-weight:850;letter-spacing:-.04em;margin:7px 0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.cl-price-note{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px}.cl-evidence-upload{display:flex;align-items:center;gap:10px;padding:14px;border:1px dashed var(--line);border-radius:12px;cursor:pointer}.cl-evidence-upload span,.cl-evidence-upload small{display:block}.cl-evidence-upload small{font-size:11px;color:var(--muted);margin-top:3px}.cl-evidence-upload input{max-width:180px;font-size:12px}.cl-evidence-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cl-evidence-item{position:relative;min-width:0}.cl-evidence-grid img{display:block;width:100%;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}.cl-evidence-item button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:24px;height:24px;background:rgba(0,0,0,.72);color:white;font-size:18px;cursor:pointer}.cl-tools-container .cl-input{width:100%;min-width:0}.cl-tools-container .cl-field{min-width:0}@keyframes cl-kit-enter{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes cl-kit-float{from{transform:translate3d(0,0,0) rotate(0)}to{transform:translate3d(-22px,18px,0) rotate(14deg)}}@media(max-width:640px){.cl-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-media-identity{gap:12px;margin:24px 0 16px}.cl-media-avatar{width:60px;height:60px;border-radius:16px}.cl-media-stats>div{padding:10px 8px}.cl-media-bottom{grid-template-columns:1fr}.cl-media-footer{align-items:flex-start;flex-direction:column}.cl-kit-actions>*{flex:1 1 140px}.cl-evidence-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-evidence-grid img{height:120px}}@media(prefers-reduced-motion:reduce){.cl-media-preview,.cl-media-preview:before{animation:none!important}}
+
+    .cl-tools-container{max-width:1120px}
+    .cl-media-kit-workspace{gap:18px;min-width:0}
+    .cl-kit-intro{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(310px,.92fr);gap:clamp(24px,5vw,64px);align-items:center;min-height:510px;padding:clamp(24px,5vw,54px);overflow:hidden;border:1px solid rgba(112,207,234,.24);border-radius:30px;background:radial-gradient(ellipse at 88% 8%,rgba(47,191,226,.19),transparent 38%),radial-gradient(ellipse at 0 100%,rgba(92,92,240,.13),transparent 42%),linear-gradient(135deg,var(--surface-1),var(--surface-2));box-shadow:0 24px 70px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.55)}
+    .cl-kit-intro-copy{position:relative;z-index:2;min-width:0}
+    .cl-kit-eyebrow{display:flex;align-items:center;gap:8px;color:var(--cyan-deep);font-size:10px;font-weight:850;letter-spacing:.15em;text-transform:uppercase}
+    .cl-kit-eyebrow>span:not(.cl-kit-eyebrow-dot){opacity:.45}
+    .cl-kit-eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 4px var(--cyan-glow),0 0 14px var(--cyan)}
+    .cl-kit-intro h2{max-width:600px;margin:22px 0 14px;font-size:clamp(34px,5vw,62px);line-height:.99;letter-spacing:-.065em;font-weight:850}
+    .cl-kit-intro h2 span{display:block;color:var(--cyan-deep);text-shadow:0 8px 30px rgba(22,171,202,.14)}
+    .cl-kit-intro-description{max-width:570px;color:var(--muted);font-size:14px;line-height:1.85;margin:0 0 23px}
+    .cl-kit-intro-proof{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 26px;font-size:11px;color:var(--muted)}
+    .cl-kit-intro-proof span{display:grid;gap:2px;max-width:165px;overflow-wrap:anywhere}
+    .cl-kit-intro-proof strong{font-size:13px;color:var(--ink);font-weight:800}
+    .cl-kit-intro-proof i{height:22px;width:1px;background:var(--line)}
+    .cl-kit-intro-copy>.cl-btn,.cl-kit-intro-copy>button{max-width:320px;min-height:48px;border-radius:14px;box-shadow:0 10px 28px rgba(27,172,203,.19);transition:transform .25s ease,box-shadow .25s ease}
+    .cl-kit-intro-copy>.cl-btn:hover,.cl-kit-intro-copy>button:hover{transform:translateY(-2px);box-shadow:0 16px 32px rgba(27,172,203,.25)}
+    .cl-kit-intro-note{display:flex;align-items:center;gap:7px;margin-top:14px;color:var(--muted);font-size:10px;line-height:1.5}
+    .cl-kit-intro-note svg{flex-shrink:0;color:var(--cyan-deep)}
+    .cl-kit-intro-art{position:relative;min-height:365px;display:grid;place-items:center;perspective:1300px;isolation:isolate}
+    .cl-kit-orbit{position:absolute;left:50%;top:50%;border:1px solid rgba(72,199,228,.23);border-radius:50%;transform:translate(-50%,-50%) rotate(-24deg);pointer-events:none}
+    .cl-kit-orbit-a{width:385px;height:295px;animation:cl-kit-orbit 16s linear infinite}
+    .cl-kit-orbit-b{width:320px;height:410px;border-color:rgba(123,120,245,.18);transform:translate(-50%,-50%) rotate(47deg);animation:cl-kit-orbit 22s linear infinite reverse}
+    .cl-kit-art-glass{position:relative;width:min(100%,340px);padding:22px 22px 16px;overflow:hidden;color:#f5fbff;border:1px solid rgba(239,252,255,.66);border-radius:23px;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.035) 34%,rgba(87,204,237,.12) 72%,rgba(255,255,255,.18)),linear-gradient(135deg,rgba(14,36,60,.88),rgba(28,105,132,.7));backdrop-filter:blur(30px) saturate(185%);-webkit-backdrop-filter:blur(30px) saturate(185%);box-shadow:0 35px 80px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.84),inset 1px 0 0 rgba(255,255,255,.28),inset -1px 0 0 rgba(3,32,52,.22);transform:rotateY(-13deg) rotateX(7deg) rotateZ(-2deg);animation:cl-kit-card-float 6s ease-in-out infinite;transform-style:preserve-3d}
+    .cl-kit-art-glass:before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.24),transparent 18%,transparent 64%,rgba(255,255,255,.13));border-radius:inherit}
+    .cl-kit-art-top,.cl-kit-art-foot{position:relative;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:8px;font-weight:850;letter-spacing:.14em;opacity:.8}
+    .cl-kit-art-avatar{width:56px;height:56px;margin:27px 0 12px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.6);border-radius:18px;background:rgba(255,255,255,.18);box-shadow:0 12px 24px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.55);transform:translateZ(22px)}
+    .cl-kit-art-avatar img{width:100%;height:100%;object-fit:cover}
+    .cl-kit-art-kicker{font-size:8px;letter-spacing:.13em;font-weight:800;opacity:.72;text-transform:uppercase}
+    .cl-kit-art-name{margin-top:4px;font-size:27px;font-weight:850;letter-spacing:-.05em;line-height:1.06;overflow-wrap:anywhere}
+    .cl-kit-art-handle{margin-top:5px;font-size:11px;opacity:.72}
+    .cl-kit-art-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:21px 0 19px}
+    .cl-kit-art-stats span{min-width:0;padding:10px 8px;border:1px solid rgba(255,255,255,.24);border-radius:10px;background:rgba(255,255,255,.11);box-shadow:inset 0 1px 0 rgba(255,255,255,.17);backdrop-filter:blur(10px)}
+    .cl-kit-art-stats strong,.cl-kit-art-stats small{display:block;overflow-wrap:anywhere}
+    .cl-kit-art-stats strong{font-size:13px;font-variant-numeric:tabular-nums}
+    .cl-kit-art-stats small{margin-top:4px;font-size:6px;font-weight:850;letter-spacing:.1em;opacity:.67}
+    .cl-kit-art-foot{padding-top:12px;border-top:1px solid rgba(255,255,255,.22)}
+    .cl-kit-orbit-chip{position:absolute;right:-8px;bottom:18px;display:flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid rgba(255,255,255,.7);border-radius:13px;background:rgba(241,251,255,.76);color:#16364b;font-size:10px;font-weight:800;box-shadow:0 18px 38px rgba(18,64,84,.14),inset 0 1px 0 white;backdrop-filter:blur(16px);transform:translateZ(35px);animation:cl-kit-chip-float 4.6s ease-in-out infinite}
+    .cl-kit-orbit-chip svg{color:#139bb9}
+    .cl-kit-flow-screen{min-height:430px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:42px 24px;border:1px solid var(--glass-border);border-radius:28px;background:radial-gradient(ellipse at 50% 5%,rgba(38,191,220,.13),transparent 44%),linear-gradient(145deg,var(--surface-1),var(--surface-2));box-shadow:var(--shadow-card)}
+    .cl-kit-loader-emblem{position:relative;width:90px;height:90px;margin-bottom:26px;display:grid;place-items:center}
+    .cl-kit-loader-ring{position:absolute;inset:1px;border:1px solid rgba(37,184,214,.6);border-top-color:transparent;border-radius:26px;transform:rotate(45deg);animation:cl-kit-loader-spin 2s linear infinite}
+    .cl-kit-loader-ring-two{inset:10px;border-color:rgba(133,126,244,.7);border-bottom-color:transparent;border-radius:50%;animation-duration:1.4s;animation-direction:reverse}
+    .cl-kit-loader-core{width:55px;height:55px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.72);border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,.76),rgba(184,239,249,.22));color:var(--cyan-deep);box-shadow:0 12px 32px rgba(26,152,183,.14),inset 0 1px 0 white;backdrop-filter:blur(16px);animation:cl-kit-core-breathe 2s ease-in-out infinite}
+    .cl-kit-flow-kicker{font-size:9px;font-weight:850;letter-spacing:.18em;color:var(--muted)}
+    .cl-kit-flow-screen h2{margin:14px 0 8px;font-size:clamp(22px,4vw,31px);letter-spacing:-.045em;animation:cl-kit-text-in .35s ease both}
+    .cl-kit-flow-screen p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
+    .cl-kit-progress-track{width:min(310px,100%);height:5px;margin:25px auto 18px;overflow:hidden;border-radius:99px;background:var(--line-soft);box-shadow:inset 0 1px 2px rgba(0,0,0,.07)}
+    .cl-kit-progress-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#43c7e0,#7184ff,#c37df5);box-shadow:0 0 15px rgba(62,186,226,.45);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+    .cl-kit-loading-steps{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+    .cl-kit-loading-step{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px;transition:color .3s ease}
+    .cl-kit-loading-step>span:first-child{width:19px;height:19px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center}
+    .cl-kit-loading-step.is-current{color:var(--ink);font-weight:750}
+    .cl-kit-loading-step.is-current>span:first-child{border-color:var(--cyan);box-shadow:0 0 0 4px var(--cyan-glow)}
+    .cl-kit-loading-step.is-done{color:var(--cyan-deep)}
+    .cl-kit-loading-step.is-done>span:first-child{border-color:var(--cyan);background:var(--cyan-soft)}
+    .cl-kit-step-dot{width:4px;height:4px;border-radius:50%;background:currentColor}
+    .cl-kit-success-overlay{position:relative;z-index:3;min-height:430px;display:grid;place-items:center;padding:24px;overflow:hidden;border:1px solid rgba(95,207,225,.25);border-radius:28px;background:radial-gradient(ellipse at 50% 38%,rgba(34,201,173,.18),transparent 42%),linear-gradient(135deg,var(--surface-1),var(--surface-2));animation:cl-kit-overlay-in .4s ease both}
+    .cl-kit-success-card{position:relative;width:min(100%,460px);padding:35px 30px 29px;text-align:center;border:1px solid rgba(255,255,255,.62);border-radius:27px;background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(237,251,255,.34));box-shadow:0 30px 90px rgba(16,76,95,.16),inset 0 1px 0 white,0 0 0 1px rgba(70,194,218,.08);backdrop-filter:blur(28px);animation:cl-kit-success-pop .65s cubic-bezier(.16,1.2,.35,1) both}
+    .cl-kit-success-orbit{position:relative;width:88px;height:88px;margin:0 auto 20px;border-radius:29px;display:grid;place-items:center;animation:cl-kit-success-float 3s ease-in-out infinite}
+    .cl-kit-success-orbit>span{position:absolute;inset:0;border:1px solid rgba(25,190,160,.42);border-radius:29px;animation:cl-kit-success-ring 2.3s ease-out infinite}
+    .cl-kit-success-orbit>span:nth-child(2){animation-delay:.6s}.cl-kit-success-orbit>span:nth-child(3){animation-delay:1.2s}
+    .cl-kit-success-orbit>div{position:relative;width:67px;height:67px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.9);border-radius:23px;color:#0e9d88;background:linear-gradient(145deg,#fff,rgba(165,247,220,.7));box-shadow:0 15px 34px rgba(19,161,135,.2),inset 0 1px 0 white}
+    .cl-kit-success-eyebrow{font-size:9px;line-height:1.6;letter-spacing:.13em;font-weight:850;color:#178b7d}
+    .cl-kit-success-card h2{margin:9px 0;font-size:clamp(23px,4vw,30px);letter-spacing:-.05em}
+    .cl-kit-success-card p{max-width:340px;margin:0 auto;color:var(--muted);font-size:12px;line-height:1.7}
+    .cl-kit-success-bottom{display:flex;justify-content:center;gap:6px;margin-top:23px}
+    .cl-kit-success-bottom span{width:4px;height:4px;border-radius:50%;background:#20b99b;animation:cl-kit-step-pulse 1.1s ease-in-out infinite}.cl-kit-success-bottom span:nth-child(2){animation-delay:.15s}.cl-kit-success-bottom span:nth-child(3){animation-delay:.3s}
+    .cl-kit-template-gallery{padding:clamp(18px,3.4vw,30px);border:1px solid var(--glass-border);border-radius:25px;background:linear-gradient(145deg,var(--surface-1),var(--surface-2));box-shadow:var(--shadow-card);animation:cl-kit-text-in .38s cubic-bezier(.2,.8,.2,1) both}
+    .cl-kit-gallery-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:22px}
+    .cl-kit-gallery-heading h2,.cl-kit-ready-heading h2{margin:12px 0 7px;font-size:clamp(23px,3.6vw,34px);letter-spacing:-.05em;line-height:1.08}
+    .cl-kit-gallery-heading p,.cl-kit-ready-heading p{max-width:650px;margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+    .cl-kit-gallery-close{flex:0 0 auto;width:38px;height:38px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2);color:var(--ink);font-size:25px;cursor:pointer;transition:transform .2s ease,background .2s ease}
+    .cl-kit-gallery-close:hover{transform:rotate(90deg);background:var(--surface-3)}
+    .cl-template-grid-premium{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+    .cl-template-choice-premium{position:relative;isolation:isolate;min-height:212px;padding:12px;border-radius:17px;border-color:var(--line);background:linear-gradient(145deg,var(--surface-1),var(--surface-2));box-shadow:0 7px 17px rgba(12,36,53,.06),inset 0 1px 0 rgba(255,255,255,.56);transform-style:preserve-3d;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease,border-color .25s ease}
+    .cl-template-choice-premium:hover{transform:translateY(-4px) rotateX(1.5deg);box-shadow:0 17px 33px rgba(12,36,53,.11),inset 0 1px 0 rgba(255,255,255,.64)}
+    .cl-template-choice-premium.is-active{border-color:var(--cyan);box-shadow:0 0 0 2px var(--cyan-glow),0 16px 32px rgba(12,36,53,.13);transform:translateY(-2px)}
+    .cl-template-choice-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 0 7px;color:var(--muted);font-size:9px;letter-spacing:.07em;text-transform:uppercase}
+    .cl-template-choice-meta em{font-style:normal;color:var(--cyan-deep);font-weight:850;font-size:8px;letter-spacing:.1em}
+    .cl-template-choice-premium>strong{display:block;font-size:14px;line-height:1.3;letter-spacing:-.025em}
+    .cl-template-description{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.45}
+    .cl-template-select-cue{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:11px;margin-top:11px;border-top:1px solid var(--line-soft);font-size:10px;font-weight:750;color:var(--cyan-deep)}
+    .cl-template-swatch{position:relative;height:77px;border-radius:12px;display:flex;gap:6px;align-items:flex-end;padding:10px;overflow:hidden;isolation:isolate;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 5px 12px rgba(0,0,0,.09);transform:translateZ(10px)}
+    .cl-template-swatch:before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(115deg,rgba(255,255,255,.34),transparent 38%,rgba(255,255,255,.07));pointer-events:none}
+    .cl-template-swatch i{position:relative;display:block;height:43px;width:27%;border:1px solid rgba(255,255,255,.38);border-radius:6px;background:rgba(255,255,255,.46);box-shadow:0 5px 11px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.7);transform:translateZ(12px)}
+    .cl-template-swatch i:nth-child(2){height:31px;width:19%;opacity:.75}.cl-template-swatch i:nth-child(3){height:51px;width:35%;opacity:.9}
+    .cl-template-swatch b{position:absolute;right:11px;top:11px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.56);box-shadow:0 4px 9px rgba(0,0,0,.12),inset 0 1px 0 white}
+    .cl-template-swatch.mk-glass{background:linear-gradient(135deg,rgba(246,253,255,.36),rgba(73,161,194,.24)),linear-gradient(135deg,#132c42,#3c94b0);backdrop-filter:blur(16px);border:1px solid rgba(240,252,255,.75);box-shadow:inset 0 1px 0 white,inset 1px 0 rgba(255,255,255,.35),0 8px 19px rgba(12,47,65,.22)}
+    .cl-template-swatch.mk-glass i{border-radius:4px;background:rgba(240,252,255,.2);backdrop-filter:blur(7px);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),2px 6px 10px rgba(0,0,0,.12)}
+    .mk-neon{--kit-a:#101127;--kit-b:#382762;--kit-ink:#f8f7ff}.mk-aurora{--kit-a:#152d3a;--kit-b:#6046a5;--kit-ink:#f5ffff}.mk-chrome{--kit-a:#dfe5ed;--kit-b:#a6b4c2;--kit-ink:#182634}.mk-editorial{--kit-a:#f6f0e6;--kit-b:#e5d7c0;--kit-ink:#29231d}.mk-bloom{--kit-a:#ffb994;--kit-b:#ed88b9;--kit-ink:#4e153e}.mk-cyber{--kit-a:#061e1c;--kit-b:#0b5045;--kit-ink:#d8fff1}.mk-obsidian{--kit-a:#171717;--kit-b:#3c3021;--kit-ink:#f5e4b4}.mk-retro{--kit-a:#21104c;--kit-b:#713c8f;--kit-ink:#ffe0c9}.mk-holographic{--kit-a:#c9d9ff;--kit-b:#f4d5f2;--kit-ink:#1d2844}
+    .cl-template-swatch.mk-essential{background:linear-gradient(135deg,#d9f6fb,#fff)}.cl-template-swatch.mk-clay{background:linear-gradient(135deg,#f4c7b8,#f8e8d9)}.cl-template-swatch.mk-minimal{background:linear-gradient(135deg,#f2eee7,#ded8cd)}
+    .cl-template-swatch.mk-neon{background:linear-gradient(135deg,#121227,#a53bfe 57%,#3ef5db)}.cl-template-swatch.mk-aurora{background:radial-gradient(circle at 80% 20%,#bb9bff,transparent 48%),linear-gradient(135deg,#173b49,#48c6b9)}.cl-template-swatch.mk-chrome{background:linear-gradient(125deg,#f9fdff,#8a9bab 33%,#f3f6fa 49%,#788999 68%,#e7edf4)}
+    .cl-template-swatch.mk-editorial{background:linear-gradient(135deg,#f6f0e6,#c7a774)}.cl-template-swatch.mk-bloom{background:radial-gradient(circle at 80% 15%,#ffd6a8,transparent 43%),linear-gradient(135deg,#fa8c9d,#8b4da2)}.cl-template-swatch.mk-cyber{background:repeating-linear-gradient(0deg,rgba(85,255,193,.12) 0 1px,transparent 1px 12px),repeating-linear-gradient(90deg,rgba(85,255,193,.12) 0 1px,transparent 1px 12px),linear-gradient(135deg,#031715,#0d6d56)}
+    .cl-template-swatch.mk-obsidian{background:linear-gradient(135deg,#0c0c0c,#6a4f22);border:1px solid rgba(222,190,111,.6)}.cl-template-swatch.mk-retro{background:repeating-linear-gradient(0deg,rgba(255,139,215,.2) 0 1px,transparent 1px 9px),linear-gradient(135deg,#241044,#9d49a6)}.cl-template-swatch.mk-holographic{background:linear-gradient(125deg,#bdeaff,#f1d5ff 35%,#f9f5ca 54%,#c1fff1 75%,#e7c9fa)}
+    .mk-glass.cl-media-preview{--kit-ink:#f7fcff;border:1px solid rgba(234,250,255,.78);border-radius:24px;background:linear-gradient(125deg,rgba(255,255,255,.22),rgba(255,255,255,.025) 29%,rgba(133,219,244,.13) 65%,rgba(255,255,255,.16)),linear-gradient(135deg,rgba(10,27,47,.79),rgba(36,107,137,.64));background-color:#17374f;backdrop-filter:blur(30px) saturate(185%);-webkit-backdrop-filter:blur(30px) saturate(185%);border-top-color:rgba(255,255,255,.92);box-shadow:0 30px 85px rgba(2,23,40,.31),inset 0 1px 0 rgba(255,255,255,.94),inset 1px 0 0 rgba(255,255,255,.42),inset -1px 0 0 rgba(6,30,44,.25)}
+    .mk-glass.cl-media-preview .cl-media-stats>div{border-radius:7px;background:rgba(233,249,255,.11);border-color:rgba(236,251,255,.42);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 20px rgba(0,0,0,.09)}
+    .mk-clay.cl-media-preview{border:1px solid rgba(255,255,255,.72);border-radius:33px;background:linear-gradient(145deg,#fce5dc,#e9a99d);box-shadow:inset 9px 9px 23px rgba(255,255,255,.62),inset -9px -9px 22px rgba(145,73,76,.18),0 26px 50px rgba(125,69,68,.16)}
+    .mk-clay .cl-media-stats>div{background:rgba(255,246,239,.3);box-shadow:inset 4px 4px 9px rgba(255,255,255,.58),inset -4px -4px 9px rgba(141,65,66,.09);border-radius:22px}
+    .mk-minimal.cl-media-preview{border:1px solid rgba(36,34,31,.45);border-radius:3px;background:linear-gradient(135deg,#faf7f0,#e8e1d5);box-shadow:10px 12px 0 rgba(35,31,25,.08),0 23px 44px rgba(35,31,25,.1);--kit-ink:#26231d}
+    .mk-neon.cl-media-preview{border:1px solid rgba(205,179,255,.72);border-radius:17px;background:radial-gradient(ellipse at 88% 12%,rgba(53,255,224,.24),transparent 34%),linear-gradient(135deg,#100f27,#24183d 52%,#382462);box-shadow:0 0 0 1px rgba(128,80,255,.15),0 25px 65px rgba(100,50,219,.23),inset 0 1px 0 rgba(255,255,255,.17)}
+    .mk-neon.cl-media-preview .cl-media-pill,.mk-neon.cl-media-preview .cl-media-stats>div{border-color:rgba(176,139,255,.55);box-shadow:0 0 20px rgba(157,83,255,.12),inset 0 1px rgba(255,255,255,.12)}
+    .mk-aurora.cl-media-preview{border:1px solid rgba(208,250,249,.56);border-radius:27px;background:radial-gradient(ellipse at 78% 18%,rgba(204,151,255,.47),transparent 40%),radial-gradient(ellipse at 18% 88%,rgba(54,247,218,.24),transparent 45%),linear-gradient(135deg,#142d3a,#372e6a 60%,#6055a1);box-shadow:0 27px 65px rgba(30,49,102,.26),inset 0 1px 0 rgba(255,255,255,.45)}
+    .mk-chrome.cl-media-preview{border:1px solid rgba(255,255,255,.95);border-radius:18px;background:linear-gradient(120deg,#f8fbfe 0%,#b2beca 17%,#fdfefe 30%,#9ba9b7 46%,#eef2f7 58%,#8a99a8 73%,#f5f8fc 88%,#c8d2dc);box-shadow:0 24px 50px rgba(59,76,96,.2),inset 0 1px 0 #fff,inset 1px 0 0 rgba(255,255,255,.9);--kit-ink:#1d2a36}
+    .mk-chrome.cl-media-preview .cl-media-stats>div{background:rgba(255,255,255,.42);border-color:rgba(255,255,255,.85);box-shadow:inset 0 1px 3px rgba(41,58,76,.08),0 5px 13px rgba(45,57,74,.06)}
+    .mk-editorial.cl-media-preview{border:1px solid rgba(109,86,56,.28);border-radius:5px;background:linear-gradient(135deg,#fbf7ef,#e8ddca);box-shadow:12px 14px 0 rgba(127,101,67,.09),0 27px 55px rgba(63,47,28,.12);--kit-ink:#2d261f}
+    .mk-editorial .cl-media-identity h2,.mk-editorial.cl-media-preview .cl-media-identity h2{font-family:Georgia,'Times New Roman',serif;font-weight:500;letter-spacing:-.04em}
+    .mk-bloom.cl-media-preview{border:1px solid rgba(255,255,255,.72);border-radius:31px;background:radial-gradient(circle at 90% 5%,rgba(255,240,172,.6),transparent 32%),radial-gradient(ellipse at 15% 95%,rgba(167,104,228,.42),transparent 45%),linear-gradient(135deg,#ffbd9e,#f29abc 52%,#bd85da);box-shadow:0 27px 60px rgba(205,97,157,.22),inset 0 1px 0 rgba(255,255,255,.83);--kit-ink:#4b1745}
+    .mk-cyber.cl-media-preview{border:1px solid rgba(98,255,193,.58);border-radius:9px;background:repeating-linear-gradient(0deg,rgba(72,255,178,.055) 0 1px,transparent 1px 23px),repeating-linear-gradient(90deg,rgba(72,255,178,.055) 0 1px,transparent 1px 23px),radial-gradient(ellipse at 80% 9%,rgba(0,241,176,.18),transparent 37%),linear-gradient(135deg,#031716,#062d28 65%,#0a5143);box-shadow:0 28px 65px rgba(0,55,44,.28),inset 0 1px 0 rgba(158,255,224,.25);--kit-ink:#d6fff0}
+    .mk-obsidian.cl-media-preview{border:1px solid rgba(216,183,102,.7);border-radius:15px;background:radial-gradient(ellipse at 95% 0,rgba(227,187,94,.19),transparent 40%),linear-gradient(135deg,#0c0c0d,#211d17 56%,#3a2d1b);box-shadow:0 28px 65px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,245,209,.25);--kit-ink:#f5e6bd}
+    .mk-obsidian .cl-media-pill,.mk-obsidian .cl-media-stats>div{border-color:rgba(220,186,102,.4)}
+    .mk-retro.cl-media-preview{border:1px solid rgba(255,168,226,.68);border-radius:11px;background:repeating-linear-gradient(0deg,rgba(247,105,214,.07) 0 1px,transparent 1px 21px),radial-gradient(ellipse at 50% 0,rgba(255,120,206,.28),transparent 45%),linear-gradient(135deg,#210d48,#583080 65%,#9c4f94);box-shadow:0 25px 64px rgba(68,24,104,.25),inset 0 1px rgba(255,255,255,.24);--kit-ink:#ffe5f6}
+    .mk-holographic.cl-media-preview{border:1px solid rgba(255,255,255,.92);border-radius:24px;background:linear-gradient(122deg,#c6e7ff 0%,#e0d2ff 20%,#fbe0ed 38%,#fff6d0 55%,#c8f6ec 73%,#d9ceff 88%,#c5e6ff);box-shadow:0 28px 65px rgba(85,95,161,.17),inset 0 1px 0 white,inset 1px 0 0 rgba(255,255,255,.8);--kit-ink:#24304b}
+    .cl-kit-ready-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:5px 0 0}
+    .cl-kit-ready-check{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;padding:8px 11px;border:1px solid rgba(26,177,148,.26);border-radius:999px;background:rgba(29,190,159,.08);color:#129b7f;font-size:10px;font-weight:800}
+    .cl-media-kit-preview{scroll-margin-top:24px}
+    .cl-kit-primary-actions{display:flex;gap:9px;flex-wrap:wrap}
+    .cl-kit-primary-actions>button{flex:1 1 165px;min-height:44px;border-radius:12px;transition:transform .2s ease,box-shadow .2s ease}
+    .cl-kit-primary-actions>button:hover{transform:translateY(-2px)}
+    .cl-kit-edit-details{overflow:hidden;border:1px solid var(--line);border-radius:17px;background:var(--surface-1)}
+    .cl-kit-edit-details>summary{list-style:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:16px;cursor:pointer}
+    .cl-kit-edit-details>summary::-webkit-details-marker{display:none}
+    .cl-kit-edit-details>summary>span:first-child{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800}
+    .cl-kit-edit-details>summary>span:first-child svg{color:var(--cyan-deep)}
+    .cl-kit-edit-details>summary>small{color:var(--muted);font-size:10px;line-height:1.5}
+    .cl-kit-edit-details[open] .cl-kit-edit-chevron{transform:rotate(45deg)}
+    .cl-kit-edit-chevron{font-size:22px;color:var(--muted);transition:transform .2s ease}
+    .cl-kit-edit-details>.cl-card{border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none}
+    .cl-kit-gallery-actions{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft)}
+    .cl-kit-gallery-actions p{margin:0;color:var(--muted);font-size:11px;line-height:1.7}
+    .cl-kit-gallery-actions p strong{color:var(--ink)}
+    .cl-kit-gallery-actions>div{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+    @keyframes cl-kit-orbit{to{transform:translate(-50%,-50%) rotate(336deg)}}
+    @keyframes cl-kit-card-float{0%,100%{transform:rotateY(-13deg) rotateX(7deg) rotateZ(-2deg) translateY(0)}50%{transform:rotateY(-9deg) rotateX(4deg) rotateZ(-1deg) translateY(-8px)}}
+    @keyframes cl-kit-chip-float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1deg)}}
+    @keyframes cl-kit-loader-spin{to{transform:rotate(405deg)}}
+    @keyframes cl-kit-core-breathe{0%,100%{transform:scale(1);box-shadow:0 12px 32px rgba(26,152,183,.14),inset 0 1px 0 white}50%{transform:scale(1.05);box-shadow:0 15px 38px rgba(26,152,183,.25),inset 0 1px 0 white}}
+    @keyframes cl-kit-text-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes cl-kit-overlay-in{from{opacity:0}to{opacity:1}}
+    @keyframes cl-kit-success-pop{from{opacity:0;transform:translateY(18px) scale(.88)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes cl-kit-success-float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-6px) rotate(3deg)}}
+    @keyframes cl-kit-success-ring{0%{transform:scale(.72);opacity:.85}100%{transform:scale(1.6);opacity:0}}
+    @keyframes cl-kit-step-pulse{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+    @media(max-width:900px){.cl-kit-intro{grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);gap:22px;padding:28px}.cl-kit-orbit-a{width:320px;height:250px}.cl-kit-orbit-b{width:285px;height:340px}.cl-template-grid-premium{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:700px){.cl-kit-intro{grid-template-columns:1fr;min-height:auto}.cl-kit-intro h2{font-size:clamp(34px,9vw,50px)}.cl-kit-intro-art{min-height:320px;margin:3px 0 0}.cl-kit-art-glass{width:min(85%,340px)}.cl-kit-orbit-chip{right:3px;bottom:3px}.cl-kit-ready-heading{align-items:flex-start}.cl-kit-gallery-actions{align-items:stretch;flex-direction:column}.cl-kit-gallery-actions>div{width:100%}.cl-kit-gallery-actions>div>button{flex:1}.cl-kit-edit-details>summary{grid-template-columns:auto minmax(0,1fr) auto}.cl-kit-edit-details>summary>small{grid-column:2;grid-row:2}.cl-kit-edit-details>summary>.cl-kit-edit-chevron{grid-column:3;grid-row:1/3}}
+    @media(max-width:480px){.cl-kit-intro{padding:22px 18px;border-radius:22px}.cl-kit-intro h2{margin-top:18px}.cl-kit-intro-proof{gap:8px}.cl-kit-intro-proof span{max-width:130px}.cl-kit-intro-art{min-height:285px}.cl-kit-art-glass{padding:18px;width:92%}.cl-kit-orbit-a{width:285px;height:225px}.cl-kit-orbit-b{width:245px;height:295px}.cl-kit-orbit-chip{font-size:9px;right:-2px}.cl-template-grid-premium{gap:9px}.cl-template-choice-premium{padding:9px;min-height:203px}.cl-template-swatch{height:64px}.cl-kit-template-gallery{padding:15px;border-radius:19px}.cl-kit-gallery-heading{gap:8px}.cl-kit-gallery-heading h2{font-size:25px}.cl-kit-gallery-close{width:32px;height:32px}.cl-kit-success-card{padding:28px 18px}.cl-kit-loading-steps{gap:12px}.cl-kit-loading-step{font-size:9px}.cl-kit-ready-heading{gap:8px;flex-direction:column}.cl-kit-ready-heading h2{font-size:27px}.cl-kit-primary-actions>button{flex:1 1 100%}}
+    @media(prefers-reduced-motion:reduce){.cl-kit-intro-art,.cl-kit-art-glass,.cl-kit-orbit,.cl-kit-orbit-chip,.cl-kit-loader-ring,.cl-kit-loader-core,.cl-kit-success-orbit,.cl-kit-success-orbit>span,.cl-kit-success-bottom span{animation:none!important}.cl-template-choice-premium,.cl-kit-primary-actions>button{transition:none!important}}
+
   `}</style></Page>;
 }
