@@ -93,6 +93,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    /* ---------------- public creator media kits ---------------- */
+    match /mediaKits/{creatorId} {
+      allow read: if resource.data.isPublic == true;
+      allow create: if isAuthed()
+        && request.auth.uid == creatorId
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.isPublic == true;
+      allow update: if isAuthed()
+        && request.auth.uid == creatorId
+        && request.resource.data.creatorId == request.auth.uid;
+      allow delete: if isAuthed() && request.auth.uid == creatorId;
+    }
+
     /* ---------------- scam alerts community feed ---------------- */
 
     match /scamAlerts/{id} {

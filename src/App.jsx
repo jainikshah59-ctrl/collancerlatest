@@ -12,6 +12,7 @@ import { ToastProvider, Button, Page, Logo, getTheme, applyTheme } from './compo
 const CreatorApp = React.lazy(() => import('./creator/CreatorApp.jsx'));
 const AdminApp = React.lazy(() => import('./admin/AdminApp.jsx'));
 const PublicCreatorProfile = React.lazy(() => import('./PublicCreatorProfile.jsx').then((m) => ({ default: m.PublicCreatorProfileWrap })));
+const PublicMediaKit = React.lazy(() => import('./PublicMediaKit.jsx'));
 const PublicPrivacyPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicPrivacyPage })));
 const PublicDataDeletionPage = React.lazy(() => import('./legal/PublicLegal.jsx').then((m) => ({ default: m.PublicDataDeletionPage })));
 
@@ -120,6 +121,15 @@ export default function App() {
         </Suspense>
       </ToastProvider>
     );
+  }
+
+  // Public media kit: a standalone, dashboard-free creator media kit.
+  const mediaKitHandle = (() => {
+    try { const m = window.location.pathname.match(/^\/media-kit\/([a-zA-Z0-9._]{1,30})\/?$/); return m ? m[1] : null; }
+    catch { return null; }
+  })();
+  if (mediaKitHandle) {
+    return <ToastProvider><Suspense fallback={<Curtain />}><PublicMediaKit handle={mediaKitHandle} /></Suspense></ToastProvider>;
   }
 
   // Public creator profile: /c/{handle} — no login required (Collabstr-style).
