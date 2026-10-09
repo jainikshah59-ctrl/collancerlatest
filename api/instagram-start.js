@@ -47,6 +47,7 @@ export default async function handler(req, res) {
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent(SCOPES)}` +
       '&response_type=code' +
+      '&enable_fb_login=0' +
       `&state=${encodeURIComponent(state)}`;
     return res.status(200).json({ ok: true, url });
   } catch (e) {
