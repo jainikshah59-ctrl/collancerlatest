@@ -69,18 +69,17 @@ function MediaKit({ creator }) {
         toast.err('Your Instagram handle contains unsupported characters. Update it in your profile and try again.');
         return;
       }
-      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
-      await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
-
       // Register the public handle lookup used by /media-kit/:handle.
       // Never overwrite a handle already owned by a different creator.
       const handleRef = doc(db(), 'creatorHandles', normalizedHandle);
       const handleSnap = await getDoc(handleRef);
-      if (handleSnap.exists()) {
-        if (handleSnap.data().creatorId !== creator.id) {
-          throw new Error('handle-taken');
-        }
-      } else {
+      if (handleSnap.exists() && handleSnap.data().creatorId !== creator.id) {
+        throw new Error('handle-taken');
+      }
+
+      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche: creator?.niche || creator?.category || '', photo, updatedAt: serverTimestamp(), isPublic: true };
+      await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
+      if (!handleSnap.exists()) {
         await setDoc(handleRef, {
           creatorId: creator.id,
           handleLower: normalizedHandle,
