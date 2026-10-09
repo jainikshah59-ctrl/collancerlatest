@@ -142,7 +142,7 @@ export default async function handler(req, res) {
     const prevLower = prev.handleLower || null;
 
     await db.collection('instagram_tokens').doc(uid).set({
-      token, igId: String(igId), expiresAt, updatedAt: now,
+      token, igId: String(instagram.igId), expiresAt, updatedAt: now,
     });
 
     const handleRef = db.collection('creatorHandles').doc(handleLower);
