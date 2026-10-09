@@ -84,6 +84,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, reason: 'sync-failed', detail: String(e?.message || e).slice(0, 200) });
     }
 
+    // A transient media API failure must not erase the last known media library.
+    if (fresh.dataQuality?.mediaFetchError && Array.isArray(prev.recentMedia)) {
+      fresh.recentMedia = prev.recentMedia;
+      fresh.mediaCount = prev.mediaCount ?? fresh.mediaCount;
+    }
     const now = admin.firestore.FieldValue.serverTimestamp();
     const instagram = {
       ...prev,
