@@ -125,7 +125,7 @@ export default function App() {
 
   // Public media kit: a standalone, dashboard-free creator media kit.
   const mediaKitHandle = (() => {
-    try { const m = window.location.pathname.match(/^\\/media-kit\\/([a-zA-Z0-9._]{1,30})\\/?$/); return m ? m[1] : null; }
+    try { const m = window.location.pathname.match(/^\/media-kit\/([a-zA-Z0-9._]{1,30})\/?$/); return m ? m[1] : null; }
     catch { return null; }
   })();
   if (mediaKitHandle) {
