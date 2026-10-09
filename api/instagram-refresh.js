@@ -15,7 +15,7 @@ import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
 import { buildInstagramObject } from '../lib/instagramSync.js';
 import admin from 'firebase-admin';
 
-const STALE_MS = 6 * 3600 * 1000; // re-sync at most every 6h unless forced
+const STALE_MS = 1 * 3600 * 1000; // keep server freshness aligned with the client's 1h sync interval
 const REFRESH_TOKEN_AFTER_MS = 30 * 86400000;
 
 export default async function handler(req, res) {
@@ -90,13 +90,15 @@ export default async function handler(req, res) {
       fresh.mediaCount = prev.mediaCount ?? fresh.mediaCount;
     }
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const syncedAtMs = Date.now();
     const instagram = {
       ...prev,
       ...fresh,
-      // keep server-side bookkeeping
-      connectedAt: prev.connectedAt || now,
+      // Store a JSON-safe millisecond timestamp so the immediate client response
+      // and the subsequent Firestore snapshot use the same freshness format.
+      connectedAt: prev.connectedAt || syncedAtMs,
       tokenInvalid: false,
-      lastSyncedAt: now,
+      lastSyncedAt: syncedAtMs,
     };
     await creatorRef.set({
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
