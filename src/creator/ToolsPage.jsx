@@ -1,26 +1,62 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Calculator, Check, CheckCircle2, Copy, Download, FileText, Layers, Palette, ShieldAlert, Share2, Upload, ExternalLink, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calculator, Check, CheckCircle2, Copy, Download, ExternalLink, FileText, Instagram, Mail, MapPin, Palette, Share2, ShieldAlert, Sparkles, Upload } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Field, Input, TextArea, Badge, Tabs, useToast } from '../components/ui.jsx';
 import { ensureFirebase, db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, getDoc, setDoc, updateDoc } from '../lib/firebase.js';
 import { uploadToCloudinary } from '../lib/cloudinary.js';
 
-const money = n => `₹${Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-IN')}`;
+const money = n => '₹' + Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-IN');
 const count = n => Math.max(0, Number(n) || 0).toLocaleString('en-IN');
 const themes = [
-  { id: 'basic', name: 'Collancer Signature', note: 'App-native cyan · crisp and confident', cls: 'mk-essential', family: 'Signature', marker: 'DEFAULT' },
-  { id: 'glass', name: 'iOS Liquid Glass', note: 'Transparent glass · refracted edges', cls: 'mk-glass', family: 'Glassmorphism', marker: '3D GLASS' },
-  { id: 'clay', name: 'Soft 3D Clay', note: 'Tactile depth · sculpted surfaces', cls: 'mk-clay', family: 'Claymorphism', marker: 'TACTILE' },
-  { id: 'minimal', name: '3D Minimal', note: 'Architectural grid · quiet luxury', cls: 'mk-minimal', family: 'Minimalism', marker: 'MINIMAL' },
-  { id: 'neon', name: 'Neon Pulse', note: 'Electric colour · luminous depth', cls: 'mk-neon', family: 'Neon futurism', marker: 'GLOW' },
-  { id: 'aurora', name: 'Aurora Prism', note: 'Iridescent haze · layered light', cls: 'mk-aurora', family: 'Aurora glass', marker: 'IRIDESCENT' },
-  { id: 'chrome', name: 'Liquid Chrome', note: 'Polished metal · reflective silver', cls: 'mk-chrome', family: 'Chrome 3D', marker: 'CHROME' },
-  { id: 'editorial', name: 'Editorial Luxe', note: 'Magazine typography · warm paper', cls: 'mk-editorial', family: 'Editorial', marker: 'EDITORIAL' },
-  { id: 'bloom', name: 'Solar Bloom', note: 'Sculpted gradients · warm optimism', cls: 'mk-bloom', family: 'Gradient sculpture', marker: 'BLOOM' },
-  { id: 'cyber', name: 'Cyber Matrix', note: 'Technical grid · precision energy', cls: 'mk-cyber', family: 'Cyber 3D', marker: 'SYSTEM' },
-  { id: 'obsidian', name: 'Obsidian Gold', note: 'Black glass · brushed gold accents', cls: 'mk-obsidian', family: 'Luxury', marker: 'SIGNATURE' },
-  { id: 'retro', name: 'Retro Future', note: 'Synthwave palette · dimensional lines', cls: 'mk-retro', family: 'Retro futurism', marker: 'FUTURE' },
-  { id: 'holographic', name: 'Holographic', note: 'Pearlescent spectrum · soft reflections', cls: 'mk-holographic', family: 'Holographic 3D', marker: 'SPECTRUM' },
+  { id: 'basic', name: 'Collancer Signature', note: 'The Collancer design system, elevated', cls: 'mk-essential', family: 'Signature', marker: 'SIGNATURE' },
+  { id: 'glass', name: 'Pure Liquid Glass', note: 'Clear white glass, sharp edges and black controls', cls: 'mk-glass', family: 'Glassmorphism', marker: 'LIQUID GLASS' },
+  { id: 'clay', name: 'Sculpted Clay', note: 'Tactile surfaces with inflated 3D depth', cls: 'mk-clay', family: 'Claymorphism', marker: 'SCULPTED' },
+  { id: 'minimal', name: 'Architectural Minimal', note: 'Hard grid, sharp rules and quiet luxury', cls: 'mk-minimal', family: 'Minimalism', marker: 'STUDIO 01' },
+  { id: 'neon', name: 'Neon Signal', note: 'Dark glass, electric lines and luminous edges', cls: 'mk-neon', family: 'Neon futurism', marker: 'SIGNAL' },
+  { id: 'aurora', name: 'Aurora Field', note: 'Atmospheric gradients and layered ambient light', cls: 'mk-aurora', family: 'Aurora 3D', marker: 'ATMOSPHERE' },
+  { id: 'chrome', name: 'Liquid Chrome', note: 'Bevelled metal with hard silver reflections', cls: 'mk-chrome', family: 'Metallic 3D', marker: 'POLISHED' },
+  { id: 'editorial', name: 'Editorial Atelier', note: 'Fashion magazine typography and paper texture', cls: 'mk-editorial', family: 'Editorial', marker: 'VOLUME 01' },
+  { id: 'bloom', name: 'Sculptural Bloom', note: 'Warm colour volumes and soft dimensional forms', cls: 'mk-bloom', family: 'Gradient sculpture', marker: 'IN FULL COLOUR' },
+  { id: 'cyber', name: 'Cyber Grid', note: 'Technical typography, data panels and matrix lines', cls: 'mk-cyber', family: 'Cyber 3D', marker: 'NODE / 01' },
+  { id: 'obsidian', name: 'Obsidian Reserve', note: 'Black stone, gold foil and a luxury finish', cls: 'mk-obsidian', family: 'Luxury', marker: 'PRIVATE EDITION' },
+  { id: 'retro', name: 'Retro Dimension', note: 'Synthwave horizon and perspective geometry', cls: 'mk-retro', family: 'Retro futurism', marker: 'AFTER HOURS' },
+  { id: 'holographic', name: 'Holographic Pearl', note: 'Prismatic pearlescence and spectral surfaces', cls: 'mk-holographic', family: 'Holographic', marker: 'SPECTRAL' },
 ];
+const kitList = value => Array.isArray(value) ? value.map(item => String(item || '').trim()).filter(Boolean) : String(value || '').split(/[\n,]/).map(item => item.trim()).filter(Boolean);
+const mediaRows = value => Array.isArray(value) ? value : [];
+const kitBrandsText = value => mediaRows(value).map(item => typeof item === 'string' ? item : [item?.name || item?.brand || '', item?.logoUrl || item?.logo || item?.imageUrl || ''].filter(Boolean).join(' | ')).join('\n');
+const parseKitBrands = value => String(value || '').split('\n').map(line => line.trim()).filter(Boolean).map(line => { const parts = line.split('|').map(part => part.trim()); return { name: parts[0], logoUrl: parts[1] || '' }; }).filter(item => item.name);
+const inferKitFormats = creator => {
+  const explicit = creator?.contentFormats || creator?.creatorContentFormats || creator?.formats;
+  if (Array.isArray(explicit) && explicit.length) return explicit.join(', ');
+  if (typeof explicit === 'string' && explicit.trim()) return explicit;
+  const ig = creator?.instagramClient || creator?.instagram || {};
+  const media = mediaRows(ig.recentMedia);
+  const formats = [];
+  if (media.some(item => /VIDEO|REELS/i.test(String(item?.mediaType || item?.media_type || '')))) formats.push('Reels / short-form video');
+  if (media.some(item => /CAROUSEL/i.test(String(item?.mediaType || item?.media_type || '')))) formats.push('Carousels');
+  if (media.some(item => /IMAGE|PHOTO/i.test(String(item?.mediaType || item?.media_type || '')))) formats.push('Photography / static posts');
+  return formats.join(', ');
+};
+const dominantKitAudience = audience => [mediaRows(audience?.cities)[0]?.name, mediaRows(audience?.countries)[0]?.name].filter(Boolean).join(', ');
+const kitGenderSplit = audience => {
+  const rows = mediaRows(audience?.genderAge);
+  if (!rows.length) return { women: null, men: null, other: null };
+  const female = rows.filter(row => /female|(^|[\s/_.-])f([\s/_.-]|$)/i.test(String(row?.name || ''))).reduce((sum, row) => sum + (Number(row?.value) || 0), 0);
+  const male = rows.filter(row => /(^|[\s/_.-])m([\s/_.-]|$)|male/i.test(String(row?.name || '')) && !/female/i.test(String(row?.name || ''))).reduce((sum, row) => sum + (Number(row?.value) || 0), 0);
+  const total = rows.reduce((sum, row) => sum + (Number(row?.value) || 0), 0);
+  if (!total) return { women: null, men: null, other: null };
+  const women = Math.round(female / total * 100), men = Math.round(male / total * 100);
+  return { women, men, other: Math.max(0, 100 - women - men) };
+};
+const dominantDemographicRows = audience => mediaRows(audience?.countries).slice(0, 3);
+const topAverageViews = creator => {
+  const ig = creator?.instagramClient || creator?.instagram || {};
+  const direct = Number(creator?.avgViews || creator?.averageViews || ig?.avgViews || ig?.accountInsights?.totals?.views || 0);
+  if (direct > 0) return direct;
+  const recent = mediaRows(ig.recentMedia).map(item => Number(item?.viewCount ?? item?.view_count ?? item?.insights?.views ?? 0)).filter(value => value > 0);
+  return recent.length ? Math.round(recent.reduce((sum, value) => sum + value, 0) / recent.length) : 0;
+};
+const creatorProfilePath = handle => handle ? '/c/' + encodeURIComponent(String(handle).trim().replace(/^@/, '')) : '/';
 
 function MediaKit({ creator }) {
   const toast = useToast();
@@ -30,44 +66,59 @@ function MediaKit({ creator }) {
   const [loadingStep, setLoadingStep] = useState(0);
   const [showTemplates, setShowTemplates] = useState(false);
   const [freshCreator, setFreshCreator] = useState(null);
+  const [headline, setHeadline] = useState(creator?.headline || creator?.title || '');
+  const [coverImage, setCoverImage] = useState(creator?.coverImageUrl || creator?.coverImage || creator?.bannerUrl || '');
   const [bio, setBio] = useState(creator?.bio || creator?.instagram?.bio || creator?.instagramClient?.bio || '');
   const [email, setEmail] = useState(creator?.businessEmail || creator?.email || '');
   const [city, setCity] = useState(creator?.city || '');
-  const [services, setServices] = useState('Instagram Reels, Stories, UGC');
+  const [contentFormats, setContentFormats] = useState(inferKitFormats(creator));
+  const [dominantAudience, setDominantAudience] = useState(creator?.mediaKitAudience || creator?.dominantAudience || '');
+  const [womenShare, setWomenShare] = useState(creator?.mediaKitGenderSplit?.women ?? '');
+  const [menShare, setMenShare] = useState(creator?.mediaKitGenderSplit?.men ?? '');
+  const [otherShare, setOtherShare] = useState(creator?.mediaKitGenderSplit?.other ?? '');
+  const [collaborationsText, setCollaborationsText] = useState(kitBrandsText(creator?.pastCollaborations || creator?.brandCollaborations || creator?.previousCollaborations || creator?.collaboratedBrands || []));
+  const [openForCollabs, setOpenForCollabs] = useState(creator?.openForCollabs !== false && creator?.openToCollaborations !== false);
   const [saving, setSaving] = useState(false);
+  const [draftSaveStatus, setDraftSaveStatus] = useState('idle');
   const [shareUrl, setShareUrl] = useState('');
   const data = freshCreator ? { ...creator, ...freshCreator } : (creator || {});
-  const followers = Number(data?.followers || data?.instagramClient?.followers || data?.instagram?.followers || 0);
-  const views = Number(data?.avgViews || data?.averageViews || data?.instagramClient?.avgViews || data?.instagram?.accountInsights?.totals?.views || 0);
-  const engagement = Number(data?.engagementRate || data?.engagement || data?.instagram?.engagementRate || 0);
-  const handle = String(data?.handle || data?.username || '').replace(/^@/, '');
-  const name = data?.name || data?.fullName || 'Creator';
-  const niche = data?.niche || data?.category || 'Creator · digital storyteller';
-  const photo = data?.photoURL || data?.photoUrl || data?.avatar || data?.pfp || data?.instagramClient?.profilePictureUrl || data?.instagram?.profilePictureUrl || '';
-  const activeTheme = themes.find(t => t.id === theme) || themes[0];
+  const instagram = data.instagramClient || data.instagram || {};
+  const audience = instagram.audience || data.audience || {};
+  const followers = Number(data.followers || instagram.followersCount || 0);
+  const views = topAverageViews(data);
+  const engagement = Number(data.engagementRate || data.engagement || instagram.engagementRate || 0);
+  const handle = String(data.handle || data.handleLower || data.username || instagram.username || '').replace(/^@/, '');
+  const name = data.name || data.fullName || instagram.name || 'Creator';
+  const niche = data.niche || data.category || 'Creator';
+  const photo = data.pfp || data.photoURL || data.photoUrl || data.avatar || instagram.profilePictureUrl || '';
+  const selectedTheme = themes.find(t => t.id === theme) || themes[0];
   const previewTheme = themes.find(t => t.id === (showTemplates ? draftTheme : theme)) || themes[0];
-  const text = useMemo(() => [name, handle ? '@' + handle : '', niche, city, 'Followers: ' + count(followers), views ? 'Average views: ' + count(views) : '', engagement ? 'Engagement rate: ' + engagement + '%' : '', bio, 'Services: ' + services, email ? 'Contact: ' + email : ''].filter(Boolean).join('\n'), [name, handle, niche, city, followers, views, engagement, bio, services, email]);
+  const formats = kitList(contentFormats);
+  const collaborations = parseKitBrands(collaborationsText);
+  const derivedAudience = dominantKitAudience(audience);
+  const gender = kitGenderSplit(audience);
+  const pct = (manual, automatic) => manual !== '' && manual !== null && manual !== undefined && Number.isFinite(Number(manual)) ? Math.max(0, Math.min(100, Number(manual))) : automatic;
+  const women = pct(womenShare, gender.women);
+  const men = pct(menShare, gender.men);
+  const other = pct(otherShare, gender.other);
+  const audienceValue = dominantAudience.trim() || derivedAudience;
+  const profilePath = creatorProfilePath(handle);
+  const shareText = useMemo(() => [name, handle ? '@' + handle : '', headline, niche, city, 'Followers: ' + count(followers), views ? 'Average views: ' + count(views) : '', engagement ? 'Engagement rate: ' + engagement + '%' : '', bio, 'Content formats: ' + contentFormats, email ? 'Contact: ' + email : ''].filter(Boolean).join('\n'), [name, handle, headline, niche, city, followers, views, engagement, bio, contentFormats, email]);
 
   useEffect(() => {
+    setHeadline(creator?.headline || creator?.title || '');
+    setCoverImage(creator?.coverImageUrl || creator?.coverImage || creator?.bannerUrl || '');
     setBio(creator?.bio || creator?.instagram?.bio || creator?.instagramClient?.bio || '');
     setEmail(creator?.businessEmail || creator?.email || '');
     setCity(creator?.city || '');
-  }, [creator?.bio, creator?.businessEmail, creator?.email, creator?.city]);
-
-  useEffect(() => {
-    if (!creator?.id || stage !== 'kit') return;
-    let active = true;
-    (async () => {
-      try {
-        await ensureFirebase();
-        const ref = doc(db(), 'mediaKits', creator.id);
-        const snap = await getDoc(ref);
-        if (!active || !snap.exists() || snap.data().isPublic !== true) return;
-        await updateDoc(ref, { creatorName: name, handle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche, photo, updatedAt: serverTimestamp() });
-      } catch { /* editing remains usable if a public kit has not been published */ }
-    })();
-    return () => { active = false; };
-  }, [creator?.id, creator?.name, creator?.fullName, creator?.handle, creator?.username, creator?.followers, creator?.avgViews, creator?.averageViews, creator?.engagement, creator?.engagementRate, creator?.niche, creator?.category, creator?.photoURL, creator?.photoUrl, creator?.avatar, creator?.instagramClient?.profilePictureUrl, creator?.instagram?.profilePictureUrl, stage, theme, bio, email, city, services, name, handle, followers, views, engagement, photo, niche]);
+    setContentFormats(inferKitFormats(creator));
+    setDominantAudience(creator?.mediaKitAudience || creator?.dominantAudience || '');
+    setWomenShare(creator?.mediaKitGenderSplit?.women ?? '');
+    setMenShare(creator?.mediaKitGenderSplit?.men ?? '');
+    setOtherShare(creator?.mediaKitGenderSplit?.other ?? '');
+    setCollaborationsText(kitBrandsText(creator?.pastCollaborations || creator?.brandCollaborations || creator?.previousCollaborations || creator?.collaboratedBrands || []));
+    setOpenForCollabs(creator?.openForCollabs !== false && creator?.openToCollaborations !== false);
+  }, [creator?.id, creator?.headline, creator?.title, creator?.bio, creator?.businessEmail, creator?.email, creator?.city, creator?.contentFormats, creator?.niche, creator?.category, creator?.instagram?.username, creator?.instagramClient?.username]);
 
   const wait = ms => new Promise(resolve => window.setTimeout(resolve, ms));
   const createMediaKit = async () => {
@@ -81,157 +132,156 @@ function MediaKit({ creator }) {
         const snap = await getDoc(doc(db(), 'creators', creator.id));
         if (snap.exists()) latest = { ...creator, ...snap.data(), id: creator.id };
       }
-    } catch { /* use the creator profile already held by the live studio */ }
+    } catch { /* Keep the live profile values available if refresh is offline. */ }
     setFreshCreator(latest);
-    setBio(latest?.bio || latest?.instagram?.bio || latest?.instagramClient?.bio || '');
-    setEmail(latest?.businessEmail || latest?.email || '');
-    setCity(latest?.city || '');
-    await wait(700);
+    const ig = latest.instagramClient || latest.instagram || {};
+    setHeadline(latest.headline || latest.title || '');
+    setCoverImage(latest.coverImageUrl || latest.coverImage || latest.bannerUrl || '');
+    setBio(latest.bio || ig.bio || '');
+    setEmail(latest.businessEmail || latest.email || '');
+    setCity(latest.city || '');
+    setContentFormats(inferKitFormats(latest));
+    setDominantAudience(latest.mediaKitAudience || latest.dominantAudience || '');
+    setWomenShare(latest.mediaKitGenderSplit?.women ?? '');
+    setMenShare(latest.mediaKitGenderSplit?.men ?? '');
+    setOtherShare(latest.mediaKitGenderSplit?.other ?? '');
+    setCollaborationsText(kitBrandsText(latest.pastCollaborations || latest.brandCollaborations || latest.previousCollaborations || latest.collaboratedBrands || []));
+    setOpenForCollabs(latest.openForCollabs !== false && latest.openToCollaborations !== false);
+    await wait(650);
     setLoadingStep(1);
-    await wait(1050);
+    await wait(900);
     setStage('success');
-    await wait(1700);
+    await wait(1500);
     setStage('kit');
   };
+
+  const payload = normalizedHandle => ({
+    creatorId: creator?.id || data.id || '',
+    creatorName: name, handle: normalizedHandle || handle, headline, title: headline,
+    coverImage, coverImageUrl: coverImage, theme, bio, email, city, niche, photo,
+    followers, avgViews: views, engagementRate: engagement, platform: 'Instagram',
+    contentFormats: formats, services: formats.join(', '),
+    mediaKitAudience: dominantAudience.trim(),
+    genderSplit: { women, men, other },
+    mediaKitGenderSplit: { women: womenShare, men: menShare, other: otherShare },
+    audience: audience || {}, pastCollaborations: collaborations, openForCollabs,
+    collancerProfileUrl: profilePath, updatedAt: serverTimestamp(),
+  });
+
+  useEffect(() => {
+    if (!creator?.id || stage !== 'kit') return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setDraftSaveStatus('saving');
+      try {
+        await ensureFirebase();
+        await setDoc(doc(db(), 'mediaKits', creator.id), payload(handle), { merge: true });
+        if (!cancelled) setDraftSaveStatus('saved');
+      } catch {
+        if (!cancelled) setDraftSaveStatus('local');
+      }
+    }, 550);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [creator?.id, stage, handle, name, headline, coverImage, theme, bio, email, city, niche, photo, followers, views, engagement, contentFormats, dominantAudience, womenShare, menShare, otherShare, collaborationsText, openForCollabs]);
 
   const applyTemplate = () => {
     setTheme(draftTheme);
     setShowTemplates(false);
     setShareUrl(current => {
       if (!current) return current;
-      try {
-        const url = new URL(current);
-        url.searchParams.set('style', draftTheme);
-        return url.toString();
-      } catch { return current; }
+      try { const url = new URL(current); url.searchParams.set('style', draftTheme); return url.toString(); } catch { return current; }
     });
-    toast.ok('Template applied to your media kit.');
-    window.setTimeout(() => {
-      document.querySelector('.cl-media-kit-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
+    toast.ok('Your media kit has been restyled.');
+    window.setTimeout(() => document.querySelector('.cl-mk-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
-
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(text); toast.ok('Media kit details copied.'); }
-    catch { toast.err('Could not copy.'); }
+  const copyDetails = async () => {
+    try { await navigator.clipboard.writeText(shareText); toast.ok('Media kit details copied.'); } catch { toast.err('Could not copy.'); }
   };
-  const download = () => {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'collancer-media-kit.txt'; a.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const exportPdf = () => { try { window.print(); } catch { toast.err('PDF export is not available in this browser.'); } };
   const share = async () => {
     if (!creator?.id) { toast.err('Your profile is still loading.'); return; }
-    if (!handle) { toast.err('Add a public Instagram handle to your profile before sharing a media kit.'); return; }
+    if (!handle) { toast.err('Add or confirm your public creator handle in Profile before publishing.'); return; }
     setSaving(true);
     try {
       await ensureFirebase();
       const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, '');
-      if (!/^[a-z0-9._]{1,30}$/.test(normalizedHandle)) {
-        toast.err('Your Instagram handle contains unsupported characters. Update it in your profile and try again.');
-        return;
-      }
+      if (!/^[a-z0-9._]{1,30}$/.test(normalizedHandle)) { toast.err('Your public handle contains unsupported characters. Update it in Profile and try again.'); return; }
       const handleRef = doc(db(), 'creatorHandles', normalizedHandle);
       const handleSnap = await getDoc(handleRef);
       if (handleSnap.exists() && handleSnap.data().creatorId !== creator.id) throw new Error('handle-taken');
-      const payload = { creatorId: creator.id, creatorName: name, handle: normalizedHandle, theme, bio, email, city, services, followers, avgViews: views, engagementRate: engagement, niche, photo, updatedAt: serverTimestamp(), isPublic: true };
-      await setDoc(doc(db(), 'mediaKits', creator.id), payload, { merge: true });
-      if (!handleSnap.exists()) {
-        await setDoc(handleRef, { creatorId: creator.id, handleLower: normalizedHandle, updatedAt: serverTimestamp() });
-      }
+      await setDoc(doc(db(), 'mediaKits', creator.id), { ...payload(normalizedHandle), isPublic: true }, { merge: true });
+      if (!handleSnap.exists()) await setDoc(handleRef, { creatorId: creator.id, handle: normalizedHandle, handleLower: normalizedHandle, updatedAt: serverTimestamp() }, { merge: true });
       const url = new URL('/media-kit/' + encodeURIComponent(normalizedHandle), window.location.origin);
       url.searchParams.set('style', theme);
       setShareUrl(url.toString());
-      try { await navigator.clipboard.writeText(url.toString()); toast.ok('Public media kit link copied.'); }
-      catch { toast.ok('Public media kit link created.'); }
+      try { await navigator.clipboard.writeText(url.toString()); toast.ok('Published media kit link copied.'); } catch { toast.ok('Public media kit link created.'); }
     } catch (error) {
       if (error?.message === 'handle-taken') toast.err('That handle is already linked to another creator. Check your public handle and try again.');
-      else toast.err('Could not create a share link. Please try again.');
+      else toast.err('Could not publish the media kit. Please try again.');
     } finally { setSaving(false); }
   };
 
   const loadingTitles = ['Fetching your account details', 'Creating your media kit'];
+  const field = (label, value, setter, placeholder, extra = {}) => <Field label={label} hint={extra.hint}><Input value={value} onChange={event => setter(event.target.value)} placeholder={placeholder} inputType={extra.inputType || 'text'} /></Field>;
+  const genderBar = (label, value, kind) => <div className="cl-mk-gender-row" key={label}><div><span>{label}</span><strong>{value === null || value === undefined || value === '' ? 'Add data' : Math.round(Number(value)) + '%'}</strong></div><div className="cl-mk-gender-track"><i className={'gender-' + kind} style={{ width: value === null || value === undefined || value === '' ? '0%' : Math.max(0, Math.min(100, Number(value))) + '%' }}/></div></div>;
+
   return <div className="cl-tools-stack cl-media-kit-workspace">
-    {stage === 'intro' && <section className="cl-kit-intro">
-      <div className="cl-kit-intro-copy">
-        <div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> CREATOR STUDIO <span>/</span> MEDIA KIT</div>
-        <h2>Make your influence <span>impossible to ignore.</span></h2>
-        <p className="cl-kit-intro-description">Turn your creator profile into a polished, brand-ready media kit in seconds. Your audience, niche and key performance details are pulled into a portfolio you can refine, style and share with brands.</p>
-        <div className="cl-kit-intro-proof">
-          <span><strong>{count(followers)}</strong> followers</span>
-          <i />
-          <span><strong>{niche}</strong></span>
-          <i />
-          <span><strong>13</strong> premium styles</span>
-        </div>
-        <Button block size="lg" onClick={createMediaKit} icon={Sparkles}>Create your media kit <ArrowRight size={16} /></Button>
-        <div className="cl-kit-intro-note"><CheckCircle2 size={14} /> Uses your saved creator profile · fully customizable before sharing</div>
-      </div>
-      <div className="cl-kit-intro-art" aria-hidden="true">
-        <div className="cl-kit-orbit cl-kit-orbit-a" /><div className="cl-kit-orbit cl-kit-orbit-b" />
-        <div className="cl-kit-art-glass"><div className="cl-kit-art-shine" /><div className="cl-kit-art-top"><span>COLLANCER</span><span>CREATOR / 001</span></div>
-          <div className="cl-kit-art-avatar">{photo ? <img src={photo} alt="" /> : <Sparkles size={30}/>}</div>
-          <div className="cl-kit-art-kicker">{niche}</div><div className="cl-kit-art-name">{name}</div><div className="cl-kit-art-handle">{handle ? '@' + handle : '@yourhandle'}</div>
-          <div className="cl-kit-art-stats"><span><strong>{count(followers)}</strong><small>FOLLOWERS</small></span><span><strong>{views ? count(views) : '—'}</strong><small>AVG. VIEWS</small></span><span><strong>{engagement ? engagement + '%' : '—'}</strong><small>ENGAGEMENT</small></span></div>
-          <div className="cl-kit-art-foot"><span>CREATOR MEDIA KIT</span><Sparkles size={14}/></div>
-        </div>
-        <div className="cl-kit-orbit-chip"><Sparkles size={15}/><span>Built around your story</span></div>
-      </div>
-    </section>}
+    {stage === 'intro' && <section className="cl-kit-intro"><div className="cl-kit-intro-copy"><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot"/> CREATOR STUDIO <span>/</span> MEDIA KIT</div><h2>Build a portfolio brands <span>remember.</span></h2><p className="cl-kit-intro-description">Create a complete creator presentation—not just a stats card. Your profile and Instagram analytics are filled automatically wherever data is available. Complete any missing details, choose a distinctive 3D design and publish your media kit.</p><div className="cl-kit-intro-proof"><span><strong>{count(followers)}</strong> profile followers</span><i/><span><strong>7 sections</strong> for brand decision-making</span><i/><span><strong>13 styles</strong> built from different visual systems</span></div><Button block size="lg" onClick={createMediaKit} icon={Sparkles}>Create your media kit <ArrowRight size={16}/></Button><div className="cl-kit-intro-note"><CheckCircle2 size={14}/> Profile data first · fill only what's missing · publish when ready</div></div><div className="cl-kit-intro-art" aria-hidden="true"><div className="cl-kit-orbit cl-kit-orbit-a"/><div className="cl-kit-orbit cl-kit-orbit-b"/><div className="cl-kit-art-glass"><div className="cl-kit-art-top"><span>COLLANCER / STUDIO</span><span>CREATOR 001</span></div><div className="cl-kit-art-avatar">{photo ? <img src={photo} alt=""/> : <Sparkles size={30}/>}</div><div className="cl-kit-art-kicker">{niche}</div><div className="cl-kit-art-name">{name}</div><div className="cl-kit-art-handle">{handle ? '@' + handle : '@yourhandle'}</div><div className="cl-kit-art-stats"><span><strong>{count(followers)}</strong><small>FOLLOWERS</small></span><span><strong>{views ? count(views) : '—'}</strong><small>AVG VIEWS</small></span><span><strong>{engagement ? engagement + '%' : '—'}</strong><small>ENGAGEMENT</small></span></div><div className="cl-kit-art-foot"><span>YOUR STORY / YOUR NUMBERS</span><Sparkles size={14}/></div></div><div className="cl-kit-orbit-chip"><Sparkles size={15}/><span>Built around your story</span></div></div></section>}
 
-    {stage === 'loading' && <section className="cl-kit-flow-screen" role="status" aria-live="polite">
-      <div className="cl-kit-loader-emblem"><span className="cl-kit-loader-ring" /><span className="cl-kit-loader-ring cl-kit-loader-ring-two" /><span className="cl-kit-loader-core"><Sparkles size={28}/></span></div>
-      <span className="cl-kit-flow-kicker">COLLANCER MEDIA KIT STUDIO</span>
-      <h2 key={loadingStep}>{loadingTitles[loadingStep]}</h2>
-      <p>{loadingStep === 0 ? 'Bringing your latest creator profile details together.' : 'Composing your audience snapshot and creator identity.'}</p>
-      <div className="cl-kit-progress-track"><span style={{ width: loadingStep === 0 ? '46%' : '100%' }} /></div>
-      <div className="cl-kit-loading-steps">{loadingTitles.map((label, i) => <div className={'cl-kit-loading-step ' + (i < loadingStep ? 'is-done' : i === loadingStep ? 'is-current' : '')} key={label}><span>{i < loadingStep ? <Check size={13}/> : <span className="cl-kit-step-dot" />}</span>{label}</div>)}</div>
-    </section>}
+    {stage === 'loading' && <section className="cl-kit-flow-screen" role="status" aria-live="polite"><div className="cl-kit-loader-emblem"><span className="cl-kit-loader-ring"/><span className="cl-kit-loader-ring cl-kit-loader-ring-two"/><span className="cl-kit-loader-core"><Sparkles size={28}/></span></div><span className="cl-kit-flow-kicker">COLLANCER MEDIA KIT STUDIO</span><h2 key={loadingStep}>{loadingTitles[loadingStep]}</h2><p>{loadingStep === 0 ? 'Bringing your saved creator profile and connected audience data together.' : 'Building your portfolio sections and ready-to-personalize details.'}</p><div className="cl-kit-progress-track"><span style={{ width: loadingStep === 0 ? '44%' : '100%' }}/></div><div className="cl-kit-loading-steps">{loadingTitles.map((label, i) => <div className={'cl-kit-loading-step ' + (i < loadingStep ? 'is-done' : i === loadingStep ? 'is-current' : '')} key={label}><span>{i < loadingStep ? <Check size={13}/> : <span className="cl-kit-step-dot"/>}</span>{label}</div>)}</div></section>}
 
-    {stage === 'success' && <div className="cl-kit-success-overlay" role="dialog" aria-modal="true" aria-label="Media kit successfully created">
-      <div className="cl-kit-success-card"><div className="cl-kit-success-orbit"><span/><span/><span/><div><CheckCircle2 size={34}/></div></div>
-        <div className="cl-kit-success-eyebrow">YOUR CREATOR STORY, BEAUTIFULLY PACKAGED</div><h2>Media kit successfully created</h2><p>Your details are ready. Next, make the design feel unmistakably yours.</p><div className="cl-kit-success-bottom"><span/><span/><span/></div>
-      </div>
-    </div>}
+    {stage === 'success' && <div className="cl-kit-success-overlay" role="dialog" aria-modal="true" aria-label="Media kit successfully created"><div className="cl-kit-success-card"><div className="cl-kit-success-orbit"><span/><span/><span/><div><CheckCircle2 size={34}/></div></div><div className="cl-kit-success-eyebrow">YOUR CREATOR STORY, BEAUTIFULLY PACKAGED</div><h2>Media kit successfully created</h2><p>Your profile information is ready. Complete the missing pieces and choose the visual system that feels like you.</p><div className="cl-kit-success-bottom"><span/><span/><span/></div></div></div>}
 
     {stage === 'kit' && <>
-      {showTemplates && <section className="cl-kit-template-gallery">
-        <div className="cl-kit-gallery-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> TEMPLATE LIBRARY <span>/</span> 13 STYLES</div><h2>Choose your visual signature.</h2><p>Every template has its own palette, depth, lighting and material treatment. Select a style to preview it, then confirm to apply it to your kit.</p></div><button type="button" className="cl-kit-gallery-close" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }} aria-label="Close templates">×</button></div>
-        <div className="cl-template-grid cl-template-grid-premium">{themes.map(t => <button type="button" key={t.id} aria-pressed={draftTheme === t.id} onClick={() => setDraftTheme(t.id)} className={'cl-template-choice cl-template-choice-premium ' + t.cls + (draftTheme === t.id ? ' is-active' : '')}>
-          <span className={'cl-template-swatch ' + t.cls}><i/><i/><i/><b/></span>
-          <span className="cl-template-choice-meta"><small>{t.family}</small>{theme === t.id && <em>APPLIED</em>}</span>
-          <strong>{t.name}</strong><small className="cl-template-description">{t.note}</small>
-          <span className="cl-template-select-cue">{draftTheme === t.id ? <><CheckCircle2 size={15}/> Selected</> : <>Preview style <ArrowRight size={13}/></>}</span>
-        </button>)}</div>
-        <div className="cl-kit-gallery-actions"><p><strong>{(themes.find(t => t.id === draftTheme) || themes[0]).name}</strong> is selected. Confirm to apply this design to your media kit.</p><div><Button variant="light" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }}>Cancel</Button><Button onClick={applyTemplate} icon={CheckCircle2}>Confirm and apply template</Button></div></div>
-      </section>}
+      {showTemplates && <section className="cl-kit-template-gallery"><div className="cl-kit-gallery-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot"/> TEMPLATE LIBRARY <span>/</span> 13 DESIGN SYSTEMS</div><h2>Thirteen looks. Thirteen personalities.</h2><p>These are different material and layout systems—not the same card with a new palette. Select a style and confirm to apply it.</p></div><button type="button" className="cl-kit-gallery-close" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }} aria-label="Close templates">×</button></div><div className="cl-template-grid cl-template-grid-premium">{themes.map(t => <button type="button" key={t.id} aria-pressed={draftTheme === t.id} onClick={() => setDraftTheme(t.id)} className={'cl-template-choice cl-template-choice-premium ' + t.cls + (draftTheme === t.id ? ' is-active' : '')}><span className={'cl-template-swatch ' + t.cls}><i/><i/><i/><b/></span><span className="cl-template-choice-meta"><small>{t.family}</small>{theme === t.id && <em>APPLIED</em>}</span><strong>{t.name}</strong><small className="cl-template-description">{t.note}</small><span className="cl-template-select-cue">{draftTheme === t.id ? <><CheckCircle2 size={15}/> Selected</> : <>Select design <ArrowRight size={13}/></>}</span></button>)}</div><div className="cl-kit-gallery-actions"><p><strong>{(themes.find(t => t.id === draftTheme) || themes[0]).name}</strong> is selected. Confirm to apply the full design system.</p><div><Button variant="light" onClick={() => { setDraftTheme(theme); setShowTemplates(false); }}>Cancel</Button><Button onClick={applyTemplate} icon={CheckCircle2}>Confirm design</Button></div></div></section>}
 
-      <div className="cl-kit-ready-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot" /> MEDIA KIT READY</div><h2>Your creator story, made share-worthy.</h2><p>Built from your saved profile. Your selected design is applied to every preview and public share link.</p></div><span className="cl-kit-ready-check"><CheckCircle2 size={17}/> Created</span></div>
+      <div className="cl-kit-ready-heading"><div><div className="cl-kit-eyebrow"><span className="cl-kit-eyebrow-dot"/> MEDIA KIT READY</div><h2>Your complete creator portfolio.</h2><p>Creator and Instagram details are filled wherever available. The open editor lets you finish missing information before publishing.</p></div><span className={'cl-kit-save-indicator save-' + draftSaveStatus}>{draftSaveStatus === 'saving' ? 'Saving draft…' : draftSaveStatus === 'saved' ? 'Draft saved' : draftSaveStatus === 'local' ? 'Preview only' : 'Preparing draft'}</span></div>
 
-      <section key={previewTheme.id} className={'cl-media-preview cl-media-kit-preview ' + previewTheme.cls}>
-        <div className="cl-media-preview-top"><span>COLLANCER CREATOR KIT</span><span className="cl-media-pill">{previewTheme.marker} · MEDIA KIT</span></div>
-        <div className="cl-media-identity">
-          {photo ? <img className="cl-media-avatar" src={photo} alt="" /> : <div className="cl-media-avatar cl-media-avatar-fallback"><Sparkles size={26}/></div>}
-          <div className="cl-grow"><div className="cl-media-kicker">{niche}</div><h2>{name}</h2><p>{handle ? '@' + handle : 'Your Instagram handle'}</p></div>
+      <article key={theme} className={'cl-mk-document theme-' + theme + ' ' + selectedTheme.cls}>
+        <div className="cl-mk-document-bar"><span>COLLANCER / CREATOR MEDIA KIT</span><span>{selectedTheme.marker} <i/> 2026</span></div>
+        <section className="cl-mk-hero">
+          <div className="cl-mk-cover">{coverImage ? <img src={coverImage} alt=""/> : <div className="cl-mk-cover-art"><i/><i/><i/></div>}<div className="cl-mk-cover-overlay"/><div className="cl-mk-cover-label"><span>CREATOR PORTFOLIO</span><span>01 / INTRODUCTION</span></div></div>
+          <div className="cl-mk-hero-profile"><div className="cl-mk-avatar-frame">{photo ? <img src={photo} alt={name + ' profile'}/> : <div className="cl-mk-avatar-placeholder"><Sparkles size={24}/></div>}</div><div className="cl-mk-profile-copy"><div className="cl-mk-pretitle">{niche}</div><h2>{name}</h2><div className="cl-mk-username">{handle ? '@' + handle : <span className="cl-mk-missing">Add Instagram username</span>}</div><div className="cl-mk-identity-tags">{city ? <span><MapPin size={12}/>{city}</span> : <span className="is-missing">Add city</span>}<span>{niche}</span></div></div><span className={'cl-mk-open-tag ' + (openForCollabs ? 'is-open' : 'is-closed')}><i/>{openForCollabs ? 'Open for collabs' : 'Currently unavailable'}</span></div>
+          <div className="cl-mk-headline">{headline || <span className="cl-mk-missing">Add your creator title / headline</span>}</div>
+        </section>
+
+        <div className="cl-mk-sections">
+          <section className="cl-mk-section cl-mk-about"><div className="cl-mk-section-index">01 <span>ABOUT</span></div><div className="cl-mk-section-main"><h3>About <span>the creator</span></h3><p className={bio ? '' : 'cl-mk-empty-copy'}>{bio || 'Add a concise introduction about your story, creative point of view and the value you bring to brand partners.'}</p></div></section>
+
+          <section className="cl-mk-section cl-mk-platforms"><div className="cl-mk-section-index">02 <span>PLATFORMS</span></div><div className="cl-mk-section-main"><h3>Platform <span>performance</span></h3><div className="cl-mk-platform-card"><div className="cl-mk-platform-head"><span className="cl-mk-platform-icon"><Instagram size={21}/></span><span className="cl-mk-platform-brand"><strong>Instagram</strong><small>{handle ? '@' + handle : 'Add a public username'}</small></span><span className="cl-mk-platform-badge">{data.instagram || data.instagramClient ? 'Connected' : 'Profile'}</span></div><div className="cl-mk-platform-metrics"><div><strong>{count(followers)}</strong><span>Followers</span></div><div><strong>{views ? count(views) : '—'}</strong><span>Avg. views</span></div><div><strong>{engagement ? engagement + '%' : '—'}</strong><span>Engagement rate</span></div></div>{!views || !engagement ? <p className="cl-mk-note">Connect Instagram or complete these metrics in your creator profile to strengthen this section.</p> : null}</div></div></section>
+
+          <section className="cl-mk-section cl-mk-audience"><div className="cl-mk-section-index">03 <span>AUDIENCE</span></div><div className="cl-mk-section-main"><h3>Who <span>you reach</span></h3><div className="cl-mk-audience-grid"><div className="cl-mk-audience-feature"><span className="cl-mk-mini-label">DOMINANT AUDIENCE</span><strong>{audienceValue || <span className="cl-mk-missing">Add your dominant audience</span>}</strong><p>{audienceValue ? 'Based on available audience insights or your own details.' : 'Fill this in if Instagram does not provide demographic data.'}</p>{dominantDemographicRows(audience).length > 0 && <div className="cl-mk-country-list">{dominantDemographicRows(audience).map(row => <div key={row.name}><span>{row.name}</span><strong>{Number(row.value) > 0 && Number(row.value) <= 1 ? Math.round(Number(row.value) * 100) + '%' : Number(row.value) > 1 ? Math.round(Number(row.value)) + '%' : '—'}</strong></div>)}</div>}</div><div className="cl-mk-gender-card"><div className="cl-mk-mini-label">GENDER SPLIT</div><div className="cl-mk-gender-note">{gender.women !== null || gender.men !== null ? 'Connected Instagram demographics' : 'Add details when available'}</div>{genderBar('Women', women, 'women')}{genderBar('Men', men, 'men')}{genderBar('Other / not specified', other, 'other')}<p className="cl-mk-note">Bars use Instagram demographics where available, or values you enter in the editor.</p></div></div></div></section>
+
+          <section className="cl-mk-section cl-mk-formats"><div className="cl-mk-section-index">04 <span>CONTENT</span></div><div className="cl-mk-section-main"><h3>Content <span>formats</span></h3><div className="cl-mk-format-grid">{formats.length ? formats.map((format, i) => <div className="cl-mk-format-tile" key={format}><span className="cl-mk-format-index">0{i + 1}</span><strong>{format}</strong><small>Creative format</small></div>) : <div className="cl-mk-empty-panel"><strong>What do you create?</strong><span>Add Reels, UGC, tutorials, product photography, styling, reviews or your core formats in Customize your kit.</span></div>}</div></div></section>
+
+          <section className="cl-mk-section cl-mk-collaborations"><div className="cl-mk-section-index">05 <span>SELECTED WORK</span></div><div className="cl-mk-section-main"><h3>Past <span>collaborations</span></h3><p className="cl-mk-section-desc">Selected brand partnerships and creator work.</p>{collaborations.length ? <div className="cl-mk-brand-rail">{collaborations.map((brand, i) => <div className="cl-mk-brand" key={brand.name + i}>{brand.logoUrl ? <img src={brand.logoUrl} alt={brand.name}/> : <span className="cl-mk-brand-monogram">{brand.name.split(/\s+/).map(x => x[0]).join('').slice(0, 3).toUpperCase()}</span>}<small>{brand.name}</small></div>)}</div> : <div className="cl-mk-empty-panel"><strong>Your brand history belongs here.</strong><span>Add previous brand names and optional logo URLs. Only list collaborations you have actually completed.</span></div>}</div></section>
         </div>
-        <p className="cl-media-bio">{bio || 'Add a short bio to tell brands what makes your content and community unique.'}</p>
-        <div className="cl-media-stats"><div><strong>{count(followers)}</strong><span>Followers</span></div><div><strong>{views ? count(views) : '—'}</strong><span>Avg. views</span></div><div><strong>{engagement ? engagement + '%' : '—'}</strong><span>Engagement</span></div></div>
-        <div className="cl-media-bottom"><div><span>LOCATION</span><strong>{city || 'Add your city'}</strong></div><div><span>COLLABORATIONS</span><strong>{services || 'Add your services'}</strong></div></div>
-        {email && <div className="cl-media-contact">{email}</div>}
-        <div className="cl-media-footer"><span>Where Indian brands meet verified creators</span><span>COLLANCER ↗</span></div>
-      </section>
 
-      <div className="cl-kit-primary-actions"><Button onClick={() => { setDraftTheme(theme); setShowTemplates(true); }} icon={Palette}>Explore templates</Button><Button variant="light" onClick={copy} icon={Copy}>Copy details</Button><Button variant="light" onClick={download} icon={Download}>Download details</Button><Button onClick={share} loading={saving} icon={Share2}>Create share link</Button></div>
-      <details className="cl-kit-edit-details"><summary><span><FileText size={17}/> Customize your details</span><small>Edit your bio, location, services and contact information</small><span className="cl-kit-edit-chevron">＋</span></summary>
-        <Card><div className="cl-row cl-kit-fields" style={{ gap: 10 }}>
-          <div className="cl-grow"><Field label="City / location"><Input value={city} onChange={e => setCity(e.target.value)} placeholder="Your city" /></Field></div>
-          <div className="cl-grow"><Field label="Business contact email"><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="hello@example.com" inputType="email" /></Field></div>
+        <section className="cl-mk-cta"><div className="cl-mk-cta-shape"><i/><i/></div><div className="cl-mk-cta-content"><div className="cl-mk-mini-label">LET'S MAKE SOMETHING MATTER</div><h3>Interested in working together?</h3><p>Have a campaign in mind? Let's turn your brief into something people remember.</p>{email && <div className="cl-mk-cta-email"><Mail size={14}/>{email}</div>}<a className="cl-mk-book-link" href={profilePath} onClick={event => { if (!handle) { event.preventDefault(); toast.info('Add your public handle in Profile so brands can book you on Collancer.'); } }}><span>Book me on Collancer</span><ArrowRight size={17}/></a></div><div className="cl-mk-cta-signature"><span>CREATOR × BRAND</span><strong>Collancer</strong><small>Where influence meets industry</small></div></section>
+        <div className="cl-mk-document-footer"><span>CREATOR MEDIA KIT</span><span>DESIGNED WITH COLLANCER <i/> {handle ? '@' + handle : name}</span></div>
+      </article>
+
+      <div className="cl-kit-primary-actions"><Button onClick={() => { setDraftTheme(theme); setShowTemplates(true); }} icon={Palette}>Explore templates</Button><Button variant="light" onClick={copyDetails} icon={FileText}>Copy details</Button><Button variant="light" onClick={exportPdf} icon={Download}>Export / print PDF</Button><Button onClick={share} loading={saving} icon={ExternalLink}>Publish media kit</Button></div>
+      <details className="cl-kit-edit-details" open><summary><span><FileText size={17}/> Customize your kit</span><small>Complete missing details · add cover, audience and brand history</small><span className="cl-kit-edit-chevron">＋</span></summary><Card>
+        <div className="cl-kit-edit-grid">
+          {field('Creator title / headline', headline, setHeadline, 'e.g. Beauty & lifestyle creator')}
+          {field('City / location', city, setCity, 'e.g. Mumbai, India')}
+          {field('Cover image URL', coverImage, setCoverImage, 'Paste a public image URL', { hint: 'A wide landscape image works best. Leave blank for the template artwork.' })}
+          {field('Business contact email', email, setEmail, 'hello@example.com', { inputType: 'email' })}
         </div>
-        <Field label="Creator bio"><TextArea value={bio} onChange={e => setBio(e.target.value)} maxLength={500} placeholder="A short introduction for potential brand partners" /></Field>
-        <Field label="Services"><Input value={services} onChange={e => setServices(e.target.value)} placeholder="Reels, Stories, UGC..." /></Field></Card>
-      </details>
-      {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your public media kit link</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>Anyone with this link can view the details above without logging in. Only include contact details you want to make public.</p></Card>}
+        <Field label="About you" hint="Your Collancer bio is imported automatically. Edit it for brand partners."><TextArea value={bio} onChange={event => setBio(event.target.value)} maxLength={700} placeholder="Tell brands about your story, audience and creative point of view."/></Field>
+        <Field label="Content formats" hint="Comma-separated, e.g. Reels, UGC, tutorials, product photography."><Input value={contentFormats} onChange={event => setContentFormats(event.target.value)} placeholder="Add the content formats you regularly create"/></Field>
+        <div className="cl-kit-edit-grid">
+          {field('Dominant audience', dominantAudience, setDominantAudience, 'e.g. Women 18–34 in India', { hint: 'Optional if connected Instagram demographics are available.' })}
+          {field('Women audience (%)', String(womenShare ?? ''), setWomenShare, 'e.g. 68', { inputType: 'number' })}
+          {field('Men audience (%)', String(menShare ?? ''), setMenShare, 'e.g. 29', { inputType: 'number' })}
+          {field('Other / unspecified (%)', String(otherShare ?? ''), setOtherShare, 'e.g. 3', { inputType: 'number' })}
+        </div>
+        <Field label="Past brand collaborations" hint="One brand per line. Optional format: Brand Name | https://public-logo-image-url. Only add completed collaborations."><TextArea value={collaborationsText} onChange={event => setCollaborationsText(event.target.value)} maxLength={3000} rows={4} placeholder={'Example Brand | https://example.com/brand-logo.png\nAnother Brand'}/></Field>
+        <label className="cl-kit-collab-toggle"><input type="checkbox" checked={openForCollabs} onChange={event => setOpenForCollabs(event.target.checked)}/><span><strong>Open for collaborations</strong><small>Show the availability tag on your kit.</small></span></label>
+        <div className="cl-kit-edit-foot"><span>Profile data is imported wherever available. Fill the remaining details above to complete the portfolio.</span><Button variant="light" onClick={() => document.querySelector('.cl-mk-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Preview my kit</Button></div>
+      </Card></details>
+      {shareUrl && <Card className="cl-glass"><div className="cl-small" style={{ fontWeight: 800, marginBottom: 8 }}>Your published media kit</div><div className="cl-share-url">{shareUrl}</div><div className="cl-row" style={{ gap: 8, marginTop: 10 }}><Button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => toast.ok('Link copied.')).catch(() => toast.err('Copy failed.')); }} icon={Copy}>Copy link</Button><Button variant="light" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')} icon={ExternalLink}>Preview public kit</Button></div><p className="cl-small cl-muted" style={{ marginTop: 8 }}>Only include contact details and brand marks that you have permission to share publicly.</p></Card>}
     </>}
   </div>;
 }
