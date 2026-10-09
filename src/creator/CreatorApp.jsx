@@ -213,11 +213,21 @@ export default function CreatorApp({ onSwitchRole }) {
       else if (ig.startsWith('error')) {
         const reason = decodeURIComponent(ig.slice(6));
         if (reason === 'code-expired') {
-          toast.err('The Instagram connection expired — please tap Connect Instagram and approve quickly without leaving the page.');
+          toast.err('The Instagram authorization code expired or was already used. Please restart Connect Instagram and approve once.');
+        } else if (reason === 'redirect-uri-mismatch') {
+          toast.err('Instagram redirect URL mismatch. The callback URL in Meta and Vercel must match exactly.');
+        } else if (reason === 'app-credentials-invalid') {
+          toast.err('Instagram app credentials were rejected. Check that Vercel uses the App ID and App Secret from the same Instagram Login app.');
+        } else if (reason === 'long-token-failed') {
+          toast.err('Instagram authorized the account, but the long-lived token could not be issued. Check the Instagram App Secret and retry.');
+        } else if (reason === 'token-failed') {
+          toast.err('Instagram could not exchange the authorization code. Check the App ID, App Secret and exact redirect URL, then retry.');
+        } else if (reason === 'access_denied') {
+          toast.info('Instagram connection was cancelled. No changes were made.');
+        } else if (reason.startsWith('sync-failed')) {
+          toast.err('Instagram authorization succeeded, but profile syncing failed. Check the account type and Instagram API permissions, then retry.');
         } else {
-          toast.err(reason && reason !== 'access_denied'
-            ? `Instagram connect failed: ${reason}`
-            : 'Instagram connect was cancelled.');
+          toast.err(reason ? `Instagram connect failed: ${reason}` : 'Instagram connect failed. Please try again.');
         }
       }
       params.delete('ig');
