@@ -374,6 +374,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const instagramProfileMetrics = [
     { label: 'Followers', value: instagram.followersCount, available: instagram.followersCount !== undefined && instagram.followersCount !== null },
     { label: 'Following', value: instagram.followsCount, available: instagram.followsCount !== undefined && instagram.followsCount !== null },
+    { label: 'Total posts on account', value: instagram.mediaCount, available: instagram.mediaCount !== undefined && instagram.mediaCount !== null },
+    { label: 'Videos / Reels fetched', value: instagram.videoCount, available: instagram.videoCount !== undefined && instagram.videoCount !== null },
     { label: 'Videos / Reels (last 30 days)', value: instagram.videoCount30d, available: instagram.videoCount30d !== undefined && instagram.videoCount30d !== null },
     { label: 'Average likes', value: instagram.avgLikes, available: instagram.avgLikes !== undefined && instagram.avgLikes !== null },
     { label: 'Average views (last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
