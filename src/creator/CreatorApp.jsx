@@ -1,7 +1,7 @@
 /* CreatorApp — creator role shell (audit §7 / §22).
    Owns creator auth internally; state-based page nav (no router).
    Real-time listeners per audit §17: creators/{uid}, bookings, reviews,
-   creatorNotifs, payoutRequests, adCampaigns (creatorId==uid), requirements,
+   creatorNotifs, payoutRequests, requirements,
    requirementOffers. Maintains hasActiveBooking writeback + Pro expiry. */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -24,7 +24,6 @@ import BookingsPage from './BookingsPage.jsx';
 import BookingDetailModal from './BookingDetailModal.jsx';
 import ChatToastHost from '../components/ChatToastHost.jsx';
 import EarningsPage from './EarningsPage.jsx';
-import AdCampaignPage from './AdCampaignPage.jsx';
 import PromoDemoSection from './PromoDemoSection.jsx';
 import ProfilePageH from './ProfilePageH.jsx';
 import MarketplacePage from './MarketplacePage.jsx';
@@ -126,7 +125,7 @@ export default function CreatorApp({ onSwitchRole }) {
   const [authUser, setAuthUser] = useState(undefined); // undefined = resolving
   const [page, setPage] = useState('dashboard');
   const [profileTab, setProfileTab] = useState('profile');
-  const [overlay, setOverlay] = useState(null); // 'verification' | 'beontop' | 'demos' | 'logout' | {type:'booking', id}
+  const [overlay, setOverlay] = useState(null); // 'verification' | 'demos' | 'logout' | {type:'booking', id}
   const [fbReady, setFbReady] = useState(false);
   const [instagramSuccessOpen, setInstagramSuccessOpen] = useState(false);
 
@@ -162,9 +161,6 @@ export default function CreatorApp({ onSwitchRole }) {
   const [payouts, payoutsLoading] = useLiveList(
     () => (uid ? query(collection(db(), 'payoutRequests'), where('creatorId', '==', uid)) : null),
     uid ? `p-${uid}` : 'none', byCreatedDesc);
-  const [ads, adsLoading] = useLiveList(
-    () => (uid ? query(collection(db(), 'adCampaigns'), where('creatorId', '==', uid)) : null),
-    uid ? `a-${uid}` : 'none', byCreatedDesc);
   const [requirements, reqsLoading] = useLiveList(
     () => query(collection(db(), 'requirements'), orderBy('createdAt', 'desc'), limit(60)),
     uid ? `req-${uid}` : 'none', null);
@@ -304,10 +300,6 @@ export default function CreatorApp({ onSwitchRole }) {
         <VerificationPage creator={creator} verification={verification}
           loading={verificationLoading} onBack={() => setOverlay(null)} onSubmitted={() => setOverlay(null)} />
       )}
-      {overlay === 'beontop' && (
-        <AdCampaignPage creator={creator} adCampaigns={ads} loading={adsLoading}
-          onBack={() => setOverlay(null)} onDone={() => setOverlay(null)} />
-      )}
       {overlay === 'demos' && (
         <PromoDemoSection creator={creator} onBack={() => setOverlay(null)} />
       )}
@@ -319,7 +311,7 @@ export default function CreatorApp({ onSwitchRole }) {
       {/* ---- main / secondary pages ---- */}
       {!overlay && page === 'dashboard' && (
         <DashboardPage creator={creator} bookings={bookings} reviews={reviews}
-          verification={verification} adCampaigns={ads} unread={unread}
+          verification={verification} unread={unread}
           onNav={go} onOverlay={setOverlay} onOpenBooking={openBooking} />
       )}
       {!overlay && page === 'marketplace' && (
