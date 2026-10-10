@@ -249,7 +249,7 @@
 
 /* reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .cleo-mark, .cleo-mark::before, .cleo-dots > span, .cleo-meter > i,
+  .cleo-mark, .cleo-mark::before, .cleo-dots > span, .cleo-meter > i, .cleo-simple-spinner,
   .cleo-card-gloss::before, .cleo-pulse-ring, .cleo-wave > span { animation: none !important; }
 }
 
