@@ -12,8 +12,9 @@ const accountId = process.env.R2_ACCOUNT_ID;
 const bucketName = process.env.R2_BUCKET;
 const accessKeyId = process.env.R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const publicBase = String(process.env.R2_PUBLIC_BASE_URL || '').replace(/\\/+$/, '');
-if (!raw || !accountId || !bucketName || !accessKeyId || !secretAccessKey || !/^https:\\/\\//i.test(publicBase)) {
+let publicBase = String(process.env.R2_PUBLIC_BASE_URL || '').trim();
+while (publicBase.endsWith('/')) publicBase = publicBase.slice(0, -1);
+if (!raw || !accountId || !bucketName || !accessKeyId || !secretAccessKey || !publicBase.startsWith('https://')) {
   console.error('Set Firebase Admin credentials and all R2 environment variables first.');
   process.exit(1);
 }
@@ -35,8 +36,14 @@ function cloudinary(value) {
   catch { return false; }
 }
 function dataImage(value) {
-  const m = /^data:(image\\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\\r\\n]+)$/.exec(value);
-  return m ? { contentType: m[1].toLowerCase(), bytes: Buffer.from(m[2].replace(/\\s/g, ''), 'base64') } : null;
+  if (!value.startsWith('data:image/')) return null;
+  const marker = ';base64,';
+  const index = value.indexOf(marker);
+  if (index < 0) return null;
+  const contentType = value.slice(5, index).toLowerCase();
+  const encoded = value.slice(index + marker.length).replace(/\s/g, '');
+  if (!/^image\/[a-zA-Z0-9.+-]+$/.test(contentType) || !/^[a-zA-Z0-9+/=]+$/.test(encoded)) return null;
+  return { contentType, bytes: Buffer.from(encoded, 'base64') };
 }
 function urlFor(objectPath) {
   return publicBase + '/' + objectPath.split('/').map(encodeURIComponent).join('/');
