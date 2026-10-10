@@ -1337,9 +1337,9 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
             <div className="cl-row" style={{ gap: 8, minWidth: 0, flexShrink: 1 }}>
               <CleoMark state="idle" size={36} />
               <div style={{ minWidth: 0, flexShrink: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 16.5, fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>Collancer Ai</div>
-                <div className="cl-muted" style={{ fontSize: 10, letterSpacing: '.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Live Colenso Marketplace Intelligence
+                <div style={{ fontWeight: 800, fontSize: 16.5, fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>Collancer AI</div>
+                <div className="cl-muted" style={{ fontSize: 11, letterSpacing: '.005em', lineHeight: 1.35, whiteSpace: 'normal' }}>
+                  {isCreator ? 'Your creator assistant for bookings, earnings and growth' : 'Live Colenso Marketplace Intelligence'}
                 </div>
               </div>
             </div>
@@ -1360,7 +1360,7 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
                 "Hey Collancer" on
               </span>
             )}
-            <LiveToggle on={liveOn} onChange={setLive} />
+            {!isCreator && <LiveToggle on={liveOn} onChange={setLive} />}
             <IconBtn icon={Plus} label="New chat" onClick={handleNewChat} />
           </div>
           <ChatView
