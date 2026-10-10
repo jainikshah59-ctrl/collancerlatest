@@ -293,16 +293,15 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
     return { answer: socialReply(q, isCreator), creators: [], actions: [], confidence: 1 };
   }
   if (isCreator) {
-    // Creator side: try the free LLM pool first for general questions
-    // (same as business side). Personal-data questions stay on the
-    // deterministic brain — the pool has no access to live user data.
-    if (liveOn && isPoolableQuery(q, loadConvo()) && !isCreatorDataQuery(q)) {
-      try {
-        const pooled = await poolAnswer(q, true);
-        if (pooled && pooled.text) {
-          return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
-        }
-      } catch { /* fall through to the deterministic brain */ }
+    // AI providers are the primary source for general creator questions.
+    // Personal-data questions use the existing context-aware creator tool.
+    if (isPoolableQuery(q, loadConvo()) && !isCreatorDataQuery(q)) {
+      let pooled = null;
+      try { pooled = await poolAnswer(q, true); } catch { /* provider chain exhausted */ }
+      if (pooled && pooled.text) {
+        return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
+      }
+      console.warn('[collancer-ai] All configured AI providers failed; using creator-context fallback.');
     }
     const res = await askCreatorAI(q, {
       creator: context.user || {},
@@ -312,24 +311,23 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
     });
     return { answer: res.answer, creators: [], actions: res.actions || [], confidence: 0.8 };
   }
-  // Free LLM pool = the main answer source when the Live toggle is ON.
-  // The 276-entry brain rides along as grounding context inside the pool call.
-  // Discovery queries + discovery follow-ups stay on the deterministic brain
-  // (real creator data, creator cards, booking actions). If every pool lane
-  // fails, we fall through to the deterministic brain below.
-  if (liveOn && isPoolableQuery(q, loadConvo())) {
-    try {
-      const pooled = await poolAnswer(q, isCreator);
-      if (pooled && pooled.text) {
-        try {
-          const camp = extractCampaign(q);
-          if (camp.brand || camp.product || camp.budget || camp.niche) {
-            rememberCampaignFacts({ brand: camp.brand, product: camp.product, budget: camp.budget, niche: camp.niche });
-          }
-        } catch { /* ignore */ }
-        return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
-      }
-    } catch { /* fall through to the deterministic brain */ }
+  // Configured AI providers are the primary source for knowledge questions.
+  // Discovery/tool queries stay on deterministic tools because they require
+  // live creator records and actionable result structures. The local knowledge
+  // base is consulted only after the complete provider chain fails.
+  if (isPoolableQuery(q, loadConvo())) {
+    let pooled = null;
+    try { pooled = await poolAnswer(q, isCreator); } catch { /* provider chain exhausted */ }
+    if (pooled && pooled.text) {
+      try {
+        const camp = extractCampaign(q);
+        if (camp.brand || camp.product || camp.budget || camp.niche) {
+          rememberCampaignFacts({ brand: camp.brand, product: camp.product, budget: camp.budget, niche: camp.niche });
+        }
+      } catch { /* ignore */ }
+      return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
+    }
+    console.warn('[collancer-ai] All configured AI providers failed; using deterministic fallback.');
   }
   const ctx = {
     creators: context.creators || [],
@@ -579,7 +577,7 @@ function isEchoResult(heard, spoken) {
   return overlap / hWords.length > 0.6;
 }
 
-function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, liveOn, heyOn, setHeyOn, voiceMatchOn, setVoiceMatchOn, hasVoice, onRetrain, onBackToChat }) {
+function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, liveOn, heyOn, setHeyOn, voiceMatchOn, setVoiceMatchOn, hasVoice, onRetrain, onBackToChat, autoStartOnOpen = true, onAutoStartComplete }) {
   // vState: idle | listening | speech-detected | researching | speaking | error
   // (no warming — the browser mic needs no model download)
   const [vState, setVState] = useState('idle');
@@ -652,26 +650,22 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     return spoken;
   }, [context, isCreator, liveOn]);
 
-  const checkPending = useCallback(() => {
-    const q = pendingQueryRef.current;
-    pendingQueryRef.current = '';
-    if (q && !closedRef.current && !micMutedRef.current) {
-      processTurnRef.current(q);
-    }
-  }, []);
-
   const processTurnRef = useRef(null);
 
-  /** One full turn: brain -> speak -> back to listening. */
+  /** One full turn: stop capture, process, speak, then stay idle until a manual mic tap. */
   const processTurn = useCallback(async (q) => {
     turnActiveRef.current = true;
+    pendingQueryRef.current = '';
+    // Stop capture before waiting on providers so onend/watchdog cannot restart
+    // the recognizer while a response is being generated or spoken.
+    try { stopMicRef.current && stopMicRef.current(); } catch { /* ignore */ }
     setState('researching');
     const spoken = await processTranscript(q);
     if (closedRef.current) { turnActiveRef.current = false; return; }
     if (!spoken) {
       turnActiveRef.current = false;
-      setState('listening');
-      checkPending();
+      pendingQueryRef.current = '';
+      setState('idle');
       return;
     }
     setVoiceAnswer(spoken); // the answer appears in the box, then gets read aloud
@@ -690,13 +684,13 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
       },
       onDone: () => {
         turnActiveRef.current = false;
-        if (stateRef.current !== 'speaking') { checkPending(); return; }
+        pendingQueryRef.current = '';
+        if (stateRef.current !== 'speaking') return;
         setOrbScale(1);
-        setState('idle'); // mic stays off until the user taps
-        checkPending();
+        setState('idle'); // microphone remains off until an explicit user tap
       },
     });
-  }, [processTranscript, voicePref, setState, setOrbScale, checkPending]);
+  }, [processTranscript, voicePref, setState, setOrbScale]);
   processTurnRef.current = processTurn;
 
   /**
@@ -753,8 +747,10 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
         return;
       }
       if (turnActiveRef.current) {
-        pendingQueryRef.current = q; // queue behind the current turn
+        // Never queue speech captured during a response; next turn requires a mic tap.
+        pendingQueryRef.current = '';
       } else {
+        try { stopMicRef.current && stopMicRef.current(); } catch { /* ignore */ }
         processTurnRef.current(q);
       }
     }, 500);
@@ -951,8 +947,14 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   // open gesture). After that turn it's push-to-talk — the user taps.
   // A watchdog keeps the session alive while wanted.
   useEffect(() => {
-    playVoiceChime();
-    try { startListeningRef.current(); } catch { /* ignore */ }
+    // Reset on mount so React StrictMode's effect replay can cleanly restart
+    // the recognition object without leaving the component permanently closed.
+    closedRef.current = false;
+    if (autoStartOnOpen) {
+      playVoiceChime();
+      try { startListeningRef.current(); } catch { /* ignore */ }
+      if (onAutoStartComplete) onAutoStartComplete();
+    }
     try { clearInterval(watchdogTimerRef.current); } catch { /* ignore */ }
     // Safety net only: the normal onend -> scheduleRestart path handles
     // restarts. This fires only if the session has been dead for >5s with
@@ -1276,6 +1278,10 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
     setHeyOnPersist(true);
   };
   const creatorsByTurn = useRef(new Map());
+  // Keep the initial voice auto-start scoped to this Collancer AI panel session,
+  // even if the user switches between Chat and Voice multiple times.
+  const voiceAutoStartedRef = useRef(false);
+  const markVoiceAutoStarted = useCallback(() => { voiceAutoStartedRef.current = true; }, []);
 
   const setVoicePref = useCallback((v) => {
     setVoicePrefState(v);
@@ -1392,6 +1398,8 @@ export default function CleoPanel({ mode = 'business', context = {}, onAction, o
           hasVoice={hasVoice}
           onRetrain={() => setShowEnroll(true)}
           onBackToChat={() => setView('chat')}
+          autoStartOnOpen={!voiceAutoStartedRef.current}
+          onAutoStartComplete={markVoiceAutoStarted}
         />
       )}
       {showEnroll && (

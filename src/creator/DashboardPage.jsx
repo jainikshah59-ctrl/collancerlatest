@@ -194,7 +194,7 @@ export default function DashboardPage({
               </div>
             </div>
           </div>
-          <Button variant="light" block size="sm" icon={Sparkles} onClick={() => onNav('collancer-ai')} className="cl-ai-feature-button">
+          <Button variant="dark" block size="sm" icon={Sparkles} onClick={() => onNav('collancer-ai')} className="cl-ai-feature-button">
             Open Collancer AI
           </Button>
         </Card>

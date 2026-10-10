@@ -10,18 +10,18 @@
  *      auto-rotates free models) answers WITHOUT auth but sends no CORS headers,
  *      so browsers can't call it directly — the serverless function calls it
  *      server-side (8s budget) where CORS doesn't apply.
- * If every lane fails, the caller falls back to the deterministic 276-entry
- * Collancer brain — the assistant never goes silent.
+ * If every lane fails, the caller falls back to the deterministic Collancer
+ * knowledge/tool engine — the assistant never goes silent.
  *
- * Grounding: the 276-entry brain is injected as context (top keyword matches)
- * plus the canonical Collancer facts, so Collancer-specific answers stay correct.
+ * Provider prompts contain only verified invariant product facts. The internal
+ * knowledge base is not queried or injected before the provider chain; it is
+ * reserved for the caller's fallback path after all eligible providers fail.
  * Discovery queries (find creators with filters) and discovery follow-ups are NOT
  * poolable — they stay on the deterministic brain (real creator data, cards,
  * booking actions). See isPoolableQuery().
  */
 
 import { parseQuery, resolveFollowup } from './engine.js';
-import { KNOWLEDGE_ENTRIES } from './cleoKnowledgeBase.js';
 
 /* ---------- lane config ---------- */
 
@@ -55,38 +55,10 @@ export function cleanPoolText(t) {
   return s;
 }
 
-/* ---------- brain context retrieval (top-N keyword matches) ---------- */
-
-function topBrainEntries(q, n = 3) {
-  const qt = toks(q);
-  if (!qt.length) return [];
-  const scored = [];
-  for (const e of KNOWLEDGE_ENTRIES) {
-    if (!e || !e.answer) continue;
-    const title = toks(e.title || '');
-    const tags = Array.isArray(e.tags) ? e.tags.flatMap(toks) : [];
-    const aliases = Array.isArray(e.aliases) ? e.aliases.flatMap(toks) : [];
-    const ans = toks(e.answer);
-    let s = 0;
-    for (const w of qt) {
-      if (title.includes(w)) s += 3;
-      else if (tags.includes(w) || aliases.includes(w)) s += 2;
-      else if (ans.includes(w)) s += 1;
-    }
-    if (s >= 3) scored.push({ e, s });
-  }
-  scored.sort((a, b) => b.s - a.s);
-  return scored.slice(0, n).map(({ e }) => e);
-}
-
 /* ---------- prompt ---------- */
 
 export function buildPoolMessages(question, isCreator = false) {
   const q = String(question || '').trim();
-  const entries = topBrainEntries(q, 3);
-  const ctx = entries
-    .map((e, i) => `Fact ${i + 1} (${e.title || 'Collancer'}): ${String(e.answer).slice(0, 240)}`)
-    .join('\n');
   const scopeLine = isCreator
     ? 'Scope: you ONLY answer questions about brand collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for creators \u2014 I only help with brand collaborations and Collancer app questions."'
     : 'Scope: you ONLY answer questions about creator collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for brands \u2014 I only help with creator collaborations and Collancer app questions."';
@@ -98,7 +70,6 @@ export function buildPoolMessages(question, isCreator = false) {
     '- Business Pro members get 5% off the creator price (the discount applies to the creator price, before the fee is calculated).\n' +
     '- The creator receives 95% of their listed package price; the fee is paid by the brand on top and never reduces the creator price.\n' +
     '- Only the admin releases the completion payment after the work is approved.\n' +
-    (ctx ? `Relevant Collancer knowledge:\n${ctx}\n` : '') +
     'Rules:\n' +
     '- Keep answers short: 1–3 sentences unless the user asks for detail.\n' +
     '- Plain text only — no markdown, no emojis, no bullet lists.\n' +
@@ -121,9 +92,14 @@ export function isPoolableQuery(question, convo) {
   if (LEAK_RE.test(q)) return false;
   try {
     const parsed = parseQuery(q);
-    if (parsed.niche || parsed.platform || parsed.city || parsed.language ||
-        parsed.maxBudget || parsed.budget || parsed.minFollowers != null ||
-        parsed.minEngagement != null || parsed.count) return false;
+    const hasStructuredConstraints = !!(
+      parsed.niche || parsed.platform || parsed.city || parsed.language ||
+      parsed.maxBudget || parsed.budget || parsed.minFollowers != null ||
+      parsed.minEngagement != null || parsed.count
+    );
+    const asksForRealRecords = /\b(?:find|show(?:\s+me)?|list|search(?:\s+for)?|discover|browse|recommend|suggest|hire|book|available|looking\s+for|top\s+\d+|give\s+me\s+\d+)\b/i.test(q)
+      && /\b(?:creators?|influencers?|profiles?|accounts?|talent)\b/i.test(q);
+    if (hasStructuredConstraints && asksForRealRecords) return false;
     if (convo) {
       const fu = resolveFollowup(q, convo);
       if (fu && (fu.kind === 'pick' || fu.kind === 'refinement')) return false;
@@ -188,6 +164,7 @@ export async function poolAnswer(question, isCreator = false) {
     POLL_TIMEOUT_MS,
   );
   if (text) return { text, provider: 'pollinations' };
+  console.warn('[collancer-ai] AI provider lane unavailable: pollinations');
 
   // Lane 2 — server pool: Kilo gateway via /api/llm-pool (server-side, 8s budget).
   const ctrl = new AbortController();
@@ -204,9 +181,10 @@ export async function poolAnswer(question, isCreator = false) {
       const t = cleanPoolText(j && j.text);
       if (t) return { text: t, provider: (j && j.provider) || 'server-pool' };
     }
-  } catch { /* fall through */ } finally {
+  } catch { /* provider failed */ } finally {
     clearTimeout(timer);
   }
+  console.warn('[collancer-ai] AI provider lane unavailable: server-pool');
 
   return null;
 }
