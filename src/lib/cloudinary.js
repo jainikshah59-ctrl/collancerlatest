@@ -1,34 +1,55 @@
-/* Cloudinary unsigned uploads — per audit §12.1 / §14. */
-export const CLOUDINARY_CLOUD = 'dd77dqbho';
-export const CLOUDINARY_PRESET = 'collancer';
+/* Google Cloud Storage media uploads.
+ * Browser requests a short-lived, authenticated upload policy from Vercel,
+ * then sends file bytes directly to GCS. No service-account secret is client-side.
+ */
+import { auth as getFirebaseAuth, ensureFirebase } from './firebase.js';
 
-export const CLOUDINARY_FOLDERS = {
+export const GCS_FOLDERS = {
   pfp: 'collancer_pfps',
   marketBriefs: 'collancer_market_briefs',
   briefs: 'collancer_briefs',
+  promos: 'collancer_promos',
+  promoThumbnails: 'collancer_promos_thumbnails',
 };
+// Compatibility alias for older imports.
+export const CLOUDINARY_FOLDERS = GCS_FOLDERS;
 
-/**
- * Upload a File/Blob to Cloudinary (unsigned).
- * @param {File|Blob} file
- * @param {'image'|'video'|'auto'} resourceType
- * @param {string} folder
- * @returns {Promise<{url, publicId}>} secure_url
- */
-export async function uploadToCloudinary(file, resourceType = 'image', folder = CLOUDINARY_FOLDERS.pfps) {
-  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${resourceType}/upload`;
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', CLOUDINARY_PRESET);
-  fd.append('folder', folder);
-  const res = await fetch(endpoint, { method: 'POST', body: fd });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(`Cloudinary upload failed (${res.status}): ${t.slice(0, 120)}`);
+export async function uploadToGCS(file, resourceType = 'image', folder = GCS_FOLDERS.pfp) {
+  await ensureFirebase();
+  const user = getFirebaseAuth()?.currentUser;
+  if (!user) throw new Error('Please sign in again before uploading media.');
+
+  const contentType = String(file?.type || '').toLowerCase();
+  if (!contentType) throw new Error('This file has no recognised content type.');
+  if (resourceType === 'image' && !contentType.startsWith('image/')) throw new Error('Choose an image file.');
+  if (resourceType === 'video' && !contentType.startsWith('video/')) throw new Error('Choose a video file.');
+
+  const response = await fetch('/api/media-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      idToken: await user.getIdToken(),
+      folder,
+      contentType,
+      size: Number(file.size || 0),
+      fileName: String(file.name || 'upload'),
+    }),
+  });
+  const policy = await response.json().catch(() => ({}));
+  if (!response.ok || !policy.ok || !policy.uploadUrl || !policy.fields) {
+    throw new Error(policy.error || 'Could not prepare secure media upload.');
   }
-  const data = await res.json();
-  return { url: data.secure_url, publicId: data.public_id };
+
+  const form = new FormData();
+  for (const [key, value] of Object.entries(policy.fields)) form.append(key, value);
+  form.append('file', file, String(file.name || 'upload'));
+  const uploaded = await fetch(policy.uploadUrl, { method: 'POST', body: form });
+  if (!uploaded.ok) throw new Error('Google Cloud Storage upload failed (' + uploaded.status + ').');
+  return { url: policy.url, publicId: policy.objectPath };
 }
+
+// Backwards-compatible export while any external/local call sites are updated.
+export const uploadToCloudinary = uploadToGCS;
 
 /** Downscale an image file to a JPEG blob (for profile photos). */
 export function compressImage(file, maxDim = 800, quality = 0.82) {
@@ -50,7 +71,7 @@ export function compressImage(file, maxDim = 800, quality = 0.82) {
   });
 }
 
-/** Read a file as a base64 data URL (business pfp path — stored directly in Firestore). */
+/** Legacy helper retained for compatibility; new uploads should use GCS. */
 export function fileToDataURL(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
