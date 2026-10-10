@@ -33,6 +33,7 @@ import {
 import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components/ui.jsx';
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
+import { findKnowledge } from './cleoKnowledgeBase.js';
 import { poolAnswer, isPoolableQuery, mentionsCollancer } from './llmPool.js';
 import { isCreatorDataQuery } from './scopeGuard.js';
 import VoiceEnrollWizard from './VoiceEnrollWizard.jsx';
@@ -234,27 +235,60 @@ function CreatorSheet({ item, onClose, onBook }) {
 
 /* ================= shared brain call ================= */
 
+function isCreatorSide({ isCreator, context } = {}) {
+  const role = String(
+    context?.role || context?.user?.role || context?.user?.accountType ||
+    context?.user?.userType || context?.user?.type || ''
+  ).toLowerCase();
+  return Boolean(isCreator || ['creator', 'influencer', 'content_creator', 'content creator'].includes(role));
+}
+
+async function creatorDatabaseAnswer(q, context = {}) {
+  const account = {
+    creator: context.user || {},
+    bookings: context.extra?.bookings || [],
+    payouts: context.extra?.payouts || [],
+    verification: context.extra?.verification || null,
+  };
+  try {
+    const result = await askCreatorAI(q, account);
+    if (result?.answer) return {
+      answer: result.answer,
+      creators: [],
+      actions: result.actions || [],
+      confidence: 0.8,
+    };
+  } catch { /* Try direct local retrieval below; creator answers never use APIs. */ }
+
+  try {
+    const match = findKnowledge(q, 'creator');
+    if (match?.entry?.answer) return {
+      answer: match.entry.answer,
+      creators: [],
+      actions: [],
+      confidence: match.confidence || 0.7,
+    };
+  } catch { /* Keep the creator-facing fallback below deterministic. */ }
+
+  return {
+    answer: 'I can help with brand collaborations, paid and barter deals, UGC, pitching, rates, deliverables, usage rights, revisions, invoices, payments, and campaign briefs. Try asking your question with the specific topic or situation, and I will match it against the creator knowledge database.',
+    creators: [],
+    actions: [],
+    confidence: 0.3,
+  };
+}
+
 async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   const q = String(text || '').trim();
   if (!q) return null;
+  const creatorMode = isCreatorSide({ isCreator, context });
 
-  // Creator-side Cleo is intentionally database-only: no Pollinations, Kilo,
-  // server LLM pool, or other external answer provider. Personal account data
-  // is answered from authenticated app context; collaboration guidance comes
-  // from the local creator-focused knowledge base. Unknown questions get a
-  // transparent safe fallback from askCreatorAI instead of an invented answer.
-  if (isCreator) {
-    const res = await askCreatorAI(q, {
-      creator: context.user || {},
-      bookings: context.extra?.bookings || [],
-      payouts: context.extra?.payouts || [],
-      verification: context.extra?.verification || null,
-    });
-    return { answer: res.answer, creators: [], actions: res.actions || [], confidence: 0.8 };
-  }
+  // Creator-side Cleo is strictly local/database-backed. Both chat and voice
+  // call this same path; no external AI answer provider is used for creators.
+  if (creatorMode) return await creatorDatabaseAnswer(q, context);
 
   const platformQuestion = mentionsCollancer(q);
-  const personalCreatorData = !!(isCreator && isCreatorDataQuery(q));
+  const personalCreatorData = !!(creatorMode && isCreatorDataQuery(q));
 
   // Explicit Collancer-name questions use the verified local platform FAQ/data
   // engine first. Personal account data remains context-aware and never leaks
@@ -382,7 +416,9 @@ function ChatView({ context, isCreator, onAction, convo, setConvo, busy, setBusy
     try {
       res = await brainAnswer(q, { isCreator, context, liveOn });
     } catch {
-      res = { answer: 'Something went wrong on my side. Please try again.', creators: [], actions: [], confidence: 0 };
+      res = isCreatorSide({ isCreator, context })
+        ? await creatorDatabaseAnswer(q, context)
+        : { answer: 'Something went wrong on my side. Please try again.', creators: [], actions: [], confidence: 0 };
     }
     if (!res) { busyRef.current = false; setBusy(false); return; }
     const resultKeys = (res.creators || []).map((r) => (r.creator || r).id || (r.creator || r).handleLower).filter(Boolean);
@@ -616,7 +652,9 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     try {
       res = await brainAnswer(q, { isCreator, context, liveOn });
     } catch {
-      res = { answer: 'Something went wrong on my side. Please try again.', creators: [] };
+      res = isCreatorSide({ isCreator, context })
+        ? await creatorDatabaseAnswer(q, context)
+        : { answer: 'Something went wrong on my side. Please try again.', creators: [] };
     }
     if (!res) return '';
     let spoken = res.answer || '';
