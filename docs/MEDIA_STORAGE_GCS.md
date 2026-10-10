@@ -1,6 +1,6 @@
 # Collancer media storage: Google Cloud Storage
 
-Firebase Authentication and Firestore remain in place. The browser requests a short-lived upload policy from `POST /api/media-upload-url`, then uploads file bytes directly to GCS. The service-account key is server-only.
+Firebase Authentication and Firestore remain in place. The browser requests a short-lived upload policy from `POST /api/media-upload-url` (a Vercel rewrite to the existing serverless handler, to stay within the Hobby function-count limit), then uploads file bytes directly to GCS. The service-account key is server-only.
 
 ## Required setup before enabling uploads
 
