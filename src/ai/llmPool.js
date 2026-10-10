@@ -27,8 +27,13 @@ import { parseQuery, resolveFollowup } from './engine.js';
 
 const POLL_URL = 'https://text.pollinations.ai/openai';
 const POLL_MODEL = 'openai-fast'; // GPT-OSS 20B — the single keyless Pollinations model
-const POLL_TIMEOUT_MS = 7500;
-const SERVER_POOL_TIMEOUT_MS = 8500;
+const POLL_TIMEOUT_MS = 4000;
+const SERVER_POOL_TIMEOUT_MS = 4500;
+
+/** Explicit platform-name routing: only questions naming Collancer use its local FAQ/knowledge engine. */
+export function mentionsCollancer(question) {
+  return /\\b(?:collancer|colenser|colanser)\\b/i.test(String(question || ''));
+}
 
 /* Instruction-extraction / jailbreak queries never touch the pool. */
 const LEAK_RE = /\b(system prompt|developer instruction|your instructions|reveal your|ignore previous|jailbreak|prompt injection|override your)\b/i;
