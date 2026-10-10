@@ -61,3 +61,10 @@ test('returns null only after both configured provider lanes fail', async () => 
     assert.equal(calls.length, 2);
   });
 });
+
+test('general-purpose prompt allows questions outside Collancer topics', () => {
+  const { system } = buildPoolMessages('Explain black holes in simple terms', false);
+  assert.match(system, /general-purpose AI assistant/i);
+  assert.doesNotMatch(system, /ONLY answer questions about/i);
+  assert.match(system, /Do not refuse merely because a question is unrelated/i);
+});
