@@ -118,9 +118,13 @@ export default function CreatorProPage({ creator, onBack }) {
               return (
                 <button key={p.id} onClick={() => setPlanId(p.id)}
                   className="cl-card pressable"
+                  aria-pressed={on}
                   style={{
                     cursor: 'pointer', textAlign: 'left', width: '100%',
-                    border: on ? '2px solid var(--cyan)' : '1px solid var(--line-soft)',
+                    border: '1px solid var(--line-soft)',
+                    outline: on ? '2px solid var(--cyan)' : 'none',
+                    outlineOffset: -1,
+                    boxShadow: on ? '0 0 0 4px var(--cyan-glow)' : undefined,
                     padding: 16,
                   }}>
                   <div className="cl-row" style={{ gap: 10 }}>

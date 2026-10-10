@@ -2,41 +2,17 @@
    active booking state, review summary and rate-card shortcut.
    Per audit §7.2: if not live (verified + addedToCollancer), dashboard stays the
    main page with a checklist. */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, Wallet, CalendarCheck, Store,
   Sparkles, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle, Megaphone,
+  Tag, Bell,
 } from 'lucide-react';
-import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptyState, useToast } from '../components/ui.jsx';
-import { Bell } from 'lucide-react';
-import { compact, inr, timeAgo } from '../lib/format.js';
-import { promoLabel } from '../lib/constants.js';
+import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat } from '../components/ui.jsx';
+import { timeAgo } from '../lib/format.js';
+import { completionItems, completionPct, isLive } from '../lib/creator.js';
 
-export function completionItems(creator) {
-  const c = creator || {};
-  const prices = c.prices || {};
-  const igUsername = c.instagram?.username || c.instagram?.userName || '';
-  return [
-    { key: 'name', label: 'Display name', done: !!(c.name && c.name.trim()) },
-    { key: 'handle', label: 'Creator handle', done: !!((c.handle && c.handleLower) || igUsername) },
-    { key: 'bio', label: 'Bio', done: !!(c.bio && c.bio.trim().length >= 10) },
-    { key: 'platform', label: 'Platform', done: !!c.platform },
-    { key: 'niche', label: 'Niche', done: !!c.niche },
-    { key: 'city', label: 'City', done: !!c.city },
-    { key: 'price', label: 'At least one rate-card price', done: Object.values(prices).some((v) => Number(v) > 0) },
-  ];
-}
-
-export function completionPct(creator) {
-  const items = completionItems(creator);
-  return Math.round((items.filter((i) => i.done).length / items.length) * 100);
-}
-
-export function isLive(creator) {
-  if (!creator) return false;
-  // All creators follow the same manual admin-review gate. Instagram is optional.
-  return !!(creator.verified && creator.addedToCollancer);
-}
+export { completionItems, completionPct, isLive };
 
 function verificationTone(v) {
   if (!v) return { tone: 'grey', label: 'Not submitted' };
@@ -49,33 +25,11 @@ export default function DashboardPage({
   creator, bookings, reviews, verification,
   unread, onNav, onOverlay, onOpenBooking,
 }) {
-  const toast = useToast();
-  const [goingLive, setGoingLive] = useState(false);
   const pct = completionPct(creator);
   const items = completionItems(creator);
   const live = isLive(creator);
   const igConnected = !!(creator?.instagram?.connected || creator?.instagram?.username);
 
-  async function goLive() {
-    if (goingLive) return;
-    setGoingLive(true);
-    try {
-      const { idToken } = await import('../lib/instagram.js');
-      const token = await idToken();
-      const r = await fetch('/api/creator-go-live', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-      });
-      const j = await r.json();
-      if (!j?.ok) throw new Error(j?.reason || 'go-live-failed');
-      toast.ok('You are live on Collancer! Brands can now discover you.');
-      window.location.reload();
-    } catch (e) {
-      toast.err('Could not go live. Please try again.');
-      setGoingLive(false);
-    }
-  }
   const vt = verificationTone(verification);
 
   const activeBookings = useMemo(
@@ -104,16 +58,13 @@ export default function DashboardPage({
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
 
         {/* Live / setup status */}
-        <Card className={live ? '' : 'cl-glass'} style={live ? { borderColor: 'var(--cyan)', borderWidth: 1.5 } : undefined}>
-          <div className="cl-row cl-dashboard-status-row" style={{ gap: 12 }}>
-            <div className="cl-dashboard-status-icon" style={{
-              width: 46, height: 46, borderRadius: 8, display: 'grid', placeItems: 'center', flexShrink: 0,
-              background: live ? 'var(--cyan-soft)' : 'var(--surface-2)', color: live ? 'var(--cyan-deep)' : 'var(--muted)',
-            }}>
-              {live ? <Rocket style={{ width: 22, height: 22 }} /> : <AlertCircle style={{ width: 22, height: 22 }} />}
+        <Card className={live ? '' : 'cl-glass'} style={live ? { borderColor: 'var(--cyan)' } : undefined}>
+          <div className="cl-row cl-row-nowrap" style={{ gap: 12 }}>
+            <div className={`cl-tile ${live ? 'tint-cyan' : 'tint-grey'}`}>
+              {live ? <Rocket /> : <AlertCircle />}
             </div>
             <div className="cl-grow">
-              <div style={{ fontWeight: 700, fontSize: 15 }}>
+              <div className="cl-card-title">
                 {live ? 'Profile is live' : 'Not live yet'}
               </div>
               <div className="cl-small cl-muted" style={{ marginTop: 2, lineHeight: 1.5 }}>
@@ -126,12 +77,6 @@ export default function DashboardPage({
             </div>
             {live && <Badge tone="cyan" icon={BadgeCheck}>Live</Badge>}
           </div>
-          {false && igConnected && (
-            <Button block size="lg" onClick={goLive} disabled={goingLive} icon={Rocket}
-              style={{ marginTop: 14, background: 'linear-gradient(135deg, #06b6d4, #0891b2)', border: 'none' }}>
-              {goingLive ? 'Going live…' : 'Go Live on Collancer'}
-            </Button>
-          )}
           {!live && (
             <div style={{ marginTop: 12 }}>
               <ProgressBar value={pct} />
@@ -145,10 +90,13 @@ export default function DashboardPage({
           <Card>
             <div className="cl-section-title"><h3>Setup checklist</h3><span className="cl-small cl-muted">{items.length - missing.length}/{items.length}</span></div>
             <div style={{ display: 'grid', gap: 8 }}>
-              {items.map((it) => (
-                <button key={it.key} onClick={() => onNav('profile')}
-                  style={{ all: 'unset', cursor: 'pointer' }}>
-                  <div className="cl-row" style={{ gap: 10, padding: '8px 0', borderTop: '1px solid var(--line-soft)' }}>
+              {items.map((it, idx) => (
+                <button key={it.key} onClick={() => onNav('profile')} className="cl-list-row"
+                  aria-label={`${it.label}: ${it.done ? 'done' : 'go to profile'}`}>
+                  <div className="cl-row cl-row-nowrap" style={{
+                    gap: 10, padding: '8px 0',
+                    borderTop: idx > 0 ? '1px solid var(--line-soft)' : 'none',
+                  }}>
                     {it.done
                       ? <CheckCircle2 style={{ width: 18, height: 18, color: 'var(--green)', flexShrink: 0 }} />
                       : <Clock3 style={{ width: 18, height: 18, color: 'var(--amber)', flexShrink: 0 }} />}
@@ -165,12 +113,12 @@ export default function DashboardPage({
 
         {/* Verification state */}
         <Card>
-          <div className="cl-row" style={{ gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <ShieldCheck style={{ width: 21, height: 21, color: 'var(--cyan-deep)' }} />
+          <div className="cl-row cl-row-nowrap" style={{ gap: 12 }}>
+            <div className="cl-tile tint-cyan">
+              <ShieldCheck />
             </div>
             <div className="cl-grow">
-              <div style={{ fontWeight: 700, fontSize: 15 }}>Verification</div>
+              <div className="cl-card-title">Verification</div>
               <div className="cl-small cl-muted" style={{ marginTop: 2 }}>
                 {verification?.status === 'verified' ? 'Identity and socials confirmed.' :
                   verification?.status === 'rejected' ? 'Needs attention — see reason and resubmit.' :
@@ -205,9 +153,9 @@ export default function DashboardPage({
             <div style={{ display: 'grid', gap: 10 }}>
               {activeBookings.slice(0, 3).map((b) => (
                 <Card key={b.id} pressable onClick={() => onOpenBooking(b.id)} style={{ padding: 14 }}>
-                  <div className="cl-row" style={{ gap: 10 }}>
+                  <div className="cl-row cl-row-nowrap" style={{ gap: 10 }}>
                     <div className="cl-grow" style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {b.campaignName || b.productName || 'Collaboration'}
                       </div>
                       <div className="cl-small cl-muted" style={{ marginTop: 3 }}>
@@ -223,10 +171,12 @@ export default function DashboardPage({
         )}
         {pendingCount > 0 && activeBookings.length === 0 && (
           <Card pressable onClick={() => onNav('bookings')} className="cl-glass">
-            <div className="cl-row" style={{ gap: 12 }}>
-              <CalendarCheck style={{ width: 22, height: 22, color: 'var(--cyan-deep)', flexShrink: 0 }} />
+            <div className="cl-row cl-row-nowrap" style={{ gap: 12 }}>
+              <div className="cl-tile tint-cyan">
+                <CalendarCheck />
+              </div>
               <div className="cl-grow">
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{pendingCount} new booking request{pendingCount > 1 ? 's' : ''}</div>
+                <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)' }}>{pendingCount} new booking request{pendingCount > 1 ? 's' : ''}</div>
                 <div className="cl-small cl-muted">Review and accept or reject them.</div>
               </div>
               <ChevronRight style={{ width: 17, height: 17, color: 'var(--faint)' }} />
@@ -236,36 +186,20 @@ export default function DashboardPage({
 
         {/* Shortcuts */}
         <div className="cl-dashboard-shortcut-grid">
-          <Card pressable lift onClick={() => onNav('profile', 'ratecard')} style={{ textAlign: 'center', padding: 18 }}>
-            <Wallet style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Set up rate card</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Story, reel, video prices</div>
-          </Card>
-          <Card pressable lift onClick={() => onNav('marketplace')} style={{ textAlign: 'center', padding: 18 }}>
-            <Store style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Marketplace</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Pitch on brand briefs</div>
-          </Card>
-          <Card pressable lift onClick={() => onNav('earnings')} style={{ textAlign: 'center', padding: 18 }}>
-            <Wallet style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Earnings</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Withdraw your share</div>
-          </Card>
-          <Card pressable lift onClick={() => onNav('collancer-ai')} style={{ textAlign: 'center', padding: 18 }}>
-            <Sparkles style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Collancer AI</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Pricing & pitch help</div>
-          </Card>
-          <Card pressable lift onClick={() => onOverlay('demos')} style={{ textAlign: 'center', padding: 18 }}>
-            <Megaphone style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Promo demos</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Your portfolio videos</div>
-          </Card>
-          <Card pressable lift onClick={() => onNav('support')} style={{ textAlign: 'center', padding: 18 }}>
-            <AlertCircle style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Help & legal</div>
-            <div className="cl-small cl-muted" style={{ marginTop: 3 }}>Support, privacy, terms</div>
-          </Card>
+          {[
+            { icon: Tag, title: 'Set up rate card', sub: 'Story, reel, video prices', go: () => onNav('profile', 'ratecard') },
+            { icon: Store, title: 'Marketplace', sub: 'Pitch on brand briefs', go: () => onNav('marketplace') },
+            { icon: Wallet, title: 'Earnings', sub: 'Withdraw your share', go: () => onNav('earnings') },
+            { icon: Sparkles, title: 'Collancer AI', sub: 'Pricing & pitch help', go: () => onNav('collancer-ai') },
+            { icon: Megaphone, title: 'Promo demos', sub: 'Your portfolio videos', go: () => onOverlay('demos') },
+            { icon: AlertCircle, title: 'Help & legal', sub: 'Support, privacy, terms', go: () => onNav('support') },
+          ].map((s) => (
+            <Card key={s.title} pressable lift onClick={s.go} style={{ textAlign: 'center', padding: 18 }}>
+              <s.icon style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
+              <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)' }}>{s.title}</div>
+              <div className="cl-small cl-muted" style={{ marginTop: 3 }}>{s.sub}</div>
+            </Card>
+          ))}
         </div>
 
         {/* Latest review */}

@@ -49,12 +49,45 @@
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Sora', 'Inter', -apple-system, sans-serif;
 
+  /* type scale — card titles, section headers, body, captions */
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 17px;
+  --fs-2xl: 20px;
+  --fs-hero: 38px;
+  --lh-tight: 1.2;
+  --lh-body: 1.55;
+  --lh-loose: 1.8;
+  --fw-regular: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-display: 800;
+
   /* sharp radius scale — cards & buttons stay crisp */
   --r-sm: 8px;
   --r-md: 10px;
   --r-lg: 12px;
   --r-xl: 14px;
   --r-full: 999px;
+
+  /* spacing scale — gaps, padding, margins (use these, not magic numbers) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* icon-size scale — 5 steps replace 11 ad-hoc sizes */
+  --icon-xs: 13px;
+  --icon-sm: 15px;
+  --icon-md: 17px;
+  --icon-lg: 22px;
+  --icon-xl: 26px;
 
   /* 3D glass shadows */
   --shadow-card:
@@ -80,6 +113,21 @@
 
   --nav-h: 68px;
   --topbar-h: 60px;
+
+  /* z-index scale — named layers, no magic numbers */
+  --z-topbar: 40;
+  --z-bottomnav: 50;
+  --z-overlay: 60;
+  --z-select-backdrop: 79;
+  --z-select-menu: 80;
+  --z-toast: 100;
+
+  /* state tokens */
+  --danger: #dc2626;
+  --focus-ring: 0 0 0 4px var(--cyan-glow);
+  --disabled-opacity: .45;
+  --overlay-bg: rgba(11, 11, 12, .45);
+  --toggle-off: #d4d4d8;
 }
 
 /* ============ DARK THEME — every surface re-blended, nothing left light ============ */
@@ -138,6 +186,7 @@
   --shadow-btn:
     inset 0 1px 0 rgba(255, 255, 255, .14),
     inset 0 -2px 5px rgba(0, 0, 0, .55);
+  --toggle-off: #3a4150;
 }
 
 [data-theme="dark"] body {
@@ -210,6 +259,7 @@
   --shadow-btn:
     inset 0 1px 0 rgba(255, 255, 255, .14),
     inset 0 -2px 5px rgba(0, 0, 0, .55);
+  --toggle-off: #4a3d24;
 }
 
 [data-theme="gold"] body {
@@ -362,6 +412,20 @@ a { color: inherit; }
 .cl-btn-lg { padding: 16px 28px; font-size: 15px; }
 .cl-btn-block { width: 100%; }
 .cl-btn .lucide { width: 17px; height: 17px; flex-shrink: 0; }
+/* per-variant hover — consistent brightness lift (dark already had its own) */
+.cl-btn-cyan:hover { filter: brightness(1.07); }
+.cl-btn-danger:hover { filter: brightness(1.08); }
+.cl-btn-light:hover { filter: brightness(1.03); }
+.cl-btn-ghost:hover { background: var(--glass-inlo); }
+/* keyboard focus — visible ring on all interactive controls */
+.cl-btn:focus-visible, .cl-tab:focus-visible, .cl-chip:focus-visible,
+.cl-toggle:focus-visible, .cl-bottomnav button:focus-visible,
+.cl-icon-btn:focus-visible, .cl-select-btn:focus-visible {
+  outline: none; box-shadow: var(--focus-ring);
+}
+/* icon button press — CSS :active replaces JS onMouseDown/Up handlers */
+.cl-icon-btn { transition: transform .15s var(--ease); }
+.cl-icon-btn:active { transform: scale(.9); }
 /* label takes the remaining track and centers — icon keeps its own left slot, never overlaps text */
 .cl-btn-label { flex: 1 1 auto; min-width: 0; text-align: center; }
 .cl-btn-sm .lucide { width: 15px; height: 15px; }
@@ -474,13 +538,14 @@ a { color: inherit; }
 .cl-badge {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  padding: 5px 10px; border-radius: 6px;
+  padding: 5px 10px; border-radius: 6px; vertical-align: baseline;
 }
 .cl-badge .lucide { width: 12px; height: 12px; }
 .cl-badge.green { background: var(--green-soft); color: var(--green); }
 .cl-badge.amber { background: var(--amber-soft); color: var(--amber); }
 .cl-badge.red { background: var(--red-soft); color: var(--red); }
 .cl-badge.cyan { background: var(--cyan-soft); color: var(--cyan-deep); }
+.cl-badge.violet { background: var(--violet-soft); color: var(--violet); }
 .cl-badge.dark { background: var(--badge-dark-bg); color: var(--badge-dark-ink); }
 .cl-badge.grey { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 
@@ -544,7 +609,7 @@ a { color: inherit; }
 }
 .cl-tab .lucide { width: 15px; height: 15px; }
 .cl-tab.on {
-  background: linear-gradient(180deg, #2b2b30, #0b0b0c); color: #fff;
+  background: var(--badge-dark-bg); color: var(--badge-dark-ink);
   box-shadow: 0 6px 14px -6px rgba(11,11,12,.5), inset 0 1px 0 rgba(255,255,255,.2);
 }
 .cl-tab:active { transform: scale(.96); }
@@ -631,7 +696,26 @@ a { color: inherit; }
   .cl-row:has(.cl-field) { flex-direction: column; align-items: stretch; }
 }
 .cl-muted { color: var(--muted); }
+.cl-faint { color: var(--faint); }
 .cl-small { font-size: 12.5px; }
+/* Standard icon tile — 44px box, 20px icon, one size for all sibling cards */
+.cl-tile {
+  width: 44px; height: 44px; border-radius: var(--r-sm);
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--surface-2); color: var(--cyan-deep);
+}
+.cl-tile .lucide { width: 20px; height: 20px; }
+.cl-tile.tint-cyan { background: var(--cyan-soft); color: var(--cyan-deep); }
+.cl-tile.tint-grey { background: var(--surface-2); color: var(--muted); }
+/* Card-internal title — one size for every card header (section titles use .cl-section-title) */
+.cl-card-title { font-weight: 700; font-size: var(--fs-lg); line-height: var(--lh-tight); }
+/* List row as a real button — replaces <button style={{all:'unset'}}> wrappers */
+.cl-list-row {
+  display: block; width: 100%; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+/* Single-line row that must not wrap (icon + growing text + trailing badge/action) */
+.cl-row-nowrap { flex-wrap: nowrap; align-items: center; }
 .cl-money { font-variant-numeric: tabular-nums; font-weight: 700; }
 .cl-progress { height: 8px; border-radius: 8px; background: var(--line-soft); overflow: hidden; }
 .cl-progress > i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--cyan), #38e0f8); transition: width .6s var(--ease); }
@@ -651,7 +735,7 @@ a { color: inherit; }
 .cl-search input { border: 0; outline: 0; background: none; font: inherit; font-size: 14.5px; width: 100%; color: var(--ink); }
 .cl-kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 13.5px; }
 .cl-kv dt { color: var(--muted); } .cl-kv dd { margin: 0; font-weight: 600; text-align: right; }
-.cl-toggle { position: relative; width: 48px; height: 28px; border-radius: 28px; border: 0; background: #d4d4d8; cursor: pointer; transition: background var(--dur-2); flex-shrink: 0; }
+.cl-toggle { position: relative; width: 48px; height: 28px; border-radius: 28px; border: 0; background: var(--toggle-off); cursor: pointer; transition: background var(--dur-2); flex-shrink: 0; }
 .cl-toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform var(--dur-2) var(--ease); }
 .cl-toggle.on { background: var(--cyan); }
 .cl-toggle.on::after { transform: translateX(20px); }
@@ -663,6 +747,14 @@ a { color: inherit; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes cl-spin { to { transform: rotate(360deg); } }
+/* Global spinner: every loading indicator app-wide uses .spin (fixes frozen Loader2 icons) */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+/* Unread-dot pulse — keyframes live in the design system, not in ChatModal's render output */
+@keyframes cl-pulse-red { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
 
 
 /* Responsive hardening — dashboard, creator tools, brand workflows and dialogs */
@@ -696,7 +788,8 @@ textarea { resize: vertical; }
 }
 @media (max-width: 420px) {
   .cl-container { padding-left: 12px !important; padding-right: 12px !important; }
-  .cl-card { padding: 14px !important; }
+  /* bleed cards opt out via .cl-bleed so full-bleed thumbnails/accordions keep padding: 0 */
+  .cl-card:not(.cl-bleed) { padding: 14px !important; }
   .cl-small { font-size: 12px; }
   .cl-bottomnav { gap: 2px; }
   .cl-bottomnav button { min-width: 0; padding-left: 4px; padding-right: 4px; }

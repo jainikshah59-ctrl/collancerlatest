@@ -198,9 +198,9 @@ export default function PromoDemoSection({ creator, onBack }) {
             body="Upload your first demo video or image to show brands your style."
             action={<Button size="sm" onClick={() => fileRef.current?.click()} icon={Upload}>Upload demo</Button>} />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
             {demos.map((d) => (
-              <Card key={d.id} style={{ padding: 0, overflow: 'hidden' }}>
+              <Card key={d.id} className="cl-bleed" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ position: 'relative', aspectRatio: '4/3', background: 'var(--surface-2)' }}>
                   {d.thumbnailUrl ? (
                     <img src={d.thumbnailUrl} alt={d.title}

@@ -3,9 +3,9 @@
    -> update profile) per audit §3.6. Photo: compress -> Cloudinary -> pfp URL. */
 import React, { useRef, useState } from 'react';
 import {
-  User as UserIcon, ArrowLeft, Camera, AtSign, MapPin, Globe, Youtube,
-  Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Percent, Lock,
-  Image as ImageIcon, Play, Heart, MessageCircle, Eye, Instagram,
+  User as UserIcon, ArrowLeft, Camera, AtSign, Settings, Youtube,
+  Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Lock,
+  Image as ImageIcon, Play, Instagram,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
@@ -19,7 +19,7 @@ import {
 } from '../components/ui.jsx';
 import MediaViewer from '../components/MediaViewer.jsx';
 import { startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel } from '../lib/instagram.js';
-import { completionPct, isLive } from './DashboardPage.jsx';
+import { completionPct, isLive } from '../lib/creator.js';
 
 const normHandle = (h) => String(h || '').trim().replace(/^@/, '').toLowerCase();
 const handleOk = (h) => /^[a-z0-9._]{3,30}$/.test(normHandle(h));
@@ -233,6 +233,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   });
   const setAField = (k) => (e) => setA((prev) => ({ ...prev, [k]: e.target ? e.target.value : e }));
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const uid = profileCreator.id;
   const igConnected = !!profileCreator.instagram;
@@ -399,18 +400,20 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       <TopBar title="Profile" subtitle={igConnected ? `@${profileCreator.instagram.username}` : (profileCreator.handleLower ? `@${profileCreator.handleLower}` : '')}
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
-        <Card className="cl-glass" style={{ border: '1px solid var(--glass-border)', background: 'linear-gradient(135deg, var(--glass-hi), var(--glass-lo))' }}>
+        <Card className="cl-glass">
           <div className="cl-row" style={{ gap: 12 }}>
-            <span style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', color: 'var(--cyan-deep)', flexShrink: 0 }}><Instagram style={{ width: 20, height: 20 }} /></span>
+            <div className="cl-tile"><Instagram /></div>
             <div className="cl-grow">
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Instagram integration</div>
+              <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)' }}>Instagram integration</div>
               <div className="cl-small cl-muted" style={{ lineHeight: 1.5 }}>
                 {igConnected ? <>Connected as <strong>@{profileCreator.instagram.username || profileCreator.instagram.userName}</strong> · Last synced {lastSyncedLabel(profileCreator)}</> : 'Connect Instagram to import your creator profile, audience metrics and content.'}
               </div>
             </div>
+          </div>
+          <div className="cl-row" style={{ gap: 8, marginTop: 12 }}>
             {igConnected ? (
-              <div className="cl-row" style={{ gap: 7 }}>
-                <Button size="sm" variant="light" icon={RefreshCw} disabled={busy === 'instagram'} onClick={async () => {
+              <>
+                <Button size="sm" variant="light" icon={RefreshCw} loading={busy === 'instagram'} disabled={busy === 'instagram'} onClick={async () => {
                   setBusy('instagram');
                   try {
                     const j = await refreshInstagram(true);
@@ -420,27 +423,18 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   } catch (e) {
                     toast.err(e?.message === 'not-connected' ? 'Instagram is not connected.' : 'Could not refresh Instagram. Please try again.');
                   } finally { setBusy(null); }
-                }}>Sync</Button>
-                <Button size="sm" variant="danger" disabled={busy === 'instagram'} onClick={async () => {
-                  if (!window.confirm('Disconnect Instagram from Collancer?')) return;
-                  setBusy('instagram');
-                  try {
-                    await disconnectInstagram();
-                    setSyncedInstagram(null);
-                    toast.ok('Instagram disconnected.');
-                  } catch { toast.err('Could not disconnect Instagram. Please try again.'); }
-                  finally { setBusy(null); }
-                }}>Disconnect</Button>
-              </div>
+                }} style={{ flex: 1 }}>Sync</Button>
+                <Button size="sm" variant="danger" disabled={busy === 'instagram'} onClick={() => setDisconnectOpen(true)} style={{ flex: 1 }}>Disconnect</Button>
+              </>
             ) : (
-              <Button size="sm" icon={Instagram} onClick={async () => {
+              <Button size="sm" icon={Instagram} loading={busy === 'instagram'} onClick={async () => {
                 setBusy('instagram');
                 try { await startInstagramConnect(); }
                 catch (e) {
                   setBusy(null);
                   toast.err(e?.message === 'not-configured' ? 'Instagram connection is not configured yet.' : 'Could not start Instagram connection. Please try again.');
                 }
-              }}>Connect Instagram</Button>
+              }} style={{ flex: 1 }}>Connect Instagram</Button>
             )}
           </div>
         </Card>
@@ -487,7 +481,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             { key: 'profile', label: 'Profile', icon: UserIcon },
             { key: 'content', label: 'Content', icon: ImageIcon },
             { key: 'ratecard', label: 'Rate card', icon: Wallet },
-            { key: 'account', label: 'Account', icon: Globe },
+            { key: 'account', label: 'Account', icon: Settings },
           ]}
           value={tab} onChange={setTab}
         />
@@ -566,11 +560,20 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   </Field>
                 </div>
                 <div className="cl-grow">
-                  <Field label="Engagement %" hint={igConnected ? 'Calculated from complete Instagram post data; hidden when exact data is unavailable.' : undefined}><Input value={igConnected ? String(profileCreator.instagram.engagementRate ?? '') : p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" disabled={igConnected} /></Field>
+                  <Field label="Engagement %" hint={igConnected ? 'Calculated from complete Instagram post data; hidden when exact data is unavailable.' : undefined}>
+                    <div style={{ position: 'relative' }}>
+                      <Input value={igConnected ? String(profileCreator.instagram.engagementRate ?? '') : p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
+                      {igConnected && (
+                        <Lock style={{ position: 'absolute', right: 13, top: 14, width: 14, height: 14, color: 'var(--faint)' }} />
+                      )}
+                    </div>
+                  </Field>
                 </div>
               </div>
               {igConnected && instagramProfileMetrics.length > 0 && (
-                <div aria-label="Instagram performance metrics" style={{ display: 'grid', gap: 0, margin: '2px 0 14px', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+                <>
+                  <div className="cl-small" style={{ fontWeight: 700, margin: '2px 0 8px' }}>Instagram performance</div>
+                  <div aria-label="Instagram performance metrics" style={{ display: 'grid', gap: 0, margin: '0 0 14px', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
                   {instagramProfileUrl && (
                     <div className="cl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderBottom: '1px solid var(--line-soft)' }}>
                       <span className="cl-small cl-muted">Instagram profile link</span>
@@ -585,7 +588,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                       </strong>
                     </div>
                   ))}
-                </div>
+                  </div>
+                </>
               )}
               {igConnected && instagramQuality.partial && (
                 <div className="cl-small cl-muted" role="status" style={{ margin: '0 0 12px', lineHeight: 1.5 }}>
@@ -653,8 +657,8 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
           <div className="cl-fade" style={{ display: 'grid', gap: 14 }}>
             <Card>
               <div className="cl-row" style={{ gap: 8, marginBottom: 12 }}>
-                <Instagram style={{ width: 18, height: 18, color: '#E1306C' }} />
-                <h3 style={{ fontSize: 16 }}>Instagram content</h3>
+                <Instagram style={{ width: 18, height: 18, color: 'var(--cyan-deep)' }} />
+                <div className="cl-card-title">Instagram content</div>
                 {igConnected && profileCreator.instagram?.username && (
                   <span className="cl-small cl-muted">@{profileCreator.instagram.username}</span>
                 )}
@@ -662,10 +666,12 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
               {!igConnected ? (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
-                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 10 }}>
-                    Instagram content showcase is temporarily unavailable while the integration is being updated.
+                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 14 }}>
+                    Connect Instagram to showcase your posts to brands here.
                   </p>
-                  <Badge tone="amber" style={{ marginTop: 4 }}>Coming Soon</Badge>
+                  <Button size="sm" icon={Instagram} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    Connect Instagram
+                  </Button>
                 </div>
               ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
                 <FeaturedContentPicker creator={profileCreator} toast={toast} />
@@ -716,19 +722,22 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                           />
                           <div className="cl-row" style={{ gap: 10, alignItems: 'flex-end' }}>
                             <div className="cl-grow">
-                              <div className="cl-small" style={{ fontWeight: 700, marginBottom: 6 }}>Price (₹)</div>
-                              <Input value={prices[k]} onChange={(e) => setPrices((p2) => ({ ...p2, [k]: e.target.value }))}
-                                placeholder="e.g. 2500" inputMode="numeric" />
+                              <Field label="Price (₹)">
+                                <Input value={prices[k]} onChange={(e) => setPrices((p2) => ({ ...p2, [k]: e.target.value }))}
+                                  placeholder="e.g. 2500" inputMode="numeric" />
+                              </Field>
                             </div>
                             <div className="cl-grow">
-                              <div className="cl-small cl-muted" style={{ fontWeight: 600, marginBottom: 6 }}>Sale price (₹)</div>
-                              <Input value={dPrices[k]} onChange={(e) => setDPrices((p2) => ({ ...p2, [k]: e.target.value }))}
-                                placeholder="Optional" inputMode="numeric" />
+                              <Field label="Sale price (₹)">
+                                <Input value={dPrices[k]} onChange={(e) => setDPrices((p2) => ({ ...p2, [k]: e.target.value }))}
+                                  placeholder="Optional" inputMode="numeric" />
+                              </Field>
                             </div>
-                            <div style={{ width: 90 }}>
-                              <div className="cl-small cl-muted" style={{ fontWeight: 600, marginBottom: 6 }}>Delivery</div>
-                              <Input value={meta.deliveryDays || ''} onChange={setPkg(k, 'deliveryDays')}
-                                placeholder="Days" inputMode="numeric" />
+                            <div style={{ flex: '0 0 90px' }}>
+                              <Field label="Delivery">
+                                <Input value={meta.deliveryDays || ''} onChange={setPkg(k, 'deliveryDays')}
+                                  placeholder="Days" inputMode="numeric" />
+                              </Field>
                             </div>
                           </div>
                         </>
@@ -748,7 +757,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         {tab === 'account' && (
           <form onSubmit={saveAccount} className="cl-fade" style={{ display: 'grid', gap: 14 }}>
             <Card>
-              <h3 style={{ fontSize: 16, marginBottom: 12 }}>Account</h3>
+              <div className="cl-card-title" style={{ marginBottom: 12 }}>Account</div>
               <Field label="Email" hint="Login email — cannot be changed here">
                 <Input value={profileCreator.email || ''} disabled style={{ opacity: 0.6 }} />
               </Field>
@@ -769,7 +778,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
             </Card>
             <Card>
               <ThemeToggle pro={isPro} />
-              <Button variant="danger" block onClick={() => setLogoutOpen(true)} icon={LogOut} style={{ marginBottom: 76 }}>Log out</Button>
+              <Button variant="danger" block onClick={() => setLogoutOpen(true)} icon={LogOut} style={{ marginTop: 12 }}>Log out</Button>
             </Card>
           </form>
         )}
@@ -782,6 +791,24 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         confirmLabel="Log out"
         danger
         onConfirm={onLogout}
+      />
+      <ConfirmDialog
+        open={disconnectOpen}
+        onClose={() => setDisconnectOpen(false)}
+        title="Disconnect Instagram?"
+        body="Your Instagram data will be removed from Collancer. You can reconnect anytime."
+        confirmLabel="Disconnect"
+        danger
+        onConfirm={async () => {
+          setDisconnectOpen(false);
+          setBusy('instagram');
+          try {
+            await disconnectInstagram();
+            setSyncedInstagram(null);
+            toast.ok('Instagram disconnected.');
+          } catch { toast.err('Could not disconnect Instagram. Please try again.'); }
+          finally { setBusy(null); }
+        }}
       />
     </Page>
   );

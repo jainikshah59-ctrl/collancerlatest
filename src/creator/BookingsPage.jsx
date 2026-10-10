@@ -1,7 +1,7 @@
 /* Creator bookings inbox — filters + real-time list, newest first.
    Per audit §7.6: unseen Pending bookings are marked seenByCreator on open. */
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, Clock3, CheckCircle2, XCircle, Hourglass, ArrowLeft } from 'lucide-react';
+import { CalendarCheck, Hourglass, ArrowLeft } from 'lucide-react';
 import { ensureFirebase, db, doc, updateDoc } from '../lib/firebase.js';
 import { Page, TopBar, IconBtn, Card, Tabs, EmptyState, Badge, SkeletonCard } from '../components/ui.jsx';
 import { inr, timeAgo, fmtDate } from '../lib/format.js';
@@ -19,7 +19,7 @@ const FILTERS = [
 function statusTone(s) {
   if (s === BOOKING_STATUS.PENDING) return 'amber';
   if (s === BOOKING_STATUS.ACTIVE) return 'cyan';
-  if (s === BOOKING_STATUS.PENDING_COMPLETION) return 'amber';
+  if (s === BOOKING_STATUS.PENDING_COMPLETION) return 'violet';
   if (s === BOOKING_STATUS.COMPLETED) return 'green';
   return 'red';
 }
@@ -77,7 +77,7 @@ export default function BookingsPage({ bookings, loading, onBack, onOpen }) {
           style={{ marginBottom: 14 }}
         />
         {loading ? (
-          <div style={{ display: 'grid', gap: 12 }}><SkeletonCard /><SkeletonCard /></div>
+          <div style={{ display: 'grid', gap: 10 }}><SkeletonCard /><SkeletonCard /></div>
         ) : list.length === 0 ? (
           <EmptyState
             icon={filter === BOOKING_STATUS.PENDING ? Hourglass : CalendarCheck}
@@ -95,10 +95,10 @@ export default function BookingsPage({ bookings, loading, onBack, onOpen }) {
                   {b.lastMessageFrom === 'brand' && (b.lastMessageAt?.toMillis?.() || 0) > (b.creatorChatReadAt?.toMillis?.() || 0) && (
                     <span style={{
                       position: 'absolute', top: 12, right: 12, width: 12, height: 12, borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                      border: '2px solid #fff', boxShadow: '0 2px 8px rgba(220,38,38,0.5)',
+                      background: 'linear-gradient(135deg, var(--red), var(--danger))',
+                      border: '2px solid var(--surface)', boxShadow: '0 2px 8px var(--red-soft)',
                       animation: 'cl-pulse-red 1.6s ease-in-out infinite',
-                    }} />
+                    }} aria-hidden="true" />
                   )}
                   <div className="cl-row" style={{ gap: 12, alignItems: 'flex-start' }}>
                     <div className="cl-grow" style={{ minWidth: 0 }}>

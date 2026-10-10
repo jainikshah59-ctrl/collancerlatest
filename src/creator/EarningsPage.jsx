@@ -2,7 +2,7 @@
    withdrawable = released − requested(non-rejected). Min ₹100, one pending/approved
    at a time, UPI / bank+IFSC validation. */
 import React, { useMemo, useState } from 'react';
-import { Wallet, ArrowLeft, Landmark, Smartphone, Clock3, CheckCircle2, XCircle, BadgeCheck } from 'lucide-react';
+import { Wallet, ArrowLeft, Landmark, Smartphone, Clock3, CheckCircle2, Lock, Hourglass } from 'lucide-react';
 import { ensureFirebase, db, collection, addDoc, serverTimestamp } from '../lib/firebase.js';
 import { creatorShareOf, MIN_PAYOUT, BOOKING_STATUS } from '../lib/constants.js';
 import { inr, fmtDateTime, timeAgo } from '../lib/format.js';
@@ -19,6 +19,12 @@ function payoutTone(s) {
   if (s === 'approved') return 'cyan';
   if (s === 'rejected') return 'red';
   return 'amber';
+}
+function payoutLabel(s) {
+  if (s === 'paid') return 'Paid';
+  if (s === 'approved') return 'Approved';
+  if (s === 'rejected') return 'Rejected';
+  return 'Pending';
 }
 
 export default function EarningsPage({ creator, bookings, payouts, loading, onBack }) {
@@ -108,11 +114,11 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
         left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
         {/* Withdrawable hero */}
-        <Card className="cl-glass" style={{ textAlign: 'center', padding: 22 }}>
+        <Card style={{ textAlign: 'center', padding: 22 }}>
           <div className="cl-small cl-muted" style={{ fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
             Withdrawable balance
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 800, margin: '8px 0 4px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-hero)', fontWeight: 800, margin: '8px 0 4px' }}>
             {inr(buckets.withdrawable)}
           </div>
           <div className="cl-small cl-muted">
@@ -139,10 +145,10 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
         {tab === 'overview' && (
           <div className="cl-fade cl-earnings-grid">
             <Stat className="cl-creator-stat" label="In progress" value={inr(buckets.inProgress)} icon={Clock3} tone="cyan" />
-            <Stat className="cl-creator-stat" label="Pending completion" value={inr(buckets.pendingCompletion)} icon={Clock3} />
+            <Stat className="cl-creator-stat" label="Pending completion" value={inr(buckets.pendingCompletion)} icon={Hourglass} tone="amber" />
             <Stat className="cl-creator-stat" label="Completed" value={inr(buckets.locked + buckets.released)} icon={CheckCircle2} />
-            <Stat className="cl-creator-stat" label="Locked" value={inr(buckets.locked)} icon={BadgeCheck} />
-            <Stat className="cl-creator-stat" label="Released" value={inr(buckets.released)} icon={CheckCircle2} tone="cyan" />
+            <Stat className="cl-creator-stat" label="Locked" value={inr(buckets.locked)} icon={Lock} />
+            <Stat className="cl-creator-stat" label="Released" value={inr(buckets.released)} icon={CheckCircle2} tone="green" />
             <Card className="cl-earnings-explainer">
               <div className="cl-small cl-muted" style={{ lineHeight: 1.65 }}>
                 <strong>Completed</strong> is the total earned from completed bookings. <strong>Locked</strong> is awaiting admin approval; <strong>Released</strong> is approved and included in the withdrawable balance.
@@ -154,25 +160,25 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
 
         {tab === 'withdraw' && (
           <Card className="cl-fade">
-            <h3 style={{ fontSize: 16, marginBottom: 4 }}>Request payout</h3>
+            <div className="cl-card-title" style={{ marginBottom: 4 }}>Request payout</div>
             <p className="cl-small cl-muted" style={{ marginBottom: 14, lineHeight: 1.6 }}>
               Available: <strong className="cl-money" style={{ color: 'var(--cyan-deep)' }}>{inr(buckets.withdrawable)}</strong>
               {activeRequest && (
-                <> · <Badge tone={payoutTone(activeRequest.status)}>{activeRequest.status}</Badge> request of {inr(activeRequest.amount)} is being processed.</>
+                <> · <Badge tone={payoutTone(activeRequest.status)}>{payoutLabel(activeRequest.status)}</Badge> request of {inr(activeRequest.amount)} is being processed.</>
               )}
             </p>
             <form onSubmit={requestPayout}>
               <Field label={`Amount (min ${inr(MIN_PAYOUT)})`}>
                 <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="500" inputMode="numeric" />
               </Field>
-              <div className="cl-tabs" style={{ marginBottom: 14 }}>
-                <button type="button" className={`cl-tab ${method === 'upi' ? 'on' : ''}`} onClick={() => setMethod('upi')}>
-                  <Smartphone style={{ width: 14, height: 14 }} /> UPI
-                </button>
-                <button type="button" className={`cl-tab ${method === 'bank' ? 'on' : ''}`} onClick={() => setMethod('bank')}>
-                  <Landmark style={{ width: 14, height: 14 }} /> Bank
-                </button>
-              </div>
+              <Tabs
+                tabs={[
+                  { key: 'upi', label: 'UPI', icon: Smartphone },
+                  { key: 'bank', label: 'Bank', icon: Landmark },
+                ]}
+                value={method} onChange={setMethod}
+                style={{ marginBottom: 14 }}
+              />
               {method === 'upi' ? (
                 <Field label="UPI ID" hint="e.g. yourname@okhdfcbank">
                   <Input value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="name@okhdfcbank" />
@@ -204,7 +210,7 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
                 body="Your withdrawal requests and their status will appear here." />
             ) : history.map((p) => (
               <Card key={p.id} style={{ padding: 14 }}>
-                <div className="cl-row" style={{ gap: 10 }}>
+                <div className="cl-row" style={{ gap: 10, alignItems: 'flex-start' }}>
                   <div className="cl-grow">
                     <div className="cl-money" style={{ fontSize: 16 }}>{inr(p.amount)}</div>
                     <div className="cl-small cl-muted" style={{ marginTop: 3 }}>
@@ -217,7 +223,7 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
                       <div className="cl-small" style={{ marginTop: 6, color: 'var(--green)' }}>Paid {fmtDateTime(p.paidAt)}</div>
                     )}
                   </div>
-                  <Badge tone={payoutTone(p.status)}>{p.status}</Badge>
+                  <Badge tone={payoutTone(p.status)}>{payoutLabel(p.status)}</Badge>
                 </div>
               </Card>
             ))}

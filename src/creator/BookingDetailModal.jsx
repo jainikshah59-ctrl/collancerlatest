@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import {
   CheckCircle2, XCircle, Send, Link2, ExternalLink, MapPin, Wallet,
   ShieldCheck, AlertCircle, RefreshCw, FileText, CalendarClock, Tag,
-  MessageCircle,
+  MessageCircle, Share2, Truck, Receipt, CreditCard, Package, Box,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, addDoc, collection,
@@ -33,10 +33,10 @@ function LinkPreviewChip({ url }) {
     <a href={u} target="_blank" rel="noreferrer"
       style={{ textDecoration: 'none', display: 'block', marginTop: 10 }}>
       <div className="cl-row cl-fade" style={{
-        gap: 10, padding: '10px 12px', borderRadius: 8,
-        background: 'var(--cyan-soft)', border: '1px solid transparent',
+        gap: 10, padding: '10px 12px', borderRadius: 'var(--r-sm)',
+        background: 'var(--cyan-soft)',
       }}>
-        <Link2 style={{ width: 17, height: 17, color: 'var(--cyan-deep)', flexShrink: 0 }} />
+        <Link2 style={{ width: 16, height: 16, color: 'var(--cyan-deep)', flexShrink: 0 }} />
         <div className="cl-grow" style={{ minWidth: 0 }}>
           <div className="cl-small" style={{ fontWeight: 700, color: 'var(--cyan-deep)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {domain}
@@ -45,17 +45,30 @@ function LinkPreviewChip({ url }) {
             {u.length > 48 ? u.slice(0, 48) + '…' : u}
           </div>
         </div>
-        <ExternalLink style={{ width: 15, height: 15, color: 'var(--cyan-deep)', flexShrink: 0 }} />
+        <ExternalLink style={{ width: 16, height: 16, color: 'var(--cyan-deep)', flexShrink: 0 }} />
       </div>
     </a>
   );
 }
 
-function Row({ icon: Icon, label, value }) {
+function Row({ icon: Icon, label, value, long }) {
+  if (long) {
+    /* Prose content (brief, deliverables, usage rights): stacked label-above-value,
+       not the narrow right-aligned cl-kv treatment meant for short key-values. */
+    return (
+      <div style={{ padding: '9px 0' }}>
+        <div className="cl-row" style={{ gap: 7, marginBottom: 4 }}>
+          {Icon && <Icon style={{ width: 14, height: 14, color: 'var(--muted)', flexShrink: 0 }} />}
+          <dt style={{ fontSize: 13.5, color: 'var(--muted)', fontWeight: 600 }}>{label}</dt>
+        </div>
+        <dd style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, overflowWrap: 'anywhere' }}>{value}</dd>
+      </div>
+    );
+  }
   return (
     <div className="cl-kv">
-      <dt><span className="cl-row" style={{ gap: 7 }}>{Icon && <Icon style={{ width: 14, height: 14 }} />}{label}</span></dt>
-      <dd style={{ maxWidth: '60%' }}>{value}</dd>
+      <dt><span className="cl-row cl-row-nowrap" style={{ gap: 7 }}>{Icon && <Icon style={{ width: 14, height: 14 }} />}{label}</span></dt>
+      <dd style={{ maxWidth: '60%', overflowWrap: 'anywhere' }}>{value}</dd>
     </div>
   );
 }
@@ -272,9 +285,9 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
 
   return (
     <Modal open wide onClose={onClose}>
-      <div className="cl-row" style={{ marginBottom: 4 }}>
-        <div className="cl-grow">
-          <h3 style={{ fontSize: 18 }}>{b.campaignName || b.productName || 'Collaboration'}</h3>
+      <div className="cl-row cl-row-nowrap" style={{ marginBottom: 4 }}>
+        <div className="cl-grow" style={{ minWidth: 0 }}>
+          <h3 className="cl-card-title" style={{ fontSize: 'var(--fs-xl)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.campaignName || b.productName || 'Collaboration'}</h3>
           <div className="cl-small cl-muted" style={{ marginTop: 3 }}>
             {b.bizName || 'Brand'}{b.fromMarketplace ? ' · via Marketplace' : ''} · requested {timeAgo(b.createdAt)}
           </div>
@@ -283,23 +296,23 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
       </div>
 
       {/* Campaign brief */}
-      <div className="cl-section-title" style={{ marginTop: 14 }}><h3>Brief</h3></div>
+      <div className="cl-section-title" style={{ marginTop: 16 }}><h3>Brief</h3></div>
       <Card style={{ padding: 12 }}>
         <dl style={{ margin: 0 }}>
-          {b.brief && <Row icon={FileText} label="Brief" value={b.brief} />}
-          {b.deliverables && <Row icon={CheckCircle2} label="Deliverables" value={b.deliverables} />}
+          {b.brief && <Row icon={FileText} label="Brief" value={b.brief} long />}
+          {b.deliverables && <Row icon={CheckCircle2} label="Deliverables" value={b.deliverables} long />}
           {(b.packageKey || b.promotionCategory) && (
-            <Row icon={Tag} label="Package" value={promoLabel(b.packageKey || b.promotionCategory)} />
+            <Row icon={Box} label="Package" value={promoLabel(b.packageKey || b.promotionCategory)} />
           )}
-          {b.platform && <Row icon={Send} label="Platform" value={b.platform} />}
+          {b.platform && <Row icon={Share2} label="Platform" value={b.platform} />}
           {b.deadline && <Row icon={CalendarClock} label="Deadline" value={fmtDate(b.deadline)} />}
-          {b.hashtags && <Row icon={Tag} label="Hashtags" value={b.hashtags} />}
-          {b.cta && <Row icon={Link2} label="CTA" value={b.cta} />}
-          {b.usageRights && <Row icon={ShieldCheck} label="Usage rights" value={b.usageRights} />}
+          {b.hashtags && <Row icon={Tag} label="Hashtags" value={b.hashtags} long />}
+          {b.cta && <Row icon={Link2} label="CTA" value={b.cta} long />}
+          {b.usageRights && <Row icon={ShieldCheck} label="Usage rights" value={b.usageRights} long />}
           {b.revisions != null && <Row icon={RefreshCw} label="Revisions" value={String(b.revisions)} />}
           {isBarter && b.barterOffer && <Row icon={Wallet} label="Barter offer" value={`${b.barterOffer}${b.barterOfferValue ? ` (worth ${inr(b.barterOfferValue)})` : ''}`} />}
-          {isBarter && b.barterDeliverables && <Row icon={CheckCircle2} label="Barter deliverables" value={b.barterDeliverables} />}
-          {isBarter && b.shipping && <Row icon={Send} label="Shipping" value={b.shipping} />}
+          {isBarter && b.barterDeliverables && <Row icon={CheckCircle2} label="Barter deliverables" value={b.barterDeliverables} long />}
+          {isBarter && b.shipping && <Row icon={Truck} label="Shipping" value={b.shipping} long />}
         </dl>
         {!b.brief && !b.deliverables && (
           <div className="cl-small cl-muted">No written brief was attached to this request.</div>
@@ -322,20 +335,20 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
         <dl style={{ margin: 0 }}>
           {isBarter ? (
             <>
-              <Row icon={Wallet} label="Type" value="Barter — no monetary escrow" />
-              {b.productValue ? <Row icon={Wallet} label="Product value" value={inr(b.productValue)} /> : null}
+              <Row icon={Package} label="Type" value="Barter — no monetary escrow" />
+              {b.productValue ? <Row icon={Tag} label="Product value" value={inr(b.productValue)} /> : null}
             </>
           ) : (
             <>
-              <Row icon={Wallet} label="Your price" value={inr(b.creatorPrice ?? b.amount)} />
+              <Row icon={Tag} label="Your price" value={inr(b.creatorPrice ?? b.amount)} />
               <Row icon={CheckCircle2} label="You earn (95%)" value={inr(creatorShareOf(b))} />
               <Row icon={ShieldCheck} label="Escrow" value={
                 b.escrowStatus === 'released' ? 'Released' : b.escrowStatus === 'held' ? 'Held securely' : (b.escrowStatus || '—')
               } />
-              <Row icon={Wallet} label="Payment status" value={
+              <Row icon={Receipt} label="Payment status" value={
                 b.paymentStatus === 'released' ? 'Released to you' : b.paymentStatus === 'escrow_held' ? 'Held in escrow' : (b.paymentStatus || '—')
               } />
-              {b.paymentMethod && <Row icon={Wallet} label="Paid via" value={b.paymentMethod} />}
+              {b.paymentMethod && <Row icon={CreditCard} label="Paid via" value={b.paymentMethod} />}
             </>
           )}
         </dl>
@@ -422,7 +435,7 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
       {/* Actions */}
       <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
         {canAct && !rejectOpen && (
-          <div className="cl-row" style={{ gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Button variant="danger" block onClick={() => setRejectOpen(true)} icon={XCircle}>
               Reject
             </Button>
@@ -443,7 +456,7 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
               <TextArea value={reason} onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Not aligned with my niche this month…" />
             </Field>
-            <div className="cl-row" style={{ gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Button variant="ghost" block onClick={() => { setRejectOpen(false); setReason(''); }}>Keep booking</Button>
               <Button variant="danger" block loading={busy === 'reject'} onClick={doReject} icon={XCircle}>
                 Confirm rejection
@@ -466,7 +479,7 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
                 placeholder="https://…" inputMode="url" />
               <LinkPreviewChip url={deliveryUrl} />
             </Field>
-            <div className="cl-row" style={{ gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Button variant="ghost" block onClick={() => setShowDeliver(false)}>Cancel</Button>
               <Button block loading={busy === 'deliver'} onClick={doDeliver} icon={Send}>
                 {b.adminRejected ? 'Resubmit' : 'Submit for review'}
@@ -474,8 +487,8 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
             </div>
           </Card>
         )}
-        <div style={{ position: 'relative', marginBottom: 4 }}>
-          <Button variant="light" block icon={MessageCircle} onClick={() => setChatOpen(true)}>
+        <div style={{ position: 'relative' }}>
+          <Button block icon={MessageCircle} onClick={() => setChatOpen(true)}>
             Chat with Brand
           </Button>
           <UnreadBadge count={unread} />
@@ -490,7 +503,7 @@ export default function BookingDetailModal({ booking, creator, onClose, onChange
             onClose={() => setChatOpen(false)}
           />
         )}
-        <Button variant="light" block onClick={onClose}>Close</Button>
+        <Button variant="ghost" block onClick={onClose}>Close</Button>
       </div>
     </Modal>
   );

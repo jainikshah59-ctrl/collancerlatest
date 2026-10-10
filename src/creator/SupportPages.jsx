@@ -41,7 +41,7 @@ function FaqList() {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       {FAQS.map((f, i) => (
-        <Card key={i} pressable style={{ padding: 0, overflow: 'hidden' }} onClick={() => setOpen(open === i ? -1 : i)}>
+        <Card key={i} pressable className="cl-bleed" style={{ padding: 0, overflow: 'hidden' }} onClick={() => setOpen(open === i ? -1 : i)}>
           <div className="cl-row" style={{ padding: '14px 16px', gap: 10 }}>
             <HelpCircle style={{ width: 18, height: 18, color: 'var(--cyan-deep)', flexShrink: 0 }} />
             <div className="cl-grow" style={{ fontWeight: 700, fontSize: 14 }}>{f.q}</div>

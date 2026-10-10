@@ -203,7 +203,7 @@ export default function CreatorAuthScreen() {
 
   const pwToggle = (
     <button type="button" onClick={() => setShowPw((s) => !s)} aria-label="Toggle password visibility"
-      style={{ position: 'absolute', right: 10, top: 11, border: 0, background: 'none', cursor: 'pointer', color: 'var(--faint)' }}>
+      style={{ position: 'absolute', right: 10, top: 14, border: 0, background: 'none', cursor: 'pointer', color: 'var(--faint)', display: 'grid', placeItems: 'center' }}>
       {showPw ? <EyeOff style={{ width: 18, height: 18 }} /> : <Eye style={{ width: 18, height: 18 }} />}
     </button>
   );

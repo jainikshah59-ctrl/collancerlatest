@@ -1,5 +1,5 @@
 /* Collancer UI kit — shared primitives. Lucide icons only, no emojis. */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle2, AlertCircle, Info, Loader2, Search as SearchIcon, ChevronDown, Check, Moon, Sun, Crown } from 'lucide-react';
 import { initials } from '../lib/format.js';
@@ -199,34 +199,33 @@ export function ToastProvider({ children }) {
 export const useToast = () => useContext(ToastCtx) || { ok() {}, err() {}, info() {} };
 
 /* ---------------- Buttons ---------------- */
-export function Button({ variant = 'dark', size, block, loading, icon: Icon, children, ...rest }) {
+export function Button({ variant = 'dark', size, block, loading, icon: Icon, children, type = 'button', ...rest }) {
   const cls = ['cl-btn', `cl-btn-${variant}`];
   if (size) cls.push(`cl-btn-${size}`);
   if (block) cls.push('cl-btn-block');
   const hasLabel = children !== undefined && children !== null && children !== false && children !== '';
   return (
-    <button className={cls.join(' ')} disabled={loading || rest.disabled} {...rest}>
+    <button type={type} className={cls.join(' ')} disabled={loading || rest.disabled} {...rest}>
       {loading ? <Loader2 className="lucide spin" /> : Icon ? <Icon /> : null}
       {hasLabel ? <span className="cl-btn-label">{children}</span> : children}
     </button>
   );
 }
 
-export function IconBtn({ icon: Icon, label, ...rest }) {
+export function IconBtn({ icon: Icon, label, type = 'button', ...rest }) {
   return (
     <button
+      type={type}
       aria-label={label || 'button'}
       {...rest}
+      className={`cl-icon-btn ${rest.className || ''}`}
       style={{
         width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--line)',
         background: 'linear-gradient(180deg, var(--glass-hi), var(--glass-lo))', display: 'grid', placeItems: 'center',
         cursor: 'pointer', color: 'var(--ink-2)', flexShrink: 0,
         backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-        transition: 'transform .15s var(--ease)',
         ...rest.style,
       }}
-      onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(.9)'; rest.onMouseDown?.(e); }}
-      onMouseUp={(e) => { e.currentTarget.style.transform = ''; rest.onMouseUp?.(e); }}
     >
       <Icon style={{ width: 18, height: 18 }} />
     </button>
@@ -420,7 +419,7 @@ export function Sheet({ open, onClose, children, labelledBy }) {
   }, [render, onClose]);
   if (!render) return null;
   return (
-    <div className={`cl-overlay ${closing ? 'closing' : ''}`} onClick={onClose} role="dialog" aria-modal="true" aria-label={labelledBy}>
+    <div className={`cl-overlay ${closing ? 'closing' : ''}`} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
       <div className={`cl-sheet ${closing ? 'closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="cl-sheet-grip" />
         {children}
@@ -545,16 +544,19 @@ export function SkeletonCard() {
   );
 }
 
+const STAT_TONES = {
+  cyan: ['var(--cyan-soft)', 'var(--cyan-deep)'],
+  green: ['var(--green-soft)', 'var(--green)'],
+  amber: ['var(--amber-soft)', 'var(--amber)'],
+  red: ['var(--red-soft)', 'var(--red)'],
+};
 export function Stat({ label, value, icon: Icon, tone, className = '' }) {
+  const [bg, fg] = STAT_TONES[tone] || ['var(--surface-2)', 'var(--ink-2)'];
   return (
     <Card className={`cl-stat-card ${className}`.trim()} style={{ padding: 14 }}>
       <div className="cl-row cl-stat-layout" style={{ gap: 10 }}>
         {Icon && (
-          <div className="cl-stat-icon" style={{
-            width: 38, height: 38, borderRadius: 8, display: 'grid', placeItems: 'center',
-            background: tone === 'cyan' ? 'var(--cyan-soft)' : 'var(--surface-2)',
-            color: tone === 'cyan' ? 'var(--cyan-deep)' : 'var(--ink-2)', flexShrink: 0,
-          }}>
+          <div className="cl-stat-icon" style={{ background: bg, color: fg }}>
             <Icon style={{ width: 18, height: 18 }} />
           </div>
         )}
@@ -571,8 +573,8 @@ export function ProgressBar({ value }) {
   return <div className="cl-progress"><i style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>;
 }
 
-export function Toggle({ on, onChange }) {
-  return <button className={`cl-toggle ${on ? 'on' : ''}`} onClick={() => onChange(!on)} aria-pressed={on} aria-label="Toggle" />;
+export function Toggle({ on, onChange, label, disabled }) {
+  return <button type="button" className={`cl-toggle ${on ? 'on' : ''}`} onClick={() => onChange(!on)} aria-pressed={on} aria-label={label || 'Toggle'} disabled={disabled} />;
 }
 
 /* ---------------- TopBar / BottomNav ---------------- */
@@ -672,7 +674,7 @@ export function VerifiedTick({ size = 16, style }) {
     d += (i === 0 ? 'M' : 'L') + x + ' ' + y;
   }
   d += 'Z';
-  const gid = 'vtick';
+  const gid = `vtick-${useId().replace(/:/g, '')}`;
   return (
     <svg
       width={size} height={size} viewBox="0 0 24 24" role="img" aria-label="Verified"
