@@ -106,11 +106,13 @@ export default async function handler(req, res) {
       pfp: instagram.profilePic || creatorSnap.data()?.pfp || '',
       bio: typeof instagram.bio === 'string' ? instagram.bio : creatorSnap.data()?.bio || '',
       followers: instagram.followersCount,
-      engagement: instagram.engagementRate || creatorSnap.data()?.engagement || 0,
-      avgViews: instagram.avgViews || creatorSnap.data()?.avgViews || 0,
-      avgLikes: instagram.avgLikes || creatorSnap.data()?.avgLikes || 0,
-      reach: instagram.accountInsights?.metricStatus?.reach?.available ? instagram.reach : (creatorSnap.data()?.reach ?? 0),
-      profileViews: creatorSnap.data()?.profileViews ?? 0,
+      // Never retain stale or manually estimated metrics when the API cannot
+      // provide a complete, exact value for the current sync.
+      engagement: instagram.engagementRate ?? FieldValue.delete(),
+      avgViews: instagram.avgViews ?? FieldValue.delete(),
+      avgLikes: instagram.avgLikes ?? FieldValue.delete(),
+      reach: instagram.accountInsights?.metricStatus?.reach?.available ? instagram.reach : FieldValue.delete(),
+      profileViews: instagram.accountInsights?.metricStatus?.profile_views?.available ? instagram.profileViews : FieldValue.delete(),
       instagram,
       updatedAt: now,
     }, { merge: true });
