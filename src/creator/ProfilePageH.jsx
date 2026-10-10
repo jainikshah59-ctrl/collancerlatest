@@ -586,6 +586,11 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   ))}
                 </div>
               )}
+              {igConnected && instagramQuality.partial && (
+                <div className="cl-small cl-muted" role="status" style={{ margin: '0 0 12px', lineHeight: 1.5 }}>
+                  Some Instagram metrics are hidden because Meta did not return complete data. Collancer does not estimate missing values.
+                </div>
+              )}
               {!igConnected && (
                 <div className="cl-row" style={{ gap: 10 }}>
                   <div className="cl-grow">
