@@ -53,10 +53,12 @@ export default function CreatorAIPage({ creator, bookings, payouts, verification
       {/* fixed chat shell: conversation scrolls, composer pinned at the screen bottom.
           No app top bar here — the assistant's own bar is the top bar (back goes via onBack).
           No BottomNav renders on this page, so the shell uses the full viewport height. */}
-      <div style={{
-        height: 'calc(100dvh - env(safe-area-inset-bottom))',
+      <div className="cl-creator-ai-viewport" style={{
+        position: 'fixed', inset: 0, zIndex: 80, width: '100%', height: '100dvh',
+        minHeight: 0, boxSizing: 'border-box',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        padding: '0 16px',
+        padding: '0 16px env(safe-area-inset-bottom)',
+        background: 'var(--bg)',
       }}>
         <PanelGuard>
           <Suspense fallback={<PanelFallback />}>
