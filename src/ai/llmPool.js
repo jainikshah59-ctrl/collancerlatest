@@ -32,7 +32,7 @@ const SERVER_POOL_TIMEOUT_MS = 4500;
 
 /** Explicit platform-name routing: only questions naming Collancer use its local FAQ/knowledge engine. */
 export function mentionsCollancer(question) {
-  return /\\b(?:collancer|colenser|colanser)\\b/i.test(String(question || ''));
+  return /\b(?:collancer|colenser|colanser)\b/i.test(String(question || ''));
 }
 
 /* Instruction-extraction / jailbreak queries never touch the pool. */
