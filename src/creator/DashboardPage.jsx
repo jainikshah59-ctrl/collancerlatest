@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, CalendarCheck,
   ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
-  Bell, Menu, X, Sparkles,
+  Bell, Menu, X, Sparkles, FileText,
 } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat } from '../components/ui.jsx';
 import { timeAgo } from '../lib/format.js';
@@ -185,8 +185,6 @@ export default function DashboardPage({
           <div className="cl-ai-feature-inner">
             <div className="cl-ai-feature-orb" aria-hidden="true">
               <div className="cl-ai-feature-orb-core"><Sparkles /></div>
-              <span className="cl-ai-feature-orbit cl-ai-feature-orbit-one" />
-              <span className="cl-ai-feature-orbit cl-ai-feature-orbit-two" />
             </div>
             <div className="cl-grow cl-ai-feature-copy">
               <div className="cl-ai-feature-eyebrow">YOUR CREATOR ASSISTANT</div>
@@ -196,7 +194,7 @@ export default function DashboardPage({
               </div>
             </div>
           </div>
-          <Button block size="sm" icon={Sparkles} onClick={() => onNav('collancer-ai')} className="cl-ai-feature-button">
+          <Button variant="light" block size="sm" icon={Sparkles} onClick={() => onNav('collancer-ai')} className="cl-ai-feature-button">
             Open Collancer AI
           </Button>
         </Card>
