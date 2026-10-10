@@ -33,7 +33,7 @@ import {
 import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components/ui.jsx';
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
-import { poolAnswer, isPoolableQuery } from './llmPool.js';
+import { poolAnswer, isPoolableQuery, mentionsCollancer } from './llmPool.js';
 import { isCreatorDataQuery } from './scopeGuard.js';
 import VoiceEnrollWizard from './VoiceEnrollWizard.jsx';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
@@ -113,59 +113,13 @@ function CleoMark({ state = 'idle', size = 38 }) {
   );
 }
 
-/* ================= thinking: dots + meter ================= */
+/* ================= minimal answer loader ================= */
 
-const THINK_LABELS = [
-  'Thinking…',
-  'Searching knowledge…',
-  'Ranking creators…',
-  'Composing answer…',
-];
 function ThinkingBlock() {
-  const [li, setLi] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setLi((v) => (v + 1) % THINK_LABELS.length), 1400);
-    return () => clearInterval(t);
-  }, []);
   return (
-    <div className="cl-card cl-fade" style={{ borderRadius: '16px 16px 16px 5px', padding: '12px 14px', minWidth: 200 }}>
-      <div className="cl-row" style={{ gap: 12, marginBottom: 12 }}>
-        <span className="cleo-dots"><span /><span /><span /></span>
-        <span className="cl-small" style={{ fontWeight: 700 }}>{THINK_LABELS[li]}</span>
-      </div>
-      <div className="cleo-meter"><i /></div>
-    </div>
-  );
-}
-
-/* ================= progressive answer reveal ================= */
-
-function ProgressiveText({ text, done }) {
-  const clean = useMemo(() => cleanText(text), [text]);
-  const [shown, setShown] = useState(done ? clean.length : 0);
-  useEffect(() => {
-    setShown(done ? clean.length : 0);
-  }, [clean, done]);
-  useEffect(() => {
-    if (done || shown >= clean.length) return;
-    const t = setInterval(() => {
-      setShown((v) => {
-        const next = v + 24;
-        return next >= clean.length ? clean.length : next;
-      });
-    }, 18);
-    return () => clearInterval(t);
-  }, [done, clean, shown >= clean.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const complete = shown >= clean.length;
-  return (
-    <div
-      className={complete ? undefined : 'cleo-caret'}
-      style={{ fontSize: 14.5, lineHeight: 1.55 }}
-      onClick={() => setShown(clean.length)}
-    >
-      {clean.slice(0, shown).split('\n').map((line, i) => (
-        <p key={i} style={{ margin: i ? '8px 0 0' : 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{line || ' '}</p>
-      ))}
+    <div className="cleo-simple-loading" role="status" aria-label="Loading answer">
+      <span className="cleo-simple-spinner" aria-hidden="true" />
+      <span>Loading answer…</span>
     </div>
   );
 }
@@ -283,17 +237,29 @@ function CreatorSheet({ item, onClose, onBook }) {
 async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   const q = String(text || '').trim();
   if (!q) return null;
-  if (isCreator) {
-    // AI providers are the primary source for general creator questions.
-    // Personal-data questions use the existing context-aware creator tool.
-    if (isPoolableQuery(q, loadConvo()) && !isCreatorDataQuery(q)) {
-      let pooled = null;
-      try { pooled = await poolAnswer(q, true); } catch { /* provider chain exhausted */ }
-      if (pooled && pooled.text) {
-        return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
-      }
-      console.warn('[collancer-ai] All configured AI providers failed; using creator-context fallback.');
-    }
+
+  const platformQuestion = mentionsCollancer(q);
+  const personalCreatorData = !!(isCreator && isCreatorDataQuery(q));
+
+  // Explicit Collancer-name questions use the verified local platform FAQ/data
+  // engine first. Personal account data remains context-aware and never leaks
+  // through a generic public FAQ answer.
+  if (platformQuestion && !personalCreatorData) {
+    const ctx = {
+      creators: context.creators || [],
+      user: context.user || null,
+      role: isCreator ? 'creator' : 'business',
+      isPro: !!context.isPro,
+      live: liveOn,
+      knowledge: QA_ENTRIES,
+      kbTopics: KB_TOPICS,
+      convo: loadConvo(),
+    };
+    return await answerQuery(q, ctx);
+  }
+
+  // User-specific creator data must be resolved from the authenticated context.
+  if (personalCreatorData) {
     const res = await askCreatorAI(q, {
       creator: context.user || {},
       bookings: context.extra?.bookings || [],
@@ -302,28 +268,39 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
     });
     return { answer: res.answer, creators: [], actions: res.actions || [], confidence: 0.8 };
   }
-  // Configured AI providers are the primary source for knowledge questions.
-  // Discovery/tool queries stay on deterministic tools because they require
-  // live creator records and actionable result structures. The local knowledge
-  // base is consulted only after the complete provider chain fails.
+
+  // All ordinary questions that do not name Collancer are answered by the
+  // configured AI APIs. Do not silently replace a failed API answer with FAQ
+  // text; report the outage instead. Real creator discovery still uses live
+  // structured records because the API cannot safely invent creator profiles.
   if (isPoolableQuery(q, loadConvo())) {
     let pooled = null;
     try { pooled = await poolAnswer(q, isCreator); } catch { /* provider chain exhausted */ }
     if (pooled && pooled.text) {
-      try {
-        const camp = extractCampaign(q);
-        if (camp.brand || camp.product || camp.budget || camp.niche) {
-          rememberCampaignFacts({ brand: camp.brand, product: camp.product, budget: camp.budget, niche: camp.niche });
-        }
-      } catch { /* ignore */ }
+      if (!isCreator) {
+        try {
+          const camp = extractCampaign(q);
+          if (camp.brand || camp.product || camp.budget || camp.niche) {
+            rememberCampaignFacts({ brand: camp.brand, product: camp.product, budget: camp.budget, niche: camp.niche });
+          }
+        } catch { /* ignore */ }
+      }
       return { answer: pooled.text, creators: [], actions: [], confidence: 0.78 };
     }
-    console.warn('[collancer-ai] All configured AI providers failed; using deterministic fallback.');
+    return {
+      answer: 'The AI service is temporarily unavailable. Please try again in a moment.',
+      creators: [],
+      actions: [],
+      confidence: 0,
+    };
   }
+
+  // Non-poolable questions are safety-sensitive instructions or structured
+  // discovery/follow-ups that require real creator records and actions.
   const ctx = {
     creators: context.creators || [],
     user: context.user || null,
-    role: 'business',
+    role: isCreator ? 'creator' : 'business',
     isPro: !!context.isPro,
     live: liveOn,
     knowledge: QA_ENTRIES,
@@ -466,9 +443,7 @@ function ChatView({ context, isCreator, onAction, convo, setConvo, busy, setBusy
         ) : (
           <div key={i} className="cl-fade" style={{ alignSelf: 'flex-start', maxWidth: '94%', width: '100%' }}>
             <div className="cl-card" style={{ borderRadius: '16px 16px 16px 5px', fontSize: 13.5, lineHeight: 1.5, padding: '12px 14px' }}>
-              {i === lastAiIdx && !busy
-                ? <ProgressiveText text={m.text} done={false} />
-                : renderText(m.text)}
+              {renderText(m.text)}
               {(m.resultKeys || []).length > 0 && (() => {
                 const turnIdx = Math.floor(i / 2);
                 const items = creatorsByTurn.current.get(turnIdx) || [];
@@ -749,7 +724,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
         try { stopMicRef.current && stopMicRef.current(); } catch { /* ignore */ }
         processTurnRef.current(q);
       }
-    }, 500);
+    }, 300);
   }, [setState, setOrbScale]);
 
   const handleResultRef = useRef(null);
