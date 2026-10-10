@@ -85,7 +85,7 @@ async function transform(value, path = '') {
     for (let i = 0; i < value.length; i++) out.push(await transform(value[i], path + '[' + i + ']'));
     return out;
   }
-  if (value && typeof value === 'object' && !(value instanceof Date) && typeof value.toDate !== 'function') {
+  if (value && typeof value === 'object' && !(value instanceof Date) && typeof value.toDate !== 'function' && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
     const out = {};
     for (const [key, child] of Object.entries(value)) out[key] = await transform(child, path ? path + '.' + key : key);
     return out;
@@ -95,7 +95,7 @@ async function transform(value, path = '') {
 function replaceMapped(value) {
   if (typeof value === 'string') return replacementMap.get(value) || value;
   if (Array.isArray(value)) return value.map(replaceMapped);
-  if (value && typeof value === 'object' && !(value instanceof Date) && typeof value.toDate !== 'function') {
+  if (value && typeof value === 'object' && !(value instanceof Date) && typeof value.toDate !== 'function' && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
     const out = {};
     for (const [key, child] of Object.entries(value)) out[key] = replaceMapped(child);
     return out;
