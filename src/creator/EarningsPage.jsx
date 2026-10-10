@@ -137,15 +137,15 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
         />
 
         {tab === 'overview' && (
-          <div className="cl-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Stat label="In progress" value={inr(buckets.inProgress)} icon={Clock3} tone="cyan" />
-            <Stat label="Pending completion" value={inr(buckets.pendingCompletion)} icon={Clock3} />
-            <Stat label="Completed — locked" value={inr(buckets.locked)} icon={BadgeCheck} />
-            <Stat label="Released" value={inr(buckets.released)} icon={CheckCircle2} tone="cyan" />
-            <Card style={{ gridColumn: '1 / -1' }}>
+          <div className="cl-fade cl-earnings-grid">
+            <Stat className="cl-creator-stat" label="In progress" value={inr(buckets.inProgress)} icon={Clock3} tone="cyan" />
+            <Stat className="cl-creator-stat" label="Pending completion" value={inr(buckets.pendingCompletion)} icon={Clock3} />
+            <Stat className="cl-creator-stat" label="Completed" value={inr(buckets.locked + buckets.released)} icon={CheckCircle2} />
+            <Stat className="cl-creator-stat" label="Locked" value={inr(buckets.locked)} icon={BadgeCheck} />
+            <Stat className="cl-creator-stat" label="Released" value={inr(buckets.released)} icon={CheckCircle2} tone="cyan" />
+            <Card className="cl-earnings-explainer">
               <div className="cl-small cl-muted" style={{ lineHeight: 1.65 }}>
-                Earnings move: <strong>Active</strong> → <strong>Pending completion</strong> (admin review) →
-                {' '}<strong>Completed</strong>. Admin approval releases escrow into your withdrawable balance.
+                <strong>Completed</strong> is the total earned from completed bookings. <strong>Locked</strong> is awaiting admin approval; <strong>Released</strong> is approved and included in the withdrawable balance.
                 Amounts already requested via payout are subtracted until they are rejected.
               </div>
             </Card>

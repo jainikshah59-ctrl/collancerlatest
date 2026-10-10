@@ -294,7 +294,7 @@ export default function CreatorApp({ onSwitchRole }) {
   const showNav = MAIN_PAGES.has(page) && !overlay;
 
   return (
-    <div className="cl-page">
+    <div className="cl-page cl-creator-shell" data-app-role="creator">
       {/* ---- overlay pages ---- */}
       {overlay === 'verification' && (
         <VerificationPage creator={creator} verification={verification}

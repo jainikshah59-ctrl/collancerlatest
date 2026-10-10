@@ -374,9 +374,9 @@ export function SearchInput({ value, onChange, placeholder = 'Search…', style 
 // ---- end SearchInput helpers ----
 
 /* ---------------- Tabs ---------------- */
-export function Tabs({ tabs, value, onChange, style }) {
+export function Tabs({ tabs, value, onChange, style, className = '' }) {
   return (
-    <div className="cl-tabs" style={style} role="tablist">
+    <div className={`cl-tabs ${className}`.trim()} style={style} role="tablist">
       {tabs.map((t) => (
         <button
           key={t.key} role="tab" aria-selected={value === t.key}
@@ -545,12 +545,12 @@ export function SkeletonCard() {
   );
 }
 
-export function Stat({ label, value, icon: Icon, tone }) {
+export function Stat({ label, value, icon: Icon, tone, className = '' }) {
   return (
-    <Card style={{ padding: 14 }}>
-      <div className="cl-row" style={{ gap: 10 }}>
+    <Card className={`cl-stat-card ${className}`.trim()} style={{ padding: 14 }}>
+      <div className="cl-row cl-stat-layout" style={{ gap: 10 }}>
         {Icon && (
-          <div style={{
+          <div className="cl-stat-icon" style={{
             width: 38, height: 38, borderRadius: 8, display: 'grid', placeItems: 'center',
             background: tone === 'cyan' ? 'var(--cyan-soft)' : 'var(--surface-2)',
             color: tone === 'cyan' ? 'var(--cyan-deep)' : 'var(--ink-2)', flexShrink: 0,
@@ -558,9 +558,9 @@ export function Stat({ label, value, icon: Icon, tone }) {
             <Icon style={{ width: 18, height: 18 }} />
           </div>
         )}
-        <div>
-          <div className="cl-money" style={{ fontSize: 18 }}>{value}</div>
-          <div className="cl-small cl-muted">{label}</div>
+        <div className="cl-stat-copy">
+          <div className="cl-money cl-stat-value">{value}</div>
+          <div className="cl-small cl-muted cl-stat-label">{label}</div>
         </div>
       </div>
     </Card>

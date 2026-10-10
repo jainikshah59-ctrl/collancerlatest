@@ -811,3 +811,117 @@ textarea { resize: vertical; }
 @media(max-width:540px){.cl-mk-document{padding:10px;border-radius:15px}.cl-mk-document-bar{font-size:7px;letter-spacing:.09em}.cl-mk-cover{height:125px}.cl-mk-cover-label{left:10px;right:10px;bottom:10px;font-size:6px}.cl-mk-hero-profile{padding:0 12px;gap:10px;margin-top:-28px}.cl-mk-avatar-frame{width:72px;height:72px;border-radius:17px;padding:3px}.cl-mk-avatar-frame img,.cl-mk-avatar-placeholder{border-radius:13px}.cl-mk-profile-copy{padding-top:31px}.cl-mk-profile-copy h2{font-size:25px}.cl-mk-pretitle{font-size:7px;letter-spacing:.09em}.cl-mk-username{font-size:10px}.cl-mk-identity-tags{gap:4px;margin-top:7px}.cl-mk-identity-tags span{font-size:8px;padding:4px 6px}.cl-mk-open-tag{font-size:8px;padding:6px 8px}.cl-mk-headline{margin:14px 12px 15px;padding-top:12px;font-size:14px}.cl-mk-sections{gap:8px}.cl-mk-section{grid-template-columns:1fr;gap:11px;padding:15px 13px;border-radius:12px}.cl-mk-section-index{flex-direction:row;align-items:center;gap:8px;font-size:14px}.cl-mk-section-index span{font-size:7px}.cl-mk-section-main h3{font-size:22px;margin-bottom:12px}.cl-mk-platform-card{padding:11px}.cl-mk-platform-badge{font-size:7px;padding:5px}.cl-mk-platform-metrics{gap:5px}.cl-mk-platform-metrics>div{padding:9px 7px}.cl-mk-platform-metrics strong{font-size:14px}.cl-mk-platform-metrics span{font-size:8px}.cl-mk-audience-grid{grid-template-columns:1fr}.cl-mk-format-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-mk-format-tile{min-height:90px;padding:11px}.cl-mk-brand{flex-basis:90px;min-height:91px}.cl-mk-cta{padding:21px 17px;min-height:auto;border-radius:13px}.cl-mk-cta-content h3{font-size:30px}.cl-mk-cta-signature strong{font-size:19px}.cl-mk-document-footer{flex-direction:column;align-items:flex-start;font-size:6px}.cl-mk-document-footer span:last-child{text-align:left}.cl-mk-book-link{max-width:100%;gap:18px}.cl-template-grid-premium{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-kit-edit-foot{align-items:stretch;flex-direction:column}.cl-kit-primary-actions>button{flex:1 1 100%}}
 @media print{body *{visibility:hidden!important}.cl-mk-document,.cl-mk-document *{visibility:visible!important}.cl-mk-document{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;box-shadow:none!important;animation:none!important}.cl-mk-document .cl-mk-section,.cl-mk-document .cl-mk-hero,.cl-mk-document .cl-mk-cta{break-inside:avoid;page-break-inside:avoid}.cl-mk-document .cl-mk-brand-rail{overflow:visible;flex-wrap:wrap}.cl-mk-document .cl-mk-brand{break-inside:avoid}}
 @media(prefers-reduced-motion:reduce){.cl-mk-document,.cl-mk-document *{animation:none!important;transition:none!important}}
+
+
+/* ============================================================
+   CREATOR STUDIO — layout system
+   Scoped to the creator app shell so brand/admin views are untouched.
+   ============================================================ */
+.cl-creator-shell {
+  --creator-content-max: 1120px;
+  padding-bottom: calc(var(--nav-h) + 36px);
+}
+.cl-creator-shell .cl-container {
+  width: min(100%, var(--creator-content-max));
+  max-width: var(--creator-content-max);
+  padding-left: clamp(14px, 2.4vw, 28px);
+  padding-right: clamp(14px, 2.4vw, 28px);
+}
+.cl-creator-shell .cl-page-anim { min-width: 0; }
+.cl-creator-shell .cl-row { min-width: 0; flex-wrap: nowrap; }
+.cl-creator-shell .cl-row > .cl-grow { flex: 1 1 0%; }
+.cl-creator-shell .cl-row > .cl-grow,
+.cl-creator-shell .cl-row > span,
+.cl-creator-shell .cl-row > div { min-width: 0; }
+.cl-creator-shell .cl-row > .cl-badge,
+.cl-creator-shell .cl-row > .cl-stat-icon,
+.cl-creator-shell .cl-row > .lucide { flex-shrink: 0; }
+.cl-creator-shell .cl-section-title { gap: 12px; align-items: center; }
+.cl-creator-shell .cl-section-title h3 { min-width: 0; line-height: 1.3; }
+.cl-creator-shell .cl-card { min-width: 0; border-radius: 16px; }
+.cl-creator-shell .cl-stat-card {
+  height: 100%; min-width: 0;
+  padding: clamp(12px, 1.8vw, 18px) !important;
+}
+.cl-creator-shell .cl-stat-layout { align-items: flex-start; gap: 10px; height: 100%; }
+.cl-creator-shell .cl-stat-icon { flex: 0 0 38px; width: 38px; height: 38px; }
+.cl-creator-shell .cl-stat-copy {
+  display: grid; align-content: start; gap: 5px; min-width: 0; flex: 1 1 0%;
+}
+.cl-creator-shell .cl-stat-value {
+  font-size: clamp(16px, 1.8vw, 20px) !important;
+  line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+}
+.cl-creator-shell .cl-stat-label { line-height: 1.35; overflow-wrap: anywhere; }
+.cl-creator-shell .cl-dashboard-status-row { align-items: center; gap: 12px; }
+.cl-creator-shell .cl-dashboard-status-row > .cl-grow { min-width: 0; }
+.cl-creator-shell .cl-dashboard-status-icon { flex: 0 0 46px; }
+.cl-creator-shell .cl-dashboard-stat-grid,
+.cl-creator-shell .cl-dashboard-shortcut-grid,
+.cl-creator-shell .cl-earnings-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch; gap: clamp(10px, 1.6vw, 16px);
+}
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  min-width: 0; min-height: 142px; height: 100%; text-align: center; gap: 4px;
+}
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card > .lucide {
+  flex: 0 0 auto; margin-top: 2px; margin-bottom: 4px !important;
+}
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card > div { max-width: 100%; line-height: 1.4; }
+.cl-creator-shell .cl-earnings-grid .cl-earnings-explainer { grid-column: 1 / -1; align-self: stretch; }
+.cl-creator-shell .cl-profile-tabs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px;
+  overflow: visible; align-items: stretch;
+}
+.cl-creator-shell .cl-profile-tabs .cl-tab {
+  min-width: 0; min-height: 68px; padding: 8px 4px; gap: 5px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  white-space: normal; overflow-wrap: anywhere; line-height: 1.2; text-align: center; font-size: 11.5px;
+}
+.cl-creator-shell .cl-profile-tabs .cl-tab .lucide { width: 18px; height: 18px; flex: 0 0 auto; }
+.cl-creator-shell .cl-topbar {
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+}
+.cl-creator-shell .cl-bottomnav {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; gap: 0;
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+}
+.cl-creator-shell .cl-bottomnav button {
+  min-width: 0; width: 100%; padding: 7px 2px 5px; gap: 4px; justify-content: center;
+  line-height: 1.1; font-size: clamp(9px, 2.5vw, 11px);
+}
+.cl-creator-shell .cl-bottomnav button .lucide {
+  width: 20px; height: 20px; flex: 0 0 20px;
+}
+.cl-creator-shell .cl-bottomnav button span {
+  min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .cl-creator-shell .cl-container { padding-left: 14px !important; padding-right: 14px !important; }
+  .cl-creator-shell .cl-row:has(.cl-field) { flex-direction: column; align-items: stretch; }
+  .cl-creator-shell .cl-row:has(input),
+  .cl-creator-shell .cl-row:has(select),
+  .cl-creator-shell .cl-row:has(textarea) { flex-wrap: wrap; align-items: stretch; }
+  .cl-creator-shell .cl-row:has(.cl-field) > *,
+  .cl-creator-shell .cl-row:has(input) > *,
+  .cl-creator-shell .cl-row:has(select) > *,
+  .cl-creator-shell .cl-row:has(textarea) > * { flex: 1 1 100%; min-width: 0; }
+  .cl-creator-shell .cl-dashboard-status-row:not(:has(input)) { flex-wrap: nowrap; align-items: center; }
+  .cl-creator-shell .cl-dashboard-status-row > .cl-grow { flex: 1 1 0%; }
+  .cl-creator-shell .cl-earnings-grid .cl-earnings-explainer { grid-column: 1 / -1; }
+}
+@media (min-width: 760px) {
+  .cl-creator-shell .cl-dashboard-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cl-creator-shell .cl-dashboard-shortcut-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cl-creator-shell .cl-earnings-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cl-creator-shell .cl-earnings-grid .cl-earnings-explainer { grid-column: 1 / -1; }
+}
+@media (max-width: 380px) {
+  .cl-creator-shell .cl-profile-tabs .cl-tab { font-size: 10px; padding-left: 2px; padding-right: 2px; }
+  .cl-creator-shell .cl-profile-tabs .cl-tab .lucide { width: 17px; height: 17px; }
+  .cl-creator-shell .cl-bottomnav button { font-size: 9px; }
+  .cl-creator-shell .cl-bottomnav button .lucide { width: 19px; height: 19px; flex-basis: 19px; }
+}

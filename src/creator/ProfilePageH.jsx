@@ -482,6 +482,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         </Card>
 
         <Tabs
+          className="cl-profile-tabs"
           tabs={[
             { key: 'profile', label: 'Profile', icon: UserIcon },
             { key: 'content', label: 'Content', icon: ImageIcon },

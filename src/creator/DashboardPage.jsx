@@ -105,8 +105,8 @@ export default function DashboardPage({
 
         {/* Live / setup status */}
         <Card className={live ? '' : 'cl-glass'} style={live ? { borderColor: 'var(--cyan)', borderWidth: 1.5 } : undefined}>
-          <div className="cl-row" style={{ gap: 12 }}>
-            <div style={{
+          <div className="cl-row cl-dashboard-status-row" style={{ gap: 12 }}>
+            <div className="cl-dashboard-status-icon" style={{
               width: 46, height: 46, borderRadius: 8, display: 'grid', placeItems: 'center', flexShrink: 0,
               background: live ? 'var(--cyan-soft)' : 'var(--surface-2)', color: live ? 'var(--cyan-deep)' : 'var(--muted)',
             }}>
@@ -188,11 +188,11 @@ export default function DashboardPage({
         </Card>
 
         {/* Quick stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Stat label="Active bookings" value={activeBookings.length} icon={CalendarCheck} tone="cyan" />
-          <Stat label="Pending requests" value={pendingCount} icon={Clock3} />
-          <Stat label="Avg rating" value={avgRating ? avgRating.toFixed(1) : '—'} icon={Star} />
-          <Stat label="Reviews" value={reviews?.length || 0} icon={MessageCircle} />
+        <div className="cl-dashboard-stat-grid">
+          <Stat className="cl-creator-stat" label="Active bookings" value={activeBookings.length} icon={CalendarCheck} tone="cyan" />
+          <Stat className="cl-creator-stat" label="Pending requests" value={pendingCount} icon={Clock3} />
+          <Stat className="cl-creator-stat" label="Avg rating" value={avgRating ? avgRating.toFixed(1) : '—'} icon={Star} />
+          <Stat className="cl-creator-stat" label="Reviews" value={reviews?.length || 0} icon={MessageCircle} />
         </div>
 
         {/* Active bookings strip */}
@@ -235,7 +235,7 @@ export default function DashboardPage({
         )}
 
         {/* Shortcuts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="cl-dashboard-shortcut-grid">
           <Card pressable lift onClick={() => onNav('profile', 'ratecard')} style={{ textAlign: 'center', padding: 18 }}>
             <Wallet style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
             <div style={{ fontWeight: 700, fontSize: 13.5 }}>Set up rate card</div>
