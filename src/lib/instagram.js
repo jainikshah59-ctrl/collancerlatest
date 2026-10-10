@@ -13,6 +13,10 @@ export const INSTAGRAM_SYNC_INTERVAL_MS = 1 * 3600 * 1000;
 export function needsInstagramSync(creator, now = Date.now()) {
   const ig = creator?.instagram;
   if (!ig || ig.tokenInvalid) return false;
+  // Refresh legacy snapshots once so 30-day views/post metrics are populated.
+  if (!Object.prototype.hasOwnProperty.call(ig, 'avgViews30d')
+    || !Number.isFinite(ig.postsLast30Days)
+    || !Number.isFinite(ig.videoCount30d)) return true;
   const last = ig.lastSyncedAt?.seconds
     ? ig.lastSyncedAt.seconds * 1000
     : (typeof ig.lastSyncedAt === 'number' ? ig.lastSyncedAt : 0);
