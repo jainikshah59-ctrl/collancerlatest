@@ -210,11 +210,13 @@ export default async function handler(req, res) {
       pfp: instagram.profilePic || prev.pfp || '',
       bio: instagram.bio || prev.bio || '',
       followers: instagram.followersCount,
-      // Auto-fill profile stats from Instagram data
-      engagement: avgEngagement || prev.engagement || 0,
-      avgViews: avgViews || prev.avgViews || 0,
-      avgLikes: avgLikes || prev.avgLikes || 0,
-      reach: instagram.accountInsights?.metricStatus?.reach?.available ? reachVal : (prev.reach ?? 0),
+      // Store only metrics backed by this Instagram sync; do not carry forward
+      // stale values when a metric is unavailable or the fetched media is partial.
+      engagement: instagram.engagementRate ?? FieldValue.delete(),
+      avgViews: instagram.avgViews ?? FieldValue.delete(),
+      avgLikes: instagram.avgLikes ?? FieldValue.delete(),
+      reach: instagram.accountInsights?.metricStatus?.reach?.available ? instagram.reach : FieldValue.delete(),
+      profileViews: instagram.accountInsights?.metricStatus?.profile_views?.available ? instagram.profileViews : FieldValue.delete(),
       platform: 'Instagram',
       instagram,
       onboardingStep: 'done',
