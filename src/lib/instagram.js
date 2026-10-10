@@ -13,11 +13,10 @@ export const INSTAGRAM_SYNC_INTERVAL_MS = 1 * 3600 * 1000;
 export function needsInstagramSync(creator, now = Date.now()) {
   const ig = creator?.instagram;
   if (!ig || ig.tokenInvalid) return false;
-  // Refresh legacy snapshots once so 30-day views/post metrics are populated.
-  if (!Object.prototype.hasOwnProperty.call(ig, 'avgViews30d')
-    || !Number.isFinite(ig.postsLast30Days)
-    || !Number.isFinite(ig.videoCount30d)
-    || !Number.isFinite(ig.videoCount)) return true;
+  // Refresh older snapshots once for the exact-metrics schema. A metric may
+  // legitimately be null when Meta doesn't expose it or media coverage is
+  // incomplete; that must not trigger a refresh loop on every dashboard render.
+  if (ig.dataQuality?.exactMetricsVersion !== 2) return true;
   const last = ig.lastSyncedAt?.seconds
     ? ig.lastSyncedAt.seconds * 1000
     : (typeof ig.lastSyncedAt === 'number' ? ig.lastSyncedAt : 0);
