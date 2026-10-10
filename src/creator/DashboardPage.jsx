@@ -5,7 +5,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, Wallet, CalendarCheck, Store,
-  Sparkles, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
+  Sparkles, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle, Megaphone,
 } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptyState, useToast } from '../components/ui.jsx';
 import { Bell } from 'lucide-react';
