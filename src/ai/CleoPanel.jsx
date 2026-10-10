@@ -34,7 +34,7 @@ import { Button, IconBtn, Avatar, EmptyState, VerifiedTick } from '../components
 import { answerQuery, extractCampaign } from './engine.js';
 import { askCreatorAI } from './creatorAi.js';
 import { poolAnswer, isPoolableQuery } from './llmPool.js';
-import { checkScope, scopeRefusal, socialReply, isCreatorDataQuery } from './scopeGuard.js';
+import { isCreatorDataQuery } from './scopeGuard.js';
 import VoiceEnrollWizard from './VoiceEnrollWizard.jsx';
 import { QA_ENTRIES, KB_TOPICS } from './knowledge.js';
 import {
@@ -283,15 +283,6 @@ function CreatorSheet({ item, onClose, onBook }) {
 async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   const q = String(text || '').trim();
   if (!q) return null;
-  /* ---- scope guard (fail-closed): only collaboration + Collancer-app
-     questions reach the pool/brain. Off-topic -> fixed refusal. ---- */
-  const scope = checkScope(q, isCreator, loadConvo());
-  if (!scope.inScope) {
-    return { answer: scopeRefusal(isCreator), creators: [], actions: [], confidence: 1 };
-  }
-  if (scope.kind === 'social') {
-    return { answer: socialReply(q, isCreator), creators: [], actions: [], confidence: 1 };
-  }
   if (isCreator) {
     // AI providers are the primary source for general creator questions.
     // Personal-data questions use the existing context-aware creator tool.
@@ -597,6 +588,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
   const watchdogTimerRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const finalBufferRef = useRef('');
+  const interimBufferRef = useRef('');
   const turnActiveRef = useRef(false);
   const pendingQueryRef = useRef('');
   const lastSpokenRef = useRef('');
@@ -718,6 +710,9 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     // (overlaps collapsed). Merge with words from earlier sessions.
     if (typeof final === 'string' && final) {
       finalBufferRef.current = mergeTranscript(sessionBaseRef.current, final);
+      interimBufferRef.current = '';
+    } else if (interim) {
+      interimBufferRef.current = String(interim).trim();
     }
     // Live transcription box: confirmed words + streaming partials.
     if (final || interim) {
@@ -736,8 +731,9 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
 
     try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
     debounceTimerRef.current = setTimeout(() => {
-      const q = finalBufferRef.current.trim();
+      const q = finalBufferRef.current.trim() || interimBufferRef.current.trim();
       finalBufferRef.current = '';
+      interimBufferRef.current = '';
       if (closedRef.current || micMutedRef.current) {
         if (!closedRef.current && stateRef.current === 'speech-detected') setState('listening');
         return;
@@ -896,6 +892,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     micWantedRef.current = true;
     try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
     finalBufferRef.current = '';
+    interimBufferRef.current = '';
     pendingQueryRef.current = '';
     turnActiveRef.current = false;
     setLiveTranscript('');
@@ -919,7 +916,7 @@ function VoiceView({ context, isCreator, onAction, voicePref, setVoicePref, live
     if (st === 'idle' || st === 'error') {
       startListeningRef.current();
     } else if (st === 'listening' || st === 'speech-detected') {
-      const q = finalBufferRef.current.trim();
+      const q = finalBufferRef.current.trim() || interimBufferRef.current.trim();
       try { clearTimeout(debounceTimerRef.current); } catch { /* ignore */ }
       if (q) {
         finalBufferRef.current = '';
