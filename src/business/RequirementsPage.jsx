@@ -12,7 +12,7 @@ import {
   ensureFirebase, collection, query, where, orderBy, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from '../lib/firebase.js';
-import { uploadToCloudinary, CLOUDINARY_FOLDERS } from '../lib/cloudinary.js';
+import { uploadToGCS, GCS_FOLDERS } from '../lib/cloudinary.js';
 import { CATEGORIES, PROMO_TYPES } from '../lib/constants.js';
 import { inr, timeAgo } from '../lib/format.js';
 import { notifyCreator } from './booking.js';
@@ -49,7 +49,7 @@ function CreateSheet({ open, onClose }) {
     try {
       for (const f of picked) {
         const kind = f.type.startsWith('video') ? 'video' : 'image';
-        const { url } = await uploadToCloudinary(f, kind, CLOUDINARY_FOLDERS.marketBriefs);
+        const { url } = await uploadToGCS(f, kind, GCS_FOLDERS.marketBriefs);
         setMedia((a) => [...a, url].slice(0, 4));
       }
     } catch (err) {
