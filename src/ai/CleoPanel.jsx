@@ -238,6 +238,21 @@ async function brainAnswer(text, { isCreator, context, liveOn = true }) {
   const q = String(text || '').trim();
   if (!q) return null;
 
+  // Creator-side Cleo is intentionally database-only: no Pollinations, Kilo,
+  // server LLM pool, or other external answer provider. Personal account data
+  // is answered from authenticated app context; collaboration guidance comes
+  // from the local creator-focused knowledge base. Unknown questions get a
+  // transparent safe fallback from askCreatorAI instead of an invented answer.
+  if (isCreator) {
+    const res = await askCreatorAI(q, {
+      creator: context.user || {},
+      bookings: context.extra?.bookings || [],
+      payouts: context.extra?.payouts || [],
+      verification: context.extra?.verification || null,
+    });
+    return { answer: res.answer, creators: [], actions: res.actions || [], confidence: 0.8 };
+  }
+
   const platformQuestion = mentionsCollancer(q);
   const personalCreatorData = !!(isCreator && isCreatorDataQuery(q));
 
