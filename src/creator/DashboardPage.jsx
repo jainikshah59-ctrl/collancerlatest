@@ -138,9 +138,9 @@ export default function DashboardPage({
         {/* Quick stats */}
         <div className="cl-dashboard-stat-grid">
           <Stat className="cl-creator-stat" label="Active bookings" value={activeBookings.length} icon={CalendarCheck} tone="cyan" />
-          <Stat className="cl-creator-stat" label="Pending requests" value={pendingCount} icon={Clock3} />
-          <Stat className="cl-creator-stat" label="Avg rating" value={avgRating ? avgRating.toFixed(1) : '—'} icon={Star} />
-          <Stat className="cl-creator-stat" label="Reviews" value={reviews?.length || 0} icon={MessageCircle} />
+          <Stat className="cl-creator-stat" label="Pending requests" value={pendingCount} icon={Clock3} tone="amber" />
+          <Stat className="cl-creator-stat" label="Avg rating" value={avgRating ? avgRating.toFixed(1) : '—'} icon={Star} tone="violet" />
+          <Stat className="cl-creator-stat" label="Reviews" value={reviews?.length || 0} icon={MessageCircle} tone="green" />
         </div>
 
         {/* Active bookings strip */}
@@ -187,15 +187,15 @@ export default function DashboardPage({
         {/* Shortcuts */}
         <div className="cl-dashboard-shortcut-grid">
           {[
-            { icon: Tag, title: 'Set up rate card', sub: 'Story, reel, video prices', go: () => onNav('profile', 'ratecard') },
-            { icon: Store, title: 'Marketplace', sub: 'Pitch on brand briefs', go: () => onNav('marketplace') },
-            { icon: Wallet, title: 'Earnings', sub: 'Withdraw your share', go: () => onNav('earnings') },
-            { icon: Sparkles, title: 'Collancer AI', sub: 'Pricing & pitch help', go: () => onNav('collancer-ai') },
-            { icon: Megaphone, title: 'Promo demos', sub: 'Your portfolio videos', go: () => onOverlay('demos') },
-            { icon: AlertCircle, title: 'Help & legal', sub: 'Support, privacy, terms', go: () => onNav('support') },
+            { icon: Tag, tint: 'tint-cyan', title: 'Set up rate card', sub: 'Story, reel, video prices', go: () => onNav('profile', 'ratecard') },
+            { icon: Store, tint: 'tint-green', title: 'Marketplace', sub: 'Pitch on brand briefs', go: () => onNav('marketplace') },
+            { icon: Wallet, tint: 'tint-violet', title: 'Earnings', sub: 'Withdraw your share', go: () => onNav('earnings') },
+            { icon: Sparkles, tint: 'tint-amber', title: 'Collancer AI', sub: 'Pricing & pitch help', go: () => onNav('collancer-ai') },
+            { icon: Megaphone, tint: 'tint-green', title: 'Promo demos', sub: 'Your portfolio videos', go: () => onOverlay('demos') },
+            { icon: AlertCircle, tint: 'tint-red', title: 'Help & legal', sub: 'Support, privacy, terms', go: () => onNav('support') },
           ].map((s) => (
             <Card key={s.title} pressable lift onClick={s.go} style={{ textAlign: 'center', padding: 18 }}>
-              <s.icon style={{ width: 22, height: 22, color: 'var(--cyan-deep)', margin: '0 auto 8px' }} />
+              <div className={`cl-tile cl-dashboard-shortcut-icon ${s.tint}`} aria-hidden="true"><s.icon /></div>
               <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)' }}>{s.title}</div>
               <div className="cl-small cl-muted" style={{ marginTop: 3 }}>{s.sub}</div>
             </Card>

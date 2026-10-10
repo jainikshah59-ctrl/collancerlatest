@@ -549,9 +549,10 @@ const STAT_TONES = {
   green: ['var(--green-soft)', 'var(--green)'],
   amber: ['var(--amber-soft)', 'var(--amber)'],
   red: ['var(--red-soft)', 'var(--red)'],
+  violet: ['var(--violet-soft)', 'var(--violet)'],
 };
 export function Stat({ label, value, icon: Icon, tone, className = '' }) {
-  const [bg, fg] = STAT_TONES[tone] || ['var(--surface-2)', 'var(--ink-2)'];
+  const [bg, fg] = STAT_TONES[tone] || STAT_TONES.violet;
   return (
     <Card className={`cl-stat-card ${className}`.trim()} style={{ padding: 14 }}>
       <div className="cl-row cl-stat-layout" style={{ gap: 10 }}>

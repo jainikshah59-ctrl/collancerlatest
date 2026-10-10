@@ -146,8 +146,8 @@ export default function EarningsPage({ creator, bookings, payouts, loading, onBa
           <div className="cl-fade cl-earnings-grid">
             <Stat className="cl-creator-stat" label="In progress" value={inr(buckets.inProgress)} icon={Clock3} tone="cyan" />
             <Stat className="cl-creator-stat" label="Pending completion" value={inr(buckets.pendingCompletion)} icon={Hourglass} tone="amber" />
-            <Stat className="cl-creator-stat" label="Completed" value={inr(buckets.locked + buckets.released)} icon={CheckCircle2} />
-            <Stat className="cl-creator-stat" label="Locked" value={inr(buckets.locked)} icon={Lock} />
+            <Stat className="cl-creator-stat" label="Completed" value={inr(buckets.locked + buckets.released)} icon={CheckCircle2} tone="violet" />
+            <Stat className="cl-creator-stat" label="Locked" value={inr(buckets.locked)} icon={Lock} tone="red" />
             <Stat className="cl-creator-stat" label="Released" value={inr(buckets.released)} icon={CheckCircle2} tone="green" />
             <Card className="cl-earnings-explainer">
               <div className="cl-small cl-muted" style={{ lineHeight: 1.65 }}>

@@ -1018,3 +1018,70 @@ textarea { resize: vertical; }
   .cl-creator-shell .cl-bottomnav button { font-size: 9px; }
   .cl-creator-shell .cl-bottomnav button .lucide { width: 19px; height: 19px; flex-basis: 19px; }
 }
+
+
+/* Creator icon tile contrast and centering — light, dark and gold themes */
+.cl-creator-shell .cl-stat-icon,
+.cl-creator-shell .cl-tile {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 2px 5px rgba(15,23,42,.07);
+  line-height: 0;
+}
+.cl-creator-shell .cl-stat-icon {
+  border-color: color-mix(in srgb, currentColor 15%, var(--line));
+  border-radius: 11px;
+  flex-shrink: 0;
+}
+.cl-creator-shell .cl-stat-icon .lucide,
+.cl-creator-shell .cl-tile .lucide {
+  display: block; margin: 0; padding: 0; flex: 0 0 auto; stroke-width: 2;
+}
+.cl-creator-shell .cl-tile {
+  width: 44px; height: 44px; border-radius: 12px; padding: 0;
+}
+.cl-creator-shell .cl-tile.tint-cyan { background: var(--cyan-soft); color: var(--cyan-deep); }
+.cl-creator-shell .cl-tile.tint-green { background: var(--green-soft); color: var(--green); }
+.cl-creator-shell .cl-tile.tint-amber { background: var(--amber-soft); color: var(--amber); }
+.cl-creator-shell .cl-tile.tint-red { background: var(--red-soft); color: var(--red); }
+.cl-creator-shell .cl-tile.tint-violet { background: var(--violet-soft); color: var(--violet); }
+.cl-creator-shell .cl-dashboard-shortcut-icon { width: 44px; height: 44px; margin: 0 auto 8px; border-radius: 12px; }
+.cl-creator-shell .cl-dashboard-shortcut-icon .lucide { width: 21px; height: 21px; }
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card { align-items: center; }
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card > .cl-dashboard-shortcut-icon { flex: 0 0 44px; }
+
+/* Profile tab glyphs sit in visible, centered theme-tinted tiles rather than floating bare. */
+.cl-creator-shell .cl-profile-tabs .cl-tab .lucide {
+  box-sizing: content-box; padding: 5px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--cyan-soft); color: var(--cyan-deep);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 1px 3px rgba(15,23,42,.06);
+  display: block; margin: 0;
+}
+.cl-creator-shell .cl-profile-tabs .cl-tab:nth-child(2) .lucide { background: var(--violet-soft); color: var(--violet); }
+.cl-creator-shell .cl-profile-tabs .cl-tab:nth-child(3) .lucide { background: var(--green-soft); color: var(--green); }
+.cl-creator-shell .cl-profile-tabs .cl-tab:nth-child(4) .lucide { background: var(--amber-soft); color: var(--amber); }
+
+/* Bottom navigation uses compact but visible icon wells in every theme. */
+.cl-creator-shell .cl-bottomnav button .lucide {
+  box-sizing: content-box; padding: 4px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--cyan-soft); color: var(--cyan-deep);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55); display: block; margin: 0 auto;
+}
+.cl-creator-shell .cl-bottomnav button:nth-child(2) .lucide { background: var(--violet-soft); color: var(--violet); }
+.cl-creator-shell .cl-bottomnav button:nth-child(3) .lucide { background: var(--green-soft); color: var(--green); }
+.cl-creator-shell .cl-bottomnav button:nth-child(4) .lucide { background: var(--amber-soft); color: var(--amber); }
+.cl-creator-shell .cl-bottomnav button:nth-child(5) .lucide { background: var(--red-soft); color: var(--red); }
+.cl-creator-shell .cl-bottomnav button:nth-child(6) .lucide { background: var(--violet-soft); color: var(--violet); }
+.cl-creator-shell .cl-bottomnav button.on .lucide {
+  border-color: color-mix(in srgb, var(--cyan) 35%, var(--line));
+  box-shadow: 0 0 0 2px var(--cyan-glow), inset 0 1px 0 rgba(255,255,255,.65);
+  color: var(--cyan-deep);
+}
+@media (max-width: 380px) {
+  .cl-creator-shell .cl-profile-tabs .cl-tab .lucide { padding: 4px; }
+  .cl-creator-shell .cl-bottomnav button .lucide { padding: 3px; }
+}
