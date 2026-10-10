@@ -12,6 +12,9 @@ const igDoc = (lastSyncedMs) => ({
   instagram: {
     username: 'aarav.creates',
     followersCount: 25000,
+    avgViews30d: 1200,
+    postsLast30Days: 12,
+    videoCount30d: 5,
     lastSyncedAt: { seconds: Math.floor(lastSyncedMs / 1000) },
   },
 });
@@ -30,6 +33,15 @@ describe('instagram sync helpers', () => {
       needsInstagramSync(igDoc(now - INSTAGRAM_SYNC_INTERVAL_MS - 1000), now),
       true,
     );
+  });
+
+  it('refreshes legacy snapshots missing the 30-day metrics once', () => {
+    const now = Date.now();
+    const legacy = igDoc(now - 1000);
+    delete legacy.instagram.avgViews30d;
+    delete legacy.instagram.postsLast30Days;
+    delete legacy.instagram.videoCount30d;
+    assert.equal(needsInstagramSync(legacy, now), true);
   });
 
   it('needsInstagramSync is false when the token is invalid', () => {
