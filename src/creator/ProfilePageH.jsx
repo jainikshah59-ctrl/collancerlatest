@@ -144,234 +144,6 @@ function FeaturedContentPicker({ creator, toast }) {
 }
 
 
-const ACCOUNT_METRIC_LABELS = {
-  reach: 'Accounts reached',
-  views: 'Content views',
-  accounts_engaged: 'Accounts engaged',
-  total_interactions: 'Total interactions',
-  likes: 'Likes',
-  comments: 'Comments',
-  shares: 'Shares',
-  saves: 'Saves',
-  follows_and_unfollows: 'Follows and unfollows',
-  profile_links_taps: 'Profile link / contact taps',
-  profile_views: 'Profile views (legacy metric)',
-};
-
-function DebugJson({ title, value }) {
-  return (
-    <details style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', minWidth: 0 }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>{title}</summary>
-      <pre style={{
-        margin: '10px 0 0', padding: 10, borderRadius: 8, background: 'var(--surface-2)',
-        fontSize: 11, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
-        maxHeight: 420, overflow: 'auto',
-      }}>{JSON.stringify(value ?? null, null, 2)}</pre>
-    </details>
-  );
-}
-
-function InstagramDataInspector({ instagram }) {
-  const ig = instagram || {};
-  const account = ig.accountInsights || {};
-  const audience = ig.audience || {};
-  const quality = ig.dataQuality || {};
-  const recentMedia = Array.isArray(ig.recentMedia) ? ig.recentMedia : [];
-  const mediaInsights = ig.mediaInsights || {};
-  const metricNames = Array.from(new Set([
-    ...Object.keys(ACCOUNT_METRIC_LABELS).filter((key) => key !== 'profile_views'),
-    ...Object.keys(account.metricStatus || {}),
-    ...Object.keys(account.totals || {}),
-  ]));
-  const groups = [
-    { key: 'followers', title: 'Follower demographics', data: [
-      ['Countries', audience.countries, 'countries'],
-      ['Cities', audience.cities, 'cities'],
-      ['Age / gender', audience.genderAge, 'genderAge'],
-    ] },
-    { key: 'reached', title: 'Reached audience', data: [
-      ['Countries', audience.reached?.countries, 'reached.countries'],
-      ['Cities', audience.reached?.cities, 'reached.cities'],
-      ['Age / gender', audience.reached?.genderAge, 'reached.genderAge'],
-    ] },
-    { key: 'engaged', title: 'Engaged audience', data: [
-      ['Countries', audience.engaged?.countries, 'engaged.countries'],
-      ['Cities', audience.engaged?.cities, 'engaged.cities'],
-      ['Age / gender', audience.engaged?.genderAge, 'engaged.genderAge'],
-    ] },
-  ];
-  const number = (value) => value === null || value === undefined || value === ''
-    ? '—' : (typeof value === 'number' ? value.toLocaleString() : String(value));
-  const statusLabel = (status) => status?.available ? 'Returned' : 'Not returned';
-  const statusColor = (status) => status?.available ? 'var(--green, #16a34a)' : 'var(--amber, #d97706)';
-  const errors = [
-    ...(Array.isArray(account.errors) ? account.errors.map((x) => ({ ...x, source: 'Account insights' })) : []),
-    ...(Array.isArray(audience.errors) ? audience.errors.map((x) => ({ ...x, source: 'Audience demographics' })) : []),
-  ];
-
-  return (
-    <Card className="cl-fade" style={{ display: 'grid', gap: 14, minWidth: 0 }}>
-      <div>
-        <div className="cl-row" style={{ gap: 8, alignItems: 'center' }}>
-          <Instagram style={{ width: 19, height: 19, color: '#E1306C', flexShrink: 0 }} />
-          <h3 style={{ fontSize: 16 }}>Instagram data inspector</h3>
-          <Badge tone={quality.partial ? 'amber' : 'cyan'}>{quality.partial ? 'Partial data' : 'Sync snapshot'}</Badge>
-        </div>
-        <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginTop: 5 }}>
-          This diagnostic view shows what the server actually saved from Instagram, including unavailable metrics and API error reasons. It is for verification and does not change your public profile.
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: 8 }}>
-        {[
-          ['Followers', ig.followersCount],
-          ['Following', ig.followsCount],
-          ['Media on account', ig.mediaCount],
-          ['Average likes', ig.avgLikes],
-          ['Average views', ig.avgViews],
-          ['Engagement rate', ig.engagementRate === undefined ? undefined : String(ig.engagementRate) + '%'],
-          ['Account reach', ig.reach],
-          ['Profile link taps', ig.profileLinksTaps],
-          ['Media fetched', quality.mediaFetched ?? recentMedia.length],
-          ['Media insights fetched', quality.mediaInsightsFetched ?? Object.keys(mediaInsights).length],
-        ].map(([label, value]) => (
-          <div key={label} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 10, minWidth: 0 }}>
-            <div className="cl-small cl-muted" style={{ lineHeight: 1.4 }}>{label}</div>
-            <div style={{ fontWeight: 800, fontSize: 17, marginTop: 4, overflowWrap: 'anywhere' }}>{number(value)}</div>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Account insights · requested metrics</div>
-        <div style={{ display: 'grid', gap: 7 }}>
-          {metricNames.map((metric) => {
-            const status = account.metricStatus?.[metric];
-            const total = account.totals?.[metric];
-            const series = account.daily?.[metric];
-            return (
-              <div key={metric} style={{
-                display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(60px, .65fr) minmax(95px, .8fr)',
-                gap: 8, alignItems: 'center', padding: '9px 10px', borderRadius: 8, background: 'var(--surface-2)',
-              }}>
-                <div style={{ minWidth: 0 }}>
-                  <div className="cl-small" style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
-                    {ACCOUNT_METRIC_LABELS[metric] || metric.replaceAll('_', ' ')}
-                  </div>
-                  <div className="cl-small cl-muted">{Array.isArray(series) ? String(series.length) + ' daily values' : 'No daily series stored'}</div>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 13 }}>{number(total)}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="cl-small" style={{ color: statusColor(status), fontWeight: 700 }}>
-                    {statusLabel(status)}
-                  </div>
-                  {status?.reason && <div className="cl-small cl-muted" style={{ overflowWrap: 'anywhere' }}>{status.reason}</div>}
-                  {status?.code !== undefined && status?.code !== null && <div className="cl-small cl-muted">Code: {String(status.code)}</div>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {!account.metricStatus && (
-          <p className="cl-small cl-muted" style={{ marginTop: 8 }}>No metric-status data was saved. Run Sync to collect a fresh diagnostic snapshot.</p>
-        )}
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Audience demographics</div>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {groups.map((group) => (
-            <div key={group.key} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 8 }}>{group.title}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 8 }}>
-                {group.data.map(([label, rows, statusKey]) => {
-                  const status = audience.metricStatus?.[statusKey];
-                  return (
-                    <div key={statusKey} style={{ minWidth: 0, background: 'var(--surface-2)', borderRadius: 8, padding: 9 }}>
-                      <div className="cl-row" style={{ justifyContent: 'space-between', gap: 5 }}>
-                        <span className="cl-small" style={{ fontWeight: 700 }}>{label}</span>
-                        <span className="cl-small" style={{ color: statusColor(status), fontWeight: 700 }}>{statusLabel(status)}</span>
-                      </div>
-                      {Array.isArray(rows) && rows.length > 0 ? rows.slice(0, 10).map((row, index) => (
-                        <div key={String(row.name) + '-' + index} className="cl-row" style={{ justifyContent: 'space-between', gap: 8, marginTop: 5 }}>
-                          <span className="cl-small" style={{ overflowWrap: 'anywhere' }}>{row.name}</span>
-                          <span className="cl-small" style={{ fontWeight: 700, flexShrink: 0 }}>{number(row.value)}</span>
-                        </div>
-                      )) : (
-                        <p className="cl-small cl-muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                          {status?.reason || 'No demographic rows returned'}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>
-          Recent content and per-post insights ({recentMedia.length} posts saved)
-        </div>
-        {recentMedia.length ? (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {recentMedia.slice(0, 12).map((media, index) => {
-              const insights = media.insights || mediaInsights[media.id] || {};
-              return (
-                <details key={media.id || index} style={{ border: '1px solid var(--line)', borderRadius: 9, padding: 10 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700, overflowWrap: 'anywhere' }}>
-                    {(media.type || 'MEDIA') + ' · ' + number(media.likes) + ' likes · ' + number(media.comments) + ' comments · ' + number(media.views) + ' views'}
-                  </summary>
-                  <div className="cl-small cl-muted" style={{ margin: '8px 0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
-                    {media.caption || 'No caption'}{media.permalink ? <> · <a href={media.permalink} target="_blank" rel="noreferrer">Open Instagram post</a></> : null}
-                  </div>
-                  <DebugJson title="Saved post fields and insights" value={{ ...media, insights }} />
-                </details>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="cl-small cl-muted">No media records were saved. {quality.mediaFetchError || 'Run Sync to retry media collection.'}</p>
-        )}
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Sync status and errors</div>
-        <div className="cl-small cl-muted" style={{ lineHeight: 1.8, overflowWrap: 'anywhere' }}>
-          <div>Instagram account type: <strong>{ig.accountType || 'Not returned'}</strong></div>
-          <div>Instagram user ID: <strong>{ig.igId || 'Not returned'}</strong></div>
-          <div>Last data snapshot: <strong>{quality.syncedAt || ig.syncedAt || 'Not recorded'}</strong></div>
-          <div>Media pagination limit: <strong>{number(quality.mediaPageLimit)}</strong></div>
-          {quality.mediaFetchError && <div>Media fetch error: <strong>{quality.mediaFetchError}</strong></div>}
-          {!quality.partial && errors.length === 0 && !quality.mediaFetchError && (
-            <div style={{ color: 'var(--green, #16a34a)', fontWeight: 700 }}>No unavailable metrics or collection errors were recorded in this snapshot.</div>
-          )}
-        </div>
-        {errors.length > 0 && (
-          <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-            {errors.map((error, index) => (
-              <div key={error.source + '-' + error.metric + '-' + index} style={{ border: '1px solid var(--amber-border, rgba(217,119,6,.35))', borderRadius: 8, padding: 9 }}>
-                <div className="cl-small" style={{ fontWeight: 800 }}>{error.source}: {error.metric}</div>
-                <div className="cl-small cl-muted" style={{ overflowWrap: 'anywhere' }}>{error.reason || 'No reason supplied'}{error.code !== undefined && error.code !== null ? ' · code ' + error.code : ''}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <details style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>Full saved Instagram payload (JSON)</summary>
-        <p className="cl-small cl-muted" style={{ margin: '8px 0', lineHeight: 1.5 }}>
-          This is the data stored in the creator document. Access tokens are kept separately on the server and are not included here.
-        </p>
-        <DebugJson title="Complete Instagram object" value={ig} />
-      </details>
-    </Card>
-  );
-}
-
 export default function ProfilePageH({ creator, onBack, onLogout, initialTab, isPro }) {
   const toast = useToast();
   const photoRef = useRef(null);
@@ -592,6 +364,25 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
 
   const pct = completionPct(profileCreator);
   const live = isLive(profileCreator);
+  const instagram = profileCreator.instagram || {};
+  const instagramQuality = instagram.dataQuality || {};
+  const accountMetricStatus = instagram.accountInsights?.metricStatus || {};
+  const formatInstagramNumber = (value) => Number(value).toLocaleString('en-IN');
+  const instagramProfileUrl = instagram.username
+    ? `https://www.instagram.com/${encodeURIComponent(instagram.username)}/`
+    : '';
+  const instagramProfileMetrics = [
+    { label: 'Followers', value: instagram.followersCount, available: instagram.followersCount !== undefined && instagram.followersCount !== null },
+    { label: 'Following', value: instagram.followsCount, available: instagram.followsCount !== undefined && instagram.followsCount !== null },
+    { label: 'Videos / Reels (last 30 days)', value: instagram.videoCount30d, available: instagram.videoCount30d !== undefined && instagram.videoCount30d !== null },
+    { label: 'Average likes', value: instagram.avgLikes, available: instagram.avgLikes !== undefined && instagram.avgLikes !== null },
+    { label: 'Average views (last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
+    { label: 'Engagement rate', value: instagram.engagementRate === undefined || instagram.engagementRate === null ? undefined : `${instagram.engagementRate}%`, available: instagram.engagementRate !== undefined && instagram.engagementRate !== null },
+    { label: 'Account reach (last 30 days)', value: instagram.reach, available: accountMetricStatus.reach?.available === true || (!accountMetricStatus.reach && instagram.reach !== undefined && instagram.reach !== null) },
+    { label: 'Profile link taps (last 30 days)', value: instagram.profileLinksTaps, available: accountMetricStatus.profile_links_taps?.available === true || (!accountMetricStatus.profile_links_taps && instagram.profileLinksTaps !== undefined && instagram.profileLinksTaps !== null) },
+    { label: 'Posts fetched', value: instagramQuality.mediaFetched, available: instagramQuality.mediaFetched !== undefined && instagramQuality.mediaFetched !== null },
+    { label: 'Media insights fetched', value: instagramQuality.mediaInsightsFetched, available: instagramQuality.mediaInsightsFetched !== undefined && instagramQuality.mediaInsightsFetched !== null },
+  ].filter((metric) => metric.available);
 
   return (
     <Page pageKey="creator-profile">
@@ -767,6 +558,24 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   <Field label="Engagement %"><Input value={p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" /></Field>
                 </div>
               </div>
+              {igConnected && instagramProfileMetrics.length > 0 && (
+                <div aria-label="Instagram performance metrics" style={{ display: 'grid', gap: 0, margin: '2px 0 14px', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+                  {instagramProfileUrl && (
+                    <div className="cl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderBottom: '1px solid var(--line-soft)' }}>
+                      <span className="cl-small cl-muted">Instagram profile link</span>
+                      <a href={instagramProfileUrl} target="_blank" rel="noreferrer" className="cl-small" style={{ textAlign: 'right', overflowWrap: 'anywhere', color: 'var(--cyan-deep)' }}>@{instagram.username}</a>
+                    </div>
+                  )}
+                  {instagramProfileMetrics.map((metric, index) => (
+                    <div key={metric.label} className="cl-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderBottom: index < instagramProfileMetrics.length - 1 ? '1px solid var(--line-soft)' : 0 }}>
+                      <span className="cl-small cl-muted">{metric.label}</span>
+                      <strong className="cl-small" style={{ textAlign: 'right', overflowWrap: 'anywhere', fontVariantNumeric: 'tabular-nums' }}>
+                        {typeof metric.value === 'number' ? formatInstagramNumber(metric.value) : metric.value}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              )}
               {!igConnected && (
                 <div className="cl-row" style={{ gap: 10 }}>
                   <div className="cl-grow">
@@ -823,9 +632,6 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
           </form>
         )}
 
-        {tab === 'profile' && igConnected && (
-          <InstagramDataInspector instagram={profileCreator.instagram || {}} />
-        )}
 
         {tab === 'content' && (
           <div className="cl-fade" style={{ display: 'grid', gap: 14 }}>
