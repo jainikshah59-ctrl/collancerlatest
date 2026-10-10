@@ -1085,3 +1085,47 @@ textarea { resize: vertical; }
   .cl-creator-shell .cl-profile-tabs .cl-tab .lucide { padding: 4px; }
   .cl-creator-shell .cl-bottomnav button .lucide { padding: 3px; }
 }
+
+
+/* Featured Collancer AI home card — premium 3D glassmorphism */
+.cl-creator-shell .cl-ai-feature-card {
+  position: relative; isolation: isolate; overflow: hidden;
+  padding: clamp(14px, 2vw, 18px) !important;
+  border: 1px solid rgba(116, 211, 245, .48) !important; border-radius: 17px;
+  background: radial-gradient(ellipse at 4% 0%, rgba(93,220,255,.19), transparent 48%), linear-gradient(135deg, color-mix(in srgb,var(--surface) 82%,#a5f3fc 18%), color-mix(in srgb,var(--surface) 94%,#c4b5fd 6%)) !important;
+  box-shadow: 0 13px 28px rgba(17,95,135,.10), inset 0 1px 0 rgba(255,255,255,.84), inset 0 -1px 0 rgba(91,145,180,.13), 0 0 0 1px rgba(255,255,255,.14);
+  backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+}
+.cl-creator-shell .cl-ai-feature-card:before {
+  content:''; position:absolute; inset:0; z-index:-1; pointer-events:none; border-radius:inherit; padding:1px;
+  background:linear-gradient(125deg,rgba(255,255,255,.95),rgba(34,211,238,.42),rgba(167,139,250,.36),rgba(255,255,255,.52));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude;
+}
+.cl-creator-shell .cl-ai-feature-inner { display:flex; align-items:center; gap:13px; min-width:0; margin-bottom:13px; }
+.cl-creator-shell .cl-ai-feature-orb {
+  position:relative; width:58px; height:58px; flex:0 0 58px; display:grid; place-items:center; perspective:140px; border-radius:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.85),rgba(125,211,252,.25) 52%,rgba(196,181,253,.36));
+  border:1px solid rgba(255,255,255,.92); box-shadow:inset 0 2px 3px rgba(255,255,255,.95),inset 0 -5px 10px rgba(56,189,248,.12),0 9px 18px rgba(39,111,166,.17);
+  animation:cl-ai-orb-float 3.2s ease-in-out infinite;
+}
+.cl-creator-shell .cl-ai-feature-orb-core {
+  width:38px; height:38px; display:grid; place-items:center; border-radius:13px; color:#f7fdff; border:1px solid rgba(255,255,255,.75);
+  background:linear-gradient(145deg,#67e8f9,#0891b2 52%,#6366f1); box-shadow:inset 0 2px 3px rgba(255,255,255,.62),inset 0 -4px 7px rgba(18,39,108,.28),0 6px 12px rgba(8,145,178,.3);
+  transform:rotateX(12deg) rotateY(-14deg); animation:cl-ai-core-turn 5s ease-in-out infinite;
+}
+.cl-creator-shell .cl-ai-feature-orb-core .lucide { width:22px; height:22px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.2)); }
+.cl-creator-shell .cl-ai-feature-orbit { position:absolute; inset:5px; border:1px solid rgba(8,145,178,.34); border-radius:15px; pointer-events:none; }
+.cl-creator-shell .cl-ai-feature-orbit-one { transform:rotate(34deg) rotateX(48deg); animation:cl-ai-orbit 7s linear infinite; }
+.cl-creator-shell .cl-ai-feature-orbit-two { inset:9px 2px; border-color:rgba(139,92,246,.34); transform:rotate(-35deg) rotateY(54deg); animation:cl-ai-orbit 9s linear infinite reverse; }
+.cl-creator-shell .cl-ai-feature-copy { min-width:0; }
+.cl-creator-shell .cl-ai-feature-eyebrow { margin-bottom:4px; font-size:9px; line-height:1.2; letter-spacing:.13em; font-weight:850; color:var(--cyan-deep); }
+.cl-creator-shell .cl-ai-feature-button { border:1px solid rgba(255,255,255,.7)!important; background:linear-gradient(135deg,#0891b2,#2563eb 70%,#6366f1)!important; box-shadow:inset 0 1px 0 rgba(255,255,255,.42),0 5px 0 rgba(25,82,143,.18),0 10px 18px rgba(37,99,235,.18)!important; transform:translateY(0); transition:transform .2s ease,box-shadow .2s ease,filter .2s ease; }
+.cl-creator-shell .cl-ai-feature-button:hover { transform:translateY(-2px); filter:saturate(1.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.48),0 7px 0 rgba(25,82,143,.15),0 14px 24px rgba(37,99,235,.23)!important; }
+@keyframes cl-ai-orb-float { 0%,100%{transform:translateY(0) rotateX(0deg)} 50%{transform:translateY(-3px) rotateX(7deg)} }
+@keyframes cl-ai-core-turn { 0%,100%{transform:rotateX(12deg) rotateY(-14deg) rotateZ(-3deg)} 50%{transform:rotateX(-9deg) rotateY(14deg) rotateZ(4deg)} }
+@keyframes cl-ai-orbit { from{transform:rotate(0deg) rotateX(48deg)} to{transform:rotate(360deg) rotateX(48deg)} }
+[data-theme="dark"] .cl-creator-shell .cl-ai-feature-card,[data-theme="gold"] .cl-creator-shell .cl-ai-feature-card {
+  background:radial-gradient(ellipse at 4% 0%,rgba(34,211,238,.13),transparent 50%),linear-gradient(135deg,rgba(23,36,54,.96),rgba(31,30,58,.92))!important;
+  border-color:rgba(103,232,249,.3)!important; box-shadow:0 15px 30px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(103,232,249,.08);
+}
+@media(prefers-reduced-motion:reduce){.cl-creator-shell .cl-ai-feature-orb,.cl-creator-shell .cl-ai-feature-orb-core,.cl-creator-shell .cl-ai-feature-orbit-one,.cl-creator-shell .cl-ai-feature-orbit-two{animation:none!important}}

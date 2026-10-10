@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, CalendarCheck,
   ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
-  Bell, Menu, X, Wrench, FileText,
+  Bell, Menu, X, Sparkles,
 } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat } from '../components/ui.jsx';
 import { timeAgo } from '../lib/format.js';
@@ -73,7 +73,6 @@ export default function DashboardPage({
                     background: 'var(--surface)', boxShadow: '0 18px 48px rgba(15,23,42,.18)',
                     backdropFilter: 'blur(18px)' }}>
                   {[
-                    { key: 'tools', label: 'Tools', icon: Wrench },
                     { key: 'support', label: 'Support', icon: MessageCircle },
                     { key: 'privacy', label: 'Privacy Policy', icon: ShieldCheck },
                     { key: 'terms', label: 'Terms of Service', icon: FileText },
@@ -180,6 +179,27 @@ export default function DashboardPage({
           <Stat className="cl-creator-stat" label="Avg rating" value={avgRating ? avgRating.toFixed(1) : '—'} icon={Star} tone="violet" />
           <Stat className="cl-creator-stat" label="Reviews" value={reviews?.length || 0} icon={MessageCircle} tone="green" />
         </div>
+
+        {/* Collancer AI — featured 3D glass card matching verification card footprint */}
+        <Card className="cl-ai-feature-card">
+          <div className="cl-ai-feature-inner">
+            <div className="cl-ai-feature-orb" aria-hidden="true">
+              <div className="cl-ai-feature-orb-core"><Sparkles /></div>
+              <span className="cl-ai-feature-orbit cl-ai-feature-orbit-one" />
+              <span className="cl-ai-feature-orbit cl-ai-feature-orbit-two" />
+            </div>
+            <div className="cl-grow cl-ai-feature-copy">
+              <div className="cl-ai-feature-eyebrow">YOUR CREATOR ASSISTANT</div>
+              <div className="cl-card-title">Collancer AI</div>
+              <div className="cl-small cl-muted" style={{ marginTop: 3, lineHeight: 1.5 }}>
+                Get smart help with collaborations, bookings, earnings and growing your creator profile.
+              </div>
+            </div>
+          </div>
+          <Button block size="sm" icon={Sparkles} onClick={() => onNav('collancer-ai')} className="cl-ai-feature-button">
+            Open Collancer AI
+          </Button>
+        </Card>
 
         {/* Active bookings strip */}
         {activeBookings.length > 0 && (
