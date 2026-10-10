@@ -10,7 +10,7 @@ import {
 import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
 } from '../lib/firebase.js';
-import { compressImage, uploadToCloudinary } from '../lib/cloudinary.js';
+import { compressImage, uploadToGCS, GCS_FOLDERS } from '../lib/cloudinary.js';
 import { PLATFORMS, NICHES, CITIES, CATEGORIES, PROMO_TYPES, promoLabel } from '../lib/constants.js';
 import { compact } from '../lib/format.js';
 import {
@@ -579,7 +579,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     try {
       await ensureFirebase();
       const blob = await compressImage(file, 800, 0.82);
-      const { url } = await uploadToCloudinary(blob, 'image', 'collancer_pfps');
+      const { url } = await uploadToGCS(blob, 'image', GCS_FOLDERS.pfp);
       await updateDoc(doc(db(), 'creators', uid), { pfp: url, updatedAt: serverTimestamp() });
       toast.ok('Profile photo updated.');
     } catch (e) {

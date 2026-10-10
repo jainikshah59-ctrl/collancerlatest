@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useBiz, isBizPro, tsMs } from './ctx.jsx';
 import { ensureFirebase, updateDoc, doc, addDoc, collection, getDocs, query, where, serverTimestamp } from '../lib/firebase.js';
-import { fileToDataURL } from '../lib/cloudinary.js';
+import { uploadToGCS, GCS_FOLDERS } from '../lib/cloudinary.js';
 import { inr, timeAgo } from '../lib/format.js';
 import { BOOKING_STATUS } from '../lib/constants.js';
 import BookingChat from '../components/BookingChat.jsx';
@@ -406,9 +406,9 @@ function ProfileCard({ onLogout }) {
     if (!f) return;
     setUploading(true);
     try {
-      const dataUrl = await fileToDataURL(f);
+      const { url } = await uploadToGCS(f, 'image', GCS_FOLDERS.pfp);
       const { db } = await ensureFirebase();
-      await updateDoc(doc(db, 'businesses', user.uid), { pfp: dataUrl });
+      await updateDoc(doc(db, 'businesses', user.uid), { pfp: url });
       toast.ok('Profile photo updated.');
     } catch (err) {
       console.error('[dash] pfp', err);
