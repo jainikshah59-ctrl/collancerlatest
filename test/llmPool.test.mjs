@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPoolMessages, isPoolableQuery, poolAnswer } from '../src/ai/llmPool.js';
+import { buildPoolMessages, isPoolableQuery, mentionsCollancer, poolAnswer } from '../src/ai/llmPool.js';
 
 function response(body, ok = true) {
   return { ok, json: async () => body };
@@ -20,6 +20,12 @@ test('provider prompt does not retrieve or inject the internal knowledge base', 
   const { system } = buildPoolMessages('How does Collancer work?', true);
   assert.match(system, /Always-true Collancer facts/);
   assert.doesNotMatch(system, /Relevant Collancer knowledge|Fact 1 \(/);
+});
+
+test('explicit Collancer name detection is case-insensitive and tolerates common misspellings', () => {
+  assert.equal(mentionsCollancer('How does Collancer work?'), true);
+  assert.equal(mentionsCollancer('Tell me about COLENSER fees'), true);
+  assert.equal(mentionsCollancer('What is an API?'), false);
 });
 
 test('general niche questions stay on the AI provider path', () => {
