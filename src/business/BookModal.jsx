@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useBiz, isBizPro } from './ctx.jsx';
 import { ensureFirebase } from '../lib/firebase.js';
-import { uploadToCloudinary, CLOUDINARY_FOLDERS } from '../lib/cloudinary.js';
+import { uploadToGCS, GCS_FOLDERS } from '../lib/cloudinary.js';
 import { PROMO_TYPES, promoLabel, PLATFORMS, CATEGORIES } from '../lib/constants.js';
 import { inr } from '../lib/format.js';
 import {
@@ -43,7 +43,7 @@ function MediaPicker({ files, setFiles }) {
     try {
       for (const f of picked) {
         const kind = f.type.startsWith('video') ? 'video' : 'image';
-        const { url } = await uploadToCloudinary(f, kind, CLOUDINARY_FOLDERS.briefs);
+        const { url } = await uploadToGCS(f, kind, GCS_FOLDERS.briefs);
         setFiles((arr) => [...arr, url].slice(0, 4));
       }
       toast.ok('Brief media uploaded.');
