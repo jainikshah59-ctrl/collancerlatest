@@ -16,7 +16,8 @@ export function needsInstagramSync(creator, now = Date.now()) {
   // Refresh legacy snapshots once so 30-day views/post metrics are populated.
   if (!Object.prototype.hasOwnProperty.call(ig, 'avgViews30d')
     || !Number.isFinite(ig.postsLast30Days)
-    || !Number.isFinite(ig.videoCount30d)) return true;
+    || !Number.isFinite(ig.videoCount30d)
+    || !Number.isFinite(ig.videoCount)) return true;
   const last = ig.lastSyncedAt?.seconds
     ? ig.lastSyncedAt.seconds * 1000
     : (typeof ig.lastSyncedAt === 'number' ? ig.lastSyncedAt : 0);
