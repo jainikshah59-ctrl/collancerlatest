@@ -10,12 +10,12 @@
  *      auto-rotates free models) answers WITHOUT auth but sends no CORS headers,
  *      so browsers can't call it directly — the serverless function calls it
  *      server-side (8s budget) where CORS doesn't apply.
- * If every lane fails, the caller falls back to the deterministic Collancer
- * knowledge/tool engine — the assistant never goes silent.
+ * If every lane fails, general questions surface a temporary provider error;
+ * explicit Collancer questions and structured creator-data queries use the local engine.
  *
  * Provider prompts contain only verified invariant product facts. The internal
  * knowledge base is not queried or injected before the provider chain; it is
- * reserved for the caller's fallback path after all eligible providers fail.
+ * used only for explicit Collancer-name questions and structured data/tool routes.
  * Discovery queries (find creators with filters) and discovery follow-ups are NOT
  * poolable — they stay on the deterministic brain (real creator data, cards,
  * booking actions). See isPoolableQuery().
@@ -148,7 +148,7 @@ async function callLane(url, body, timeoutMs) {
 /**
  * poolAnswer(question) -> Promise<{ text, provider } | null>
  * Tries Pollinations (browser-direct) then the server pool (Kilo).
- * Returns null when every lane fails — the caller must fall back to the brain.
+ * Returns null when every lane fails; the caller decides whether to show an API error.
  */
 export async function poolAnswer(question, isCreator = false) {
   const q = String(question || '').trim();
