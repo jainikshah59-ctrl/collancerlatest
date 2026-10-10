@@ -2,8 +2,11 @@
  * Verifies the user owns the account and has Instagram connected, then marks them live
  * via Admin SDK (bypasses client Firestore rules for verified/addedToCollancer). */
 import { getAdmin, verifyUid, readBody } from '../lib/firebaseAdmin.js';
+import mediaUploadHandler from '../lib/mediaUpload.js';
 
 export default async function handler(req, res) {
+  const action = String(req.query?.action || new URL(req.url || '/', 'http://localhost').searchParams.get('action') || '');
+  if (action === 'media-upload-url') return mediaUploadHandler(req, res);
   if (req.method !== 'POST') return res.status(405).json({ ok: false, reason: 'method' });
   try {
     const body = await readBody(req);
