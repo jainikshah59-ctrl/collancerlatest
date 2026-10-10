@@ -27,8 +27,8 @@ import { parseQuery, resolveFollowup } from './engine.js';
 
 const POLL_URL = 'https://text.pollinations.ai/openai';
 const POLL_MODEL = 'openai-fast'; // GPT-OSS 20B — the single keyless Pollinations model
-const POLL_TIMEOUT_MS = 18000;
-const SERVER_POOL_TIMEOUT_MS = 14000;
+const POLL_TIMEOUT_MS = 7500;
+const SERVER_POOL_TIMEOUT_MS = 8500;
 
 /* Instruction-extraction / jailbreak queries never touch the pool. */
 const LEAK_RE = /\b(system prompt|developer instruction|your instructions|reveal your|ignore previous|jailbreak|prompt injection|override your)\b/i;
@@ -59,12 +59,9 @@ export function cleanPoolText(t) {
 
 export function buildPoolMessages(question, isCreator = false) {
   const q = String(question || '').trim();
-  const scopeLine = isCreator
-    ? 'Scope: you ONLY answer questions about brand collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for creators \u2014 I only help with brand collaborations and Collancer app questions."'
-    : 'Scope: you ONLY answer questions about creator collaborations and the Collancer app. For anything else, reply exactly: "I\u2019m Collancer Ai for brands \u2014 I only help with creator collaborations and Collancer app questions."';
   const system =
-    'You are Collancer Ai, the AI assistant of Collancer — a creator–brand collaboration platform (not an agency). Tagline: WHERE INFLUENCE MEETS INDUSTRY.\n' +
-    scopeLine + '\n' +
+    'You are Collancer Ai, a general-purpose AI assistant for Collancer — a creator–brand collaboration platform (not an agency). Tagline: WHERE INFLUENCE MEETS INDUSTRY.\\n' +
+    'Answer the user’s question directly across general topics, education, technology, writing, reasoning, everyday help, and Collancer workflows. Do not refuse merely because a question is unrelated to brand collaborations.\\n' +
     'Always-true Collancer facts (never contradict these):\n' +
     '- Paid bookings: the creator\u2019s listed price + a 12% platform fee.\n' +
     '- Business Pro members get 5% off the creator price (the discount applies to the creator price, before the fee is calculated).\n' +
@@ -157,34 +154,41 @@ export async function poolAnswer(question, isCreator = false) {
     { role: 'user', content: user },
   ];
 
-  // Lane 1 — Pollinations, direct from the browser (CORS-open, no key).
-  let text = await callLane(
+  // Run both configured text-generation providers concurrently. The first
+  // non-empty answer wins instead of waiting for one slow provider to time out.
+  const pollinations = callLane(
     POLL_URL,
     { model: POLL_MODEL, messages, max_tokens: 700, temperature: 0.6 },
     POLL_TIMEOUT_MS,
-  );
-  if (text) return { text, provider: 'pollinations' };
-  console.warn('[collancer-ai] AI provider lane unavailable: pollinations');
+  ).then((text) => {
+    if (!text) throw new Error('pollinations-empty');
+    return { text, provider: 'pollinations' };
+  });
 
-  // Lane 2 — server pool: Kilo gateway via /api/llm-pool (server-side, 8s budget).
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), SERVER_POOL_TIMEOUT_MS);
-  try {
-    const r = await fetch('/api/llm-pool', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system, user }),
-      signal: ctrl.signal,
-    });
-    if (r.ok) {
+  const kilo = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), SERVER_POOL_TIMEOUT_MS);
+    try {
+      const r = await fetch('/api/llm-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system, user }),
+        signal: ctrl.signal,
+      });
+      if (!r.ok) throw new Error('server-pool-http');
       const j = await r.json().catch(() => null);
-      const t = cleanPoolText(j && j.text);
-      if (t) return { text: t, provider: (j && j.provider) || 'server-pool' };
+      const text = cleanPoolText(j && j.text);
+      if (!text) throw new Error('server-pool-empty');
+      return { text, provider: (j && j.provider) || 'server-pool' };
+    } finally {
+      clearTimeout(timer);
     }
-  } catch { /* provider failed */ } finally {
-    clearTimeout(timer);
-  }
-  console.warn('[collancer-ai] AI provider lane unavailable: server-pool');
+  })();
 
-  return null;
+  try {
+    return await Promise.any([pollinations, kilo]);
+  } catch {
+    console.warn('[collancer-ai] All configured AI provider lanes unavailable.');
+    return null;
+  }
 }
