@@ -574,10 +574,12 @@ export async function speak(text, options = {}) {
     }
   }
 
+  // Speak immediately with the local device voice; remote neural TTS can be
+  // slow or blocked by WebSocket/proxy timeouts and must not delay first audio.
   const attempts = [
-    () => speakViaEdge(chunks, voiceName, token, opts, prosody),
-    () => speakViaProxy(chunks, voiceName, token, opts, prosody),
     () => speakViaBrowser(chunks, token, opts, isFemaleVoice(options.voice)),
+    () => speakViaProxy(chunks, voiceName, token, opts, prosody),
+    () => speakViaEdge(chunks, voiceName, token, opts, prosody),
   ];
   let lastError = null;
   for (const attempt of attempts) {
