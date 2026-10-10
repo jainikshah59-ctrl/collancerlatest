@@ -4,7 +4,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ImagePlus, Trash2, Play, FileText, Upload, ArrowLeft, Clock3 } from 'lucide-react';
 import { ensureFirebase, db, collection, addDoc, deleteDoc, doc, serverTimestamp } from '../lib/firebase.js';
-import { uploadToCloudinary } from '../lib/cloudinary.js';
+import { uploadToGCS, GCS_FOLDERS } from '../lib/cloudinary.js';
 import { DEMO_TYPES, DEMO_FORMATS, MAX_DEMO_UPLOADS } from '../lib/constants.js';
 import { timeAgo } from '../lib/format.js';
 import {
@@ -100,12 +100,16 @@ export default function PromoDemoSection({ creator, onBack }) {
         const isVideo = file.type.startsWith('video/');
         const format = isVideo ? 'Video' : 'Image';
         setProgress(`Uploading ${file.name}…`);
-        const { url } = await uploadToCloudinary(file, isVideo ? 'video' : 'image', 'collancer_promos');
+        const { url } = await uploadToGCS(file, isVideo ? 'video' : 'image', GCS_FOLDERS.promos);
         let thumbnailUrl = url;
         if (isVideo) {
           setProgress('Generating thumbnail…');
           const thumb = await videoThumbnail(file);
-          if (thumb) thumbnailUrl = thumb;
+          if (thumb) {
+            const thumbBlob = await (await fetch(thumb)).blob();
+            const uploadedThumb = await uploadToGCS(thumbBlob, 'image', GCS_FOLDERS.promoThumbnails);
+            thumbnailUrl = uploadedThumb.url;
+          }
         }
         await addDoc(collection(db(), 'promoDemos'), {
           creatorId: creator.id,
