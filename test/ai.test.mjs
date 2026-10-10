@@ -13,6 +13,7 @@ import {
 } from '../src/ai/conversation.js';
 import { askCreatorAI, profileCompleteness, pricingTierFor, interpretBrief } from '../src/ai/creatorAi.js';
 import { VOICES, VOICE_META, isFemaleVoice } from '../src/ai/voice.js';
+import { knowledgeStats, findKnowledge } from '../src/ai/cleoKnowledgeBase.js';
 
 /* ---------- fixtures ---------- */
 
@@ -528,5 +529,21 @@ describe('creator pool routing — isCreatorDataQuery', () => {
     assert.equal(isCreatorDataQuery('what is Collancer?'), false);
     // "verification" stays on the brain (it also shows live verification status)
     assert.equal(isCreatorDataQuery('how does verification work on Collancer?'), true);
+  });
+});
+
+
+/* ---------- creator collaboration knowledge database ---------- */
+
+describe('creator collaboration knowledge database', () => {
+  it('indexes at least 5,000 creator-side Q&A mappings locally', () => {
+    const stats = knowledgeStats();
+    assert.ok(stats.creatorQAMappings >= 5000, `expected >= 5000 creator Q&A mappings, got ${stats.creatorQAMappings}`);
+  });
+
+  it('answers creator collaboration questions from the local knowledge base', () => {
+    const result = findKnowledge('As a creator, what is a paid collaboration?', 'creator');
+    assert.ok(result, 'expected a local knowledge match');
+    assert.match(result.entry.answer, /creator|collaboration|compensat/i);
   });
 });
