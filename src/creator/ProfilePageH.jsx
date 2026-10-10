@@ -159,7 +159,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         instagram: { ...(creator.instagram || {}), ...syncedInstagram },
         instagramClient: syncedInstagram,
         followers: syncedInstagram.followersCount ?? creator.followers,
-        engagement: syncedInstagram.engagementRate ?? creator.engagement,
+        engagement: syncedInstagram.engagementRate,
         avgViews: syncedInstagram.avgViews ?? creator.avgViews,
         avgLikes: syncedInstagram.avgLikes ?? creator.avgLikes,
         reach: syncedInstagram.reach ?? creator.reach,
@@ -187,7 +187,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
       handle: instagram.username || prev.handle,
       bio: instagram.bio ?? prev.bio,
       followers: String(instagram.followersCount ?? prev.followers),
-      engagement: String(instagram.engagementRate ?? prev.engagement),
+      engagement: String(instagram.engagementRate ?? ''),
       avgViews: String(instagram.avgViews ?? prev.avgViews),
       avgLikes: String(instagram.avgLikes ?? prev.avgLikes),
       reach: String(instagram.reach ?? prev.reach),
@@ -378,9 +378,11 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     { label: 'Videos / Reels fetched', value: instagram.videoCount, available: instagram.videoCount !== undefined && instagram.videoCount !== null },
     { label: 'Videos / Reels (last 30 days)', value: instagram.videoCount30d, available: instagram.videoCount30d !== undefined && instagram.videoCount30d !== null },
     { label: 'Average likes', value: instagram.avgLikes, available: instagram.avgLikes !== undefined && instagram.avgLikes !== null },
-    { label: 'Average views (last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
-    { label: 'Engagement rate', value: instagram.engagementRate === undefined || instagram.engagementRate === null ? undefined : `${instagram.engagementRate}%`, available: instagram.engagementRate !== undefined && instagram.engagementRate !== null },
-    { label: 'Account reach (last 30 days)', value: instagram.reach, available: accountMetricStatus.reach?.available === true || (!accountMetricStatus.reach && instagram.reach !== undefined && instagram.reach !== null) },
+    { label: 'Average views per post (posts published in last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
+    { label: 'Account views (last 30 days)', value: instagram.viewsLast30Days, available: accountMetricStatus.views?.available === true && instagram.viewsLast30Days !== undefined && instagram.viewsLast30Days !== null },
+    { label: 'Engagement rate (calculated)', value: instagram.engagementRate === undefined || instagram.engagementRate === null ? undefined : `${instagram.engagementRate}%`, available: instagram.engagementRate !== undefined && instagram.engagementRate !== null },
+    { label: 'Account reach (last 30 days)', value: instagram.reach, available: accountMetricStatus.reach?.available === true && instagram.reach !== undefined && instagram.reach !== null },
+    { label: 'Profile views (last 30 days)', value: instagram.profileViews, available: accountMetricStatus.profile_views?.available === true && instagram.profileViews !== undefined && instagram.profileViews !== null },
     { label: 'Profile link taps (last 30 days)', value: instagram.profileLinksTaps, available: accountMetricStatus.profile_links_taps?.available === true || (!accountMetricStatus.profile_links_taps && instagram.profileLinksTaps !== undefined && instagram.profileLinksTaps !== null) },
     { label: 'Posts fetched', value: instagramQuality.mediaFetched, available: instagramQuality.mediaFetched !== undefined && instagramQuality.mediaFetched !== null },
     { label: 'Media insights fetched', value: instagramQuality.mediaInsightsFetched, available: instagramQuality.mediaInsightsFetched !== undefined && instagramQuality.mediaInsightsFetched !== null },
@@ -557,7 +559,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                   </Field>
                 </div>
                 <div className="cl-grow">
-                  <Field label="Engagement %"><Input value={p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" /></Field>
+                  <Field label="Engagement %" hint={igConnected ? 'Calculated from complete Instagram post data; hidden when exact data is unavailable.' : undefined}><Input value={igConnected ? String(profileCreator.instagram.engagementRate ?? '') : p.engagement} onChange={setPField('engagement')} inputMode="decimal" placeholder="3.2" disabled={igConnected} /></Field>
                 </div>
               </div>
               {igConnected && instagramProfileMetrics.length > 0 && (
