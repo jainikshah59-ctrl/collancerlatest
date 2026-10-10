@@ -1,21 +1,31 @@
-/* One-time Cloudinary/Base64 -> GCS migration. Dry-run unless --apply is passed.
- * Required env: FIREBASE_SERVICE_ACCOUNT_JSON, GCS_BUCKET.
+/* One-time Cloudinary/Base64 -> Cloudflare R2 migration. Dry-run unless --apply.
+ * Required env: FIREBASE_SERVICE_ACCOUNT_JSON, R2_ACCOUNT_ID, R2_BUCKET,
+ * R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_BASE_URL.
  * Original Cloudinary assets are never deleted.
  */
 import admin from 'firebase-admin';
-import { getStorage } from 'firebase-admin/storage';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createHash } from 'crypto';
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-const bucketName = process.env.GCS_BUCKET;
-if (!raw || !bucketName) {
-  console.error('Set FIREBASE_SERVICE_ACCOUNT_JSON and GCS_BUCKET first.');
+const accountId = process.env.R2_ACCOUNT_ID;
+const bucketName = process.env.R2_BUCKET;
+const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+const publicBase = String(process.env.R2_PUBLIC_BASE_URL || '').replace(/\\/+$/, '');
+if (!raw || !accountId || !bucketName || !accessKeyId || !secretAccessKey || !/^https:\\/\\//i.test(publicBase)) {
+  console.error('Set Firebase Admin credentials and all R2 environment variables first.');
   process.exit(1);
 }
 const apply = process.argv.includes('--apply');
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
 const db = admin.firestore();
-const bucket = getStorage().bucket(bucketName);
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+  forcePathStyle: true,
+  credentials: { accessKeyId, secretAccessKey },
+});
 const cache = new Map();
 const replacementMap = new Map();
 let candidates = 0, migrated = 0, failed = 0;
@@ -25,20 +35,26 @@ function cloudinary(value) {
   catch { return false; }
 }
 function dataImage(value) {
-  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\r\n]+)$/.exec(value);
-  return m ? { contentType: m[1].toLowerCase(), bytes: Buffer.from(m[2].replace(/\s/g, ''), 'base64') } : null;
+  const m = /^data:(image\\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\\r\\n]+)$/.exec(value);
+  return m ? { contentType: m[1].toLowerCase(), bytes: Buffer.from(m[2].replace(/\\s/g, ''), 'base64') } : null;
+}
+function urlFor(objectPath) {
+  return publicBase + '/' + objectPath.split('/').map(encodeURIComponent).join('/');
 }
 async function uploadBytes(bytes, contentType, identity) {
   const digest = createHash('sha256').update(identity).digest('hex').slice(0, 28);
   const ext = contentType.split('/')[1].replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '') || 'bin';
   const objectPath = `migrated/legacy/${digest}.${ext}`;
-  if (apply) await bucket.file(objectPath).save(bytes, {
-    resumable: false,
-    metadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
-  });
-  return apply
-    ? `https://storage.googleapis.com/${bucket.name}/${objectPath.split('/').map(encodeURIComponent).join('/')}`
-    : '[DRY RUN] ' + objectPath;
+  if (apply) {
+    await r2.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: objectPath,
+      Body: bytes,
+      ContentType: contentType,
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+  }
+  return apply ? urlFor(objectPath) : '[DRY RUN] ' + objectPath;
 }
 async function migrateString(value, path) {
   if (replacementMap.has(value)) return replacementMap.get(value);
@@ -113,9 +129,6 @@ async function visitCollection(ref) {
       const before = document.data();
       const after = await transform(before, ref.path + '/' + document.id);
       if (apply && JSON.stringify(after) !== JSON.stringify(before)) {
-        // Upload work happens before the transaction; the transaction only
-        // swaps strings that were in the reviewed snapshot, avoiding network
-        // calls or new uploads inside Firestore's retryable transaction.
         await db.runTransaction(async (tx) => {
           const fresh = await tx.get(document.ref);
           if (!fresh.exists) return;
