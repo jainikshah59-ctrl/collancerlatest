@@ -378,7 +378,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
     { label: 'Videos / Reels fetched', value: instagram.videoCount, available: instagram.videoCount !== undefined && instagram.videoCount !== null },
     { label: 'Videos / Reels (last 30 days)', value: instagram.videoCount30d, available: instagram.videoCount30d !== undefined && instagram.videoCount30d !== null },
     { label: 'Average likes', value: instagram.avgLikes, available: instagram.avgLikes !== undefined && instagram.avgLikes !== null },
-    { label: 'Average views per post (posts published in last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
+    { label: 'Average views per video / Reel (published in last 30 days)', value: instagram.avgViews30d, available: instagram.avgViews30d !== undefined && instagram.avgViews30d !== null },
     { label: 'Account views (last 30 days)', value: instagram.viewsLast30Days, available: accountMetricStatus.views?.available === true && instagram.viewsLast30Days !== undefined && instagram.viewsLast30Days !== null },
     { label: 'Engagement rate (calculated)', value: instagram.engagementRate === undefined || instagram.engagementRate === null ? undefined : `${instagram.engagementRate}%`, available: instagram.engagementRate !== undefined && instagram.engagementRate !== null },
     { label: 'Account reach (last 30 days)', value: instagram.reach, available: accountMetricStatus.reach?.available === true && instagram.reach !== undefined && instagram.reach !== null },
