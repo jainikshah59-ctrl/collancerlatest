@@ -166,10 +166,6 @@ export default async function handler(req, res) {
       return go(res, `error=${encodeURIComponent(`sync-failed: ${msg}`)}`);
     }
     const followersNum = instagram.followersCount;
-    const avgLikes = instagram.avgLikes;
-    const avgViews = instagram.avgViews;
-    const avgEngagement = instagram.engagementRate;
-    const reachVal = instagram.reach;
 
     const now = FieldValue.serverTimestamp();
     const username = instagram.username;
