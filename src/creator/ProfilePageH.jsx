@@ -153,17 +153,21 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
 
   // Keep the mounted profile in sync immediately after Instagram refresh.
   const [syncedInstagram, setSyncedInstagram] = useState(null);
-  const profileCreator = syncedInstagram
+  const hasInstagramConnection = Boolean(creator?.instagram?.connected || creator?.instagram?.username);
+  const sourceInstagram = syncedInstagram || creator?.instagram || null;
+  const profileCreator = sourceInstagram
     ? {
         ...creator,
-        instagram: { ...(creator.instagram || {}), ...syncedInstagram },
-        instagramClient: syncedInstagram,
-        followers: syncedInstagram.followersCount ?? creator.followers,
-        engagement: syncedInstagram.engagementRate,
-        avgViews: syncedInstagram.avgViews ?? creator.avgViews,
-        avgLikes: syncedInstagram.avgLikes ?? creator.avgLikes,
-        reach: syncedInstagram.reach ?? creator.reach,
-        profileViews: syncedInstagram.profileViews ?? creator.profileViews,
+        instagram: { ...(creator.instagram || {}), ...(syncedInstagram || {}) },
+        instagramClient: syncedInstagram || creator.instagramClient,
+        // When Instagram is connected, never fall back to an older manually
+        // entered value if the current API snapshot cannot verify the metric.
+        followers: sourceInstagram.followersCount ?? (hasInstagramConnection ? null : creator.followers),
+        engagement: sourceInstagram.engagementRate ?? (hasInstagramConnection ? null : creator.engagement),
+        avgViews: sourceInstagram.avgViews ?? (hasInstagramConnection ? null : creator.avgViews),
+        avgLikes: sourceInstagram.avgLikes ?? (hasInstagramConnection ? null : creator.avgLikes),
+        reach: sourceInstagram.reach ?? (hasInstagramConnection ? null : creator.reach),
+        profileViews: sourceInstagram.profileViews ?? (hasInstagramConnection ? null : creator.profileViews),
       }
     : creator;
 
@@ -465,7 +469,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                 {profileCreator.verified && <BadgeCheck style={{ width: 18, height: 18, color: 'var(--cyan-deep)', flexShrink: 0 }} />}
               </div>
               <div className="cl-small cl-muted" style={{ marginTop: 2 }}>
-                {compact(profileCreator.followers || 0)} followers · {profileCreator.platform} · {profileCreator.city}
+                {profileCreator.followers == null ? '—' : compact(profileCreator.followers)} followers · {profileCreator.platform} · {profileCreator.city}
               </div>
               <div className="cl-row" style={{ gap: 6, marginTop: 8 }}>
                 {live ? <Badge tone="cyan">Live</Badge> : <Badge tone="grey">{pct}% complete</Badge>}
@@ -549,7 +553,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
                 <div className="cl-grow">
                   <Field label="Followers" hint={igConnected ? 'Live from Instagram' : undefined}>
                     <div style={{ position: 'relative' }}>
-                      <Input value={igConnected ? String(profileCreator.instagram.followersCount || '') : p.followers}
+                      <Input value={igConnected ? String(profileCreator.instagram.followersCount ?? '') : p.followers}
                         onChange={setPField('followers')} inputMode="numeric" placeholder="25000"
                         disabled={igConnected} style={igConnected ? { paddingRight: 38 } : undefined} />
                       {igConnected && (
