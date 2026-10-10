@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     const lastSync = prev.lastSyncedAt?.toMillis
       ? prev.lastSyncedAt.toMillis()
       : (typeof prev.lastSyncedAt === 'number' ? prev.lastSyncedAt : 0);
-    if (!body.force && Date.now() - lastSync < STALE_MS) {
+    if (!body.force && prev.dataQuality?.exactMetricsVersion === 2 && Date.now() - lastSync < STALE_MS) {
       return res.status(200).json({ ok: true, fresh: true, instagram: prev });
     }
 
