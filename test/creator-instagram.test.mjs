@@ -16,6 +16,7 @@ const igDoc = (lastSyncedMs) => ({
     postsLast30Days: 12,
     videoCount30d: 5,
     videoCount: 20,
+    dataQuality: { exactMetricsVersion: 2 },
     lastSyncedAt: { seconds: Math.floor(lastSyncedMs / 1000) },
   },
 });
@@ -43,7 +44,18 @@ describe('instagram sync helpers', () => {
     delete legacy.instagram.postsLast30Days;
     delete legacy.instagram.videoCount30d;
     delete legacy.instagram.videoCount;
+    delete legacy.instagram.dataQuality.exactMetricsVersion;
     assert.equal(needsInstagramSync(legacy, now), true);
+  });
+
+  it('does not repeatedly refresh when exact metrics are unavailable', () => {
+    const now = Date.now();
+    const c = igDoc(now - 1000);
+    c.instagram.avgViews30d = null;
+    c.instagram.postsLast30Days = null;
+    c.instagram.videoCount30d = null;
+    c.instagram.videoCount = null;
+    assert.equal(needsInstagramSync(c, now), false);
   });
 
   it('needsInstagramSync is false when the token is invalid', () => {
