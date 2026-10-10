@@ -160,7 +160,7 @@ function OverviewTab({ creator, pro, onBook }) {
   );
 }
 
-function DemosTab({ creator, pro, goPage }) {
+function DemosTab({ creator }) {
   const [demos, setDemos] = useState(null);
   const [viewerMedia, setViewerMedia] = useState(null);
   // Instagram reels/posts — creator picks which ones brands see
@@ -174,7 +174,6 @@ function DemosTab({ creator, pro, goPage }) {
     : allIg;
   const igUsername = igData.username || '';
   useEffect(() => {
-    if (!pro) return;
     let unsub = () => {};
     ensureFirebase().then(({ db }) => {
       const qy = query(collection(db, 'promoDemos'), where('creatorId', '==', creator.id));
@@ -183,9 +182,7 @@ function DemosTab({ creator, pro, goPage }) {
       });
     });
     return () => unsub();
-  }, [pro, creator.id]);
-
-  if (!pro) return <ProLock goPage={goPage} />;
+  }, [creator.id]);
   if (demos === null) return <><SkeletonCard /><SkeletonCard /></>;
   const hasIg = igMedia.length > 0;
   if (demos.length === 0 && !hasIg) {
@@ -581,7 +578,7 @@ export default function CreatorProfile({ creatorId, onBack }) {
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
-    { key: 'demos', label: 'Portfolio', icon: pro ? null : Lock },
+    { key: 'demos', label: 'Portfolio' },
     { key: 'analytics', label: 'Analytics', icon: pro ? null : Lock },
     { key: 'reviews', label: 'Reviews' },
   ];
@@ -627,7 +624,7 @@ export default function CreatorProfile({ creatorId, onBack }) {
         <Tabs tabs={tabs} value={tab} onChange={setTab} style={{ marginBottom: 14 }} />
 
         {tab === 'overview' && <OverviewTab creator={creator} pro={pro} onBook={openBooking} />}
-        {tab === 'demos' && <DemosTab creator={creator} pro={pro} goPage={goPage} />}
+        {tab === 'demos' && <DemosTab creator={creator} />}
         {tab === 'analytics' && <AnalyticsTab creator={creator} pro={pro} goPage={goPage} />}
         {tab === 'reviews' && <ReviewsTab creator={creator} canReview={canReview} />}
       </div>

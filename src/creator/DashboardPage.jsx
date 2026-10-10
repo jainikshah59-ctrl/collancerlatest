@@ -2,11 +2,11 @@
    active booking state, review summary and rate-card shortcut.
    Per audit §7.2: if not live (verified + addedToCollancer), dashboard stays the
    main page with a checklist. */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  ShieldCheck, BadgeCheck, Rocket, Star, Wallet, CalendarCheck, Store,
-  Sparkles, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle, Megaphone,
-  Tag, Bell,
+  ShieldCheck, BadgeCheck, Rocket, Star, CalendarCheck,
+  ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
+  Bell, Menu, X, Wrench, FileText,
 } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat } from '../components/ui.jsx';
 import { timeAgo } from '../lib/format.js';
@@ -44,6 +44,7 @@ export default function DashboardPage({
   }, [reviews, creator]);
 
   const missing = items.filter((i) => !i.done);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <Page pageKey="creator-dashboard">
@@ -51,8 +52,45 @@ export default function DashboardPage({
         title={`Hi, ${creator?.name?.split(' ')[0] || 'Creator'}`}
         subtitle={live ? 'You are live on Collancer' : 'Finish setup to go live'}
         right={
-          <IconBtn icon={Bell} label="Notifications" onClick={() => onNav('notifications')}
-            style={unread ? { borderColor: 'var(--cyan)', color: 'var(--cyan-deep)' } : undefined} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+            <IconBtn icon={Bell} label="Notifications" onClick={() => onNav('notifications')}
+              style={unread ? { borderColor: 'var(--cyan)', color: 'var(--cyan-deep)' } : undefined} />
+            <button type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+              style={{ width: 40, height: 40, flexShrink: 0, display: 'grid', placeItems: 'center',
+                border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)',
+                color: 'var(--ink)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer' }}>
+              {menuOpen ? <X style={{ width: 20, height: 20 }} /> : <Menu style={{ width: 20, height: 20 }} />}
+            </button>
+            {menuOpen && (
+              <>
+                <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 90, border: 0, padding: 0, background: 'transparent', cursor: 'default' }} />
+                <div role="menu" aria-label="Creator menu"
+                  style={{ position: 'absolute', top: 48, right: 0, zIndex: 91, width: 224,
+                    padding: 7, border: '1px solid var(--glass-border)', borderRadius: 16,
+                    background: 'var(--surface)', boxShadow: '0 18px 48px rgba(15,23,42,.18)',
+                    backdropFilter: 'blur(18px)' }}>
+                  {[
+                    { key: 'tools', label: 'Tools', icon: Wrench },
+                    { key: 'support', label: 'Support', icon: MessageCircle },
+                    { key: 'privacy', label: 'Privacy Policy', icon: ShieldCheck },
+                    { key: 'terms', label: 'Terms of Service', icon: FileText },
+                  ].map((item) => (
+                    <button key={item.key} type="button" role="menuitem"
+                      onClick={() => { setMenuOpen(false); onNav(item.key); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 11,
+                        padding: '11px 10px', border: 0, borderRadius: 10, background: 'transparent',
+                        color: 'var(--ink)', textAlign: 'left', cursor: 'pointer', font: 'inherit', fontSize: 13 }}>
+                      <item.icon style={{ width: 17, height: 17, color: 'var(--cyan-deep)', flexShrink: 0 }} />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         }
       />
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 24, display: 'grid', gap: 14 }}>
@@ -183,24 +221,6 @@ export default function DashboardPage({
             </div>
           </Card>
         )}
-
-        {/* Shortcuts */}
-        <div className="cl-dashboard-shortcut-grid">
-          {[
-            { icon: Tag, tint: 'tint-cyan', title: 'Set up rate card', sub: 'Story, reel, video prices', go: () => onNav('profile', 'ratecard') },
-            { icon: Store, tint: 'tint-green', title: 'Marketplace', sub: 'Pitch on brand briefs', go: () => onNav('marketplace') },
-            { icon: Wallet, tint: 'tint-violet', title: 'Earnings', sub: 'Withdraw your share', go: () => onNav('earnings') },
-            { icon: Sparkles, tint: 'tint-amber', title: 'Collancer AI', sub: 'Pricing & pitch help', go: () => onNav('collancer-ai') },
-            { icon: Megaphone, tint: 'tint-green', title: 'Promo demos', sub: 'Your portfolio videos', go: () => onOverlay('demos') },
-            { icon: AlertCircle, tint: 'tint-red', title: 'Help & legal', sub: 'Support, privacy, terms', go: () => onNav('support') },
-          ].map((s) => (
-            <Card key={s.title} pressable lift onClick={s.go} style={{ textAlign: 'center', padding: 18 }}>
-              <div className={`cl-tile cl-dashboard-shortcut-icon ${s.tint}`} aria-hidden="true"><s.icon /></div>
-              <div className="cl-card-title" style={{ fontSize: 'var(--fs-md)' }}>{s.title}</div>
-              <div className="cl-small cl-muted" style={{ marginTop: 3 }}>{s.sub}</div>
-            </Card>
-          ))}
-        </div>
 
         {/* Latest review */}
         {reviews && reviews.length > 0 && (

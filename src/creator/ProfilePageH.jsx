@@ -5,7 +5,7 @@ import React, { useRef, useState } from 'react';
 import {
   User as UserIcon, ArrowLeft, Camera, AtSign, Settings, Youtube,
   Wallet, LogOut, RefreshCw, CheckCircle2, BadgeCheck, Tag, Link2, Lock,
-  Image as ImageIcon, Play, Instagram,
+  Image as ImageIcon, Play, Instagram, Upload,
 } from 'lucide-react';
 import {
   ensureFirebase, db, doc, updateDoc, runTransaction, serverTimestamp,
@@ -18,6 +18,7 @@ import {
   Tabs, Chip, Badge, Avatar, Toggle, useToast, ConfirmDialog, ThemeToggle,
 } from '../components/ui.jsx';
 import MediaViewer from '../components/MediaViewer.jsx';
+import PromoDemoSection from './PromoDemoSection.jsx';
 import { startInstagramConnect, refreshInstagram, disconnectInstagram, lastSyncedLabel } from '../lib/instagram.js';
 import { completionPct, isLive } from '../lib/creator.js';
 
@@ -148,6 +149,7 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
   const toast = useToast();
   const photoRef = useRef(null);
   const [tab, setTab] = useState(['ratecard', 'content', 'account'].includes(initialTab) ? initialTab : 'profile');
+  const [contentSource, setContentSource] = useState('instagram');
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
 
@@ -656,34 +658,66 @@ export default function ProfilePageH({ creator, onBack, onLogout, initialTab, is
         {tab === 'content' && (
           <div className="cl-fade" style={{ display: 'grid', gap: 14 }}>
             <Card>
-              <div className="cl-row" style={{ gap: 8, marginBottom: 12 }}>
-                <Instagram style={{ width: 18, height: 18, color: 'var(--cyan-deep)' }} />
-                <div className="cl-card-title">Instagram content</div>
-                {igConnected && profileCreator.instagram?.username && (
-                  <span className="cl-small cl-muted">@{profileCreator.instagram.username}</span>
-                )}
+              <div className="cl-row" style={{ gap: 8, marginBottom: 8 }}>
+                <ImageIcon style={{ width: 19, height: 19, color: 'var(--cyan-deep)' }} />
+                <div className="cl-card-title">Content for brands</div>
               </div>
-              {!igConnected ? (
-                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
-                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 14 }}>
-                    Connect Instagram to showcase your posts to brands here.
-                  </p>
-                  <Button size="sm" icon={Instagram} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                    Connect Instagram
-                  </Button>
-                </div>
-              ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
-                <FeaturedContentPicker creator={profileCreator} toast={toast} />
-              ) : (
-                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
-                  <p className="cl-small cl-muted" style={{ lineHeight: 1.6 }}>
-                    No posts found. Instagram content is unavailable right now.
-                  </p>
-                </div>
-              ))}
+              <p className="cl-small cl-muted" style={{ lineHeight: 1.65, marginBottom: 14 }}>
+                Choose content from Instagram or upload samples manually. Anything you select or upload here will be shown on your Collancer profile as demo content, so brands can understand your content style.
+              </p>
+              <div role="group" aria-label="Choose demo content source"
+                style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                {[
+                  { key: 'instagram', label: 'Select from Instagram', icon: Instagram },
+                  { key: 'manual', label: 'Upload manually', icon: Upload },
+                ].map((option) => (
+                  <button key={option.key} type="button" onClick={() => setContentSource(option.key)}
+                    aria-pressed={contentSource === option.key}
+                    style={{ minWidth: 0, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                      padding: '10px 8px', borderRadius: 12,
+                      border: contentSource === option.key ? '1.5px solid var(--cyan)' : '1px solid var(--line)',
+                      background: contentSource === option.key ? 'var(--cyan-soft)' : 'var(--surface-2)',
+                      color: contentSource === option.key ? 'var(--cyan-deep)' : 'var(--ink)',
+                      font: 'inherit', fontSize: 12, fontWeight: 750, cursor: 'pointer' }}>
+                    <option.icon style={{ width: 17, height: 17, flexShrink: 0 }} />
+                    <span>{option.label}</span>
+                  </button>
+                ))}
+              </div>
             </Card>
+            {contentSource === 'instagram' ? (
+              <Card>
+                <div className="cl-row" style={{ gap: 8, marginBottom: 12 }}>
+                  <Instagram style={{ width: 18, height: 18, color: 'var(--cyan-deep)' }} />
+                  <div className="cl-card-title">Instagram content</div>
+                  {igConnected && profileCreator.instagram?.username && (
+                    <span className="cl-small cl-muted">@{profileCreator.instagram.username}</span>
+                  )}
+                </div>
+                {!igConnected ? (
+                  <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                    <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
+                    <p className="cl-small cl-muted" style={{ lineHeight: 1.6, marginBottom: 14 }}>
+                      Connect Instagram to select posts and reels for your profile demo content.
+                    </p>
+                    <Button size="sm" icon={Instagram} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                      Connect Instagram
+                    </Button>
+                  </div>
+                ) : ((profileCreator.instagramClient?.recentMedia?.length || profileCreator.instagram?.recentMedia?.length) > 0 ? (
+                  <FeaturedContentPicker creator={profileCreator} toast={toast} />
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                    <ImageIcon style={{ width: 40, height: 40, color: 'var(--faint)', margin: '0 auto 12px' }} />
+                    <p className="cl-small cl-muted" style={{ lineHeight: 1.6 }}>
+                      No posts found. Instagram content is unavailable right now.
+                    </p>
+                  </div>
+                ))}
+              </Card>
+            ) : (
+              <PromoDemoSection creator={creator} embedded />
+            )}
           </div>
         )}
 

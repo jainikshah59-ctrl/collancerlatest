@@ -43,7 +43,7 @@ function videoThumbnail(file) {
   });
 }
 
-export default function PromoDemoSection({ creator, onBack }) {
+export default function PromoDemoSection({ creator, onBack, embedded = false }) {
   const toast = useToast();
   const fileRef = useRef(null);
   const [demos, setDemos] = useState(null); // null = loading
@@ -146,10 +146,8 @@ export default function PromoDemoSection({ creator, onBack }) {
     }
   }
 
-  return (
-    <Page pageKey="creator-demos">
-      <TopBar title="Promo demos" subtitle={`${demos?.length || 0}/${MAX_DEMO_UPLOADS} slots used`}
-        left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
+  const content = (
+    <>
       <div className="cl-container" style={{ paddingTop: 14, paddingBottom: 28, display: 'grid', gap: 14 }}>
         <Card>
           <h3 style={{ fontSize: 16, marginBottom: 4 }}>Add a demo</h3>
@@ -261,6 +259,16 @@ export default function PromoDemoSection({ creator, onBack }) {
         danger
         onConfirm={removeDemo}
       />
+
+    </>
+  );
+
+  if (embedded) return content;
+  return (
+    <Page pageKey="creator-demos">
+      <TopBar title="Promo demos" subtitle={`${demos?.length || 0}/${MAX_DEMO_UPLOADS} slots used`}
+        left={onBack ? <IconBtn icon={ArrowLeft} label="Back" onClick={onBack} /> : null} />
+      {content}
     </Page>
   );
 }

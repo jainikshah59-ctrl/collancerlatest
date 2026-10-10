@@ -5,7 +5,7 @@
    requirementOffers. Maintains hasActiveBooking writeback + Pro expiry. */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, Store, CalendarCheck, IndianRupee, User, Wrench,
+  LayoutDashboard, Store, CalendarCheck, IndianRupee, User, Sparkles,
   Loader2, LogOut,
 } from 'lucide-react';
 import {
@@ -101,10 +101,10 @@ const byCreatedDesc = (a, b) => {
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { key: 'marketplace', label: 'Market', icon: Store },
+  { key: 'collancer-ai', label: 'Collancer AI', icon: Sparkles },
   { key: 'bookings', label: 'Bookings', icon: CalendarCheck },
   { key: 'earnings', label: 'Earnings', icon: IndianRupee },
   { key: 'profile', label: 'Profile', icon: User },
-  { key: 'tools', label: 'Tools', icon: Wrench },
 ];
 const MAIN_PAGES = new Set(NAV_ITEMS.map((i) => i.key));
 
