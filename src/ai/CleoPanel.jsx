@@ -403,7 +403,6 @@ function ChatView({ context, isCreator, onAction, convo, setConvo, busy, setBusy
 
   const chips = isCreator ? CREATOR_SUGGESTIONS : SUGGESTIONS;
   const showEmpty = messages.length === 0 && !busy;
-  const lastAiIdx = (() => { for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === 'ai') return i; return -1; })();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
