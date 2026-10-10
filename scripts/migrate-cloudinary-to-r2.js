@@ -4,7 +4,7 @@
  * Original Cloudinary assets are never deleted.
  */
 import admin from 'firebase-admin';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createR2PresignedPutUrl } from '../lib/r2Presign.js';
 import { createHash } from 'crypto';
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -21,12 +21,6 @@ if (!raw || !accountId || !bucketName || !accessKeyId || !secretAccessKey || !pu
 const apply = process.argv.includes('--apply');
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
 const db = admin.firestore();
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-  forcePathStyle: true,
-  credentials: { accessKeyId, secretAccessKey },
-});
 const cache = new Map();
 const replacementMap = new Map();
 let candidates = 0, migrated = 0, failed = 0;
@@ -53,13 +47,16 @@ async function uploadBytes(bytes, contentType, identity) {
   const ext = contentType.split('/')[1].replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '') || 'bin';
   const objectPath = `migrated/legacy/${digest}.${ext}`;
   if (apply) {
-    await r2.send(new PutObjectCommand({
-      Bucket: bucketName,
-      Key: objectPath,
-      Body: bytes,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000, immutable',
-    }));
+    const uploadUrl = createR2PresignedPutUrl({
+      accountId, accessKeyId, secretAccessKey, bucket: bucketName,
+      key: objectPath, contentType, expiresIn: 600,
+    });
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: bytes,
+    });
+    if (!response.ok) throw new Error('R2 upload HTTP ' + response.status);
   }
   return apply ? urlFor(objectPath) : '[DRY RUN] ' + objectPath;
 }
