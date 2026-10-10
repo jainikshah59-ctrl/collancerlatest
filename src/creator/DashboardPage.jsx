@@ -1,11 +1,11 @@
 /* Creator Dashboard — profile completion, verification state, live state,
-   active booking state, review summary, Be On Top entry, rate-card shortcut.
+   active booking state, review summary and rate-card shortcut.
    Per audit §7.2: if not live (verified + addedToCollancer), dashboard stays the
    main page with a checklist. */
 import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck, BadgeCheck, Rocket, Star, Wallet, CalendarCheck, Store,
-  Sparkles, Megaphone, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
+  Sparkles, ChevronRight, AlertCircle, Clock3, CheckCircle2, MessageCircle,
 } from 'lucide-react';
 import { Page, TopBar, IconBtn, Card, Button, Badge, ProgressBar, Stat, EmptyState, useToast } from '../components/ui.jsx';
 import { Bell } from 'lucide-react';
@@ -46,7 +46,7 @@ function verificationTone(v) {
 }
 
 export default function DashboardPage({
-  creator, bookings, reviews, verification, adCampaigns,
+  creator, bookings, reviews, verification,
   unread, onNav, onOverlay, onOpenBooking,
 }) {
   const toast = useToast();
@@ -88,14 +88,6 @@ export default function DashboardPage({
     const s = reviews.reduce((a, r) => a + Number(r.stars || 0), 0);
     return s / reviews.length;
   }, [reviews, creator]);
-
-  const activeAds = useMemo(() => {
-    const now = Date.now();
-    return (adCampaigns || []).filter((a) => {
-      const ends = a.endsAt?.seconds ? a.endsAt.seconds * 1000 : Number(a.endsAt || 0);
-      return a.status === 'active' && ends > now;
-    });
-  }, [adCampaigns]);
 
   const missing = items.filter((i) => !i.done);
 
@@ -241,26 +233,6 @@ export default function DashboardPage({
             </div>
           </Card>
         )}
-
-        {/* Be On Top */}
-        <Card>
-          <div className="cl-row" style={{ gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--cyan-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <Megaphone style={{ width: 21, height: 21, color: 'var(--cyan-deep)' }} />
-            </div>
-            <div className="cl-grow">
-              <div style={{ fontWeight: 700, fontSize: 15 }}>Be On Top</div>
-              <div className="cl-small cl-muted" style={{ marginTop: 2 }}>
-                {activeAds.length > 0
-                  ? `${activeAds.length} boost${activeAds.length > 1 ? 's' : ''} running — top placement in discovery.`
-                  : 'Boost your profile in brand discovery for 1–7 days.'}
-              </div>
-            </div>
-          </div>
-          <Button block size="sm" style={{ marginTop: 12 }} onClick={() => onOverlay('beontop')} icon={Megaphone}>
-            {activeAds.length > 0 ? 'Manage boosts' : 'Promote my profile'}
-          </Button>
-        </Card>
 
         {/* Shortcuts */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
