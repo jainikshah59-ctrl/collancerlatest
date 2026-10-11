@@ -176,7 +176,7 @@ export default function MarketplacePage({ creator, requirements, offers, loading
           )}
 
           {tab === 'offers' && (
-            <div className="cl-marketplace-cards cl-fade">
+            <div className="cl-marketplace-cards cl-marketplace-offers cl-fade">
               <div className="cl-marketplace-results-head">
                 <div><h3>Your proposals</h3><p>Track the pitches you have sent to brands.</p></div>
                 <span className="cl-marketplace-count">{myOffers.length}</span>
