@@ -266,6 +266,28 @@ export default function CreatorAuthScreen() {
         .collancer-liquid-auth .cl-btn-label{display:block;max-width:100%;line-height:1.3;text-align:center;text-wrap:balance}
         .collancer-liquid-auth .cl-error-text{line-height:1.45;text-align:left}
         .collancer-liquid-auth>p.cl-muted{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;line-height:1.45!important;text-align:center;margin:14px auto 0!important}
+        /* Input icons are absolutely positioned: reserve real space before placeholder text. */
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input){display:block!important;padding:0 12px!important;min-height:52px!important}
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input)>.cl-input{display:block!important;width:100%!important;min-width:0!important;height:50px!important;min-height:50px!important;padding:0 10px 0 38px!important;margin:0!important;flex:none!important}
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input)>.cl-input[autocomplete="current-password"],
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input)>.cl-input[autocomplete="new-password"]{padding-right:42px!important}
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input)>svg{position:absolute!important;left:13px!important;top:50%!important;transform:translateY(-50%)!important;width:17px!important;height:17px!important;z-index:1}
+        .collancer-liquid-auth .cl-field>div:has(>.cl-input)>.cl-input::placeholder{opacity:1!important;text-align:left!important}
+        /* Keep the OR label in the true center between equal divider columns. */
+        .collancer-liquid-auth form .cl-row:has(>.cl-divider){display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;justify-content:initial!important;gap:12px!important;width:100%!important}
+        .collancer-liquid-auth form .cl-row:has(>.cl-divider)>.cl-divider{display:block!important;width:100%!important;min-width:0!important}
+        .collancer-liquid-auth form .cl-row:has(>.cl-divider)>span{justify-self:center!important;text-align:center!important}
+        /* Center Google label independently, with the Google mark anchored consistently. */
+        .collancer-liquid-auth .cl-btn-light:has(svg path[fill="#4285F4"]){position:relative!important;justify-content:center!important;padding-left:48px!important;padding-right:48px!important;gap:0!important}
+        .collancer-liquid-auth .cl-btn-light:has(svg path[fill="#4285F4"])>svg{position:absolute!important;left:18px!important;top:50%!important;transform:translateY(-50%)!important;width:17px!important;height:17px!important;flex:none!important}
+        .collancer-liquid-auth .cl-btn-light:has(svg path[fill="#4285F4"])>.cl-btn-label{width:100%!important;text-align:center!important}
+        @media(max-width:420px){
+          .collancer-liquid-auth .cl-field>div:has(>.cl-input){min-height:46px!important}
+          .collancer-liquid-auth .cl-field>div:has(>.cl-input)>.cl-input{height:44px!important;min-height:44px!important;padding-left:38px!important}
+          .collancer-liquid-auth form .cl-row:has(>.cl-divider){gap:9px!important}
+          .collancer-liquid-auth .cl-btn-light:has(svg path[fill="#4285F4"]){padding-left:42px!important;padding-right:42px!important}
+          .collancer-liquid-auth .cl-btn-light:has(svg path[fill="#4285F4"])>svg{left:15px!important}
+        }
         @media(max-width:420px){.collancer-liquid-auth .collancer-brand .cl-muted{max-width:280px}.collancer-liquid-auth form>p.cl-small.cl-muted{max-width:270px}.collancer-liquid-auth .cl-field .cl-label{margin-bottom:7px!important}.collancer-liquid-auth .cl-row{gap:9px}}
         @media(max-width:420px){.collancer-liquid-auth{padding:12px 14px 20px!important;justify-content:flex-start}.collancer-liquid-auth .collancer-auth-card{padding:14px!important;border-radius:24px!important}.collancer-liquid-auth .collancer-brand{padding-top:8px!important;margin-bottom:14px!important}.collancer-liquid-auth .collancer-brand .cl-brand-icon{width:60px;height:60px;border-radius:20px}.collancer-liquid-auth .cl-brand-core{width:44px;height:44px;border-radius:14px}.collancer-liquid-auth .collancer-brand h1{font-size:clamp(22px,6vw,26px)!important;margin-top:14px!important}.collancer-liquid-auth .collancer-brand .cl-tagline{font-size:clamp(8px,2.5vw,10px);letter-spacing:1.2px}.collancer-liquid-auth .collancer-brand .cl-muted{font-size:12.5px}.collancer-liquid-auth .cl-input{height:46px!important;min-height:46px}.collancer-liquid-auth .cl-field>div:has(>.cl-input){min-height:46px}.collancer-liquid-auth .cl-btn{min-height:46px}}
         @media(max-height:720px){.collancer-liquid-auth{justify-content:flex-start;padding-top:8px!important}.collancer-liquid-auth .collancer-brand{padding-top:4px!important;margin-bottom:10px!important}.collancer-liquid-auth .collancer-brand .cl-brand-icon{width:50px;height:50px}.collancer-liquid-auth .cl-brand-core{width:37px;height:37px}.collancer-liquid-auth .collancer-brand h1{margin-top:8px!important;font-size:22px!important}.collancer-liquid-auth .collancer-brand .cl-muted{margin-top:4px!important}.collancer-liquid-auth .collancer-auth-card{padding:12px!important}.collancer-liquid-auth .cl-field{margin-bottom:9px!important}.collancer-liquid-auth .cl-input{height:42px!important;min-height:42px}.collancer-liquid-auth .cl-field>div:has(>.cl-input){min-height:42px}.collancer-liquid-auth .cl-btn{min-height:42px}}
