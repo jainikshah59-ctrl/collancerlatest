@@ -1436,7 +1436,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .cl-btn:active:not(:disabled) { transform: translateY(1px) scale(.985); }
 .cl-card {
   position: relative;
-  overflow: clip;
   box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.72);
 }
 .cl-card.lift:hover { transform: translateY(-3px); }
@@ -1551,3 +1550,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @keyframes cl-spin { to { transform: rotate(360deg); } }
 [data-theme="dark"] .cl-creator-shell .cl-bottomnav button.on .cl-nav-icon { color: #67e8f9; }
 [data-theme="gold"] .cl-creator-shell .cl-bottomnav button.on .cl-nav-icon { color: #e7c86e; }
+
+
+/* Consistent icon language for older feature tiles that still render a bare SVG. */
+.cl-card > svg.lucide:not(.cl-btn-icon) {
+  box-sizing: content-box;
+  width: 20px; height: 20px;
+  padding: 9px;
+  border-radius: 13px;
+  color: #087e98;
+  background: var(--cl-icon-surface);
+  border: 1px solid var(--cl-icon-edge);
+  box-shadow: var(--cl-icon-shadow);
+  stroke-width: 2.05;
+  flex: 0 0 auto;
+}
+.cl-card > .cl-row > svg.lucide,
+.cl-card .cl-row > svg.lucide {
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.6));
+  stroke-width: 2;
+}
+.cl-creator-shell .cl-profile-tabs .cl-tab .lucide {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+[data-theme="dark"] .cl-card > svg.lucide:not(.cl-btn-icon) { color: #67e8f9; }
+[data-theme="gold"] .cl-card > svg.lucide:not(.cl-btn-icon) { color: #e7c86e; }
