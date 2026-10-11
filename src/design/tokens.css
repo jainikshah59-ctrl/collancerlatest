@@ -1781,3 +1781,118 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media(min-width:720px){.cm-page{padding:28px 24px calc(var(--nav-h,76px) + 40px)}.cm-brief-list{grid-template-columns:repeat(2,minmax(0,1fr))}.cm-brief{padding:17px}.cm-brief-top{align-items:flex-start}.cm-budget strong{font-size:18px}.cm-overlay{align-items:center;padding:24px}.cm-sheet{border-bottom:1px solid rgba(255,255,255,.97);border-radius:30px;max-height:min(90dvh,850px);animation:cm-sheet-up .3s cubic-bezier(.2,.9,.3,1) both}}
 @media(max-width:420px){.cm-page{padding:18px 12px calc(var(--nav-h,76px) + 25px)}.cm-head{padding-bottom:15px;gap:9px}.cm-head-actions{gap:7px}.cm-icon-button{width:40px;height:40px;border-radius:14px}.cm-segment{gap:5px;padding:5px}.cm-segment button{gap:6px;padding:8px 6px;font-size:12px}.cm-brief{padding:15px;border-radius:23px}.cm-brief-top{gap:10px}.cm-brief-icon{flex-basis:45px;width:45px;height:45px;border-radius:15px}.cm-brief-main h3{font-size:14px}.cm-brief-main p{font-size:10px}.cm-budget>span{font-size:9px}.cm-budget strong{font-size:16px}.cm-sheet{padding-left:17px;padding-right:17px;border-radius:29px 29px 0 0}.cm-sheet-head{gap:9px}.cm-sheet-title h2{font-size:17px}.cm-sheet-head .cm-brief-icon{flex-basis:42px;width:42px;height:42px}}
 @media(prefers-reduced-motion:reduce){.cm-page,.cm-view,.cm-overlay,.cm-sheet,.cm-empty-icon{animation:none!important}.cm-brief,.cm-icon-button,.cm-filter,.cm-button,.cm-segment button{transition:none!important}}
+
+
+/* Marketplace mobile fit pass — preserve the existing visual language, only tune scale and flow. */
+@media (max-width: 600px) {
+  .cm-page {
+    width: 100%;
+    max-width: 100%;
+    padding: 14px 12px calc(var(--nav-h, 76px) + 22px);
+    letter-spacing: -.008em;
+  }
+  .cm-head { gap: 10px; padding: 2px 1px 13px; }
+  .cm-kicker { margin-bottom: 5px; font-size: 8px; letter-spacing: .13em; }
+  .cm-heading h1 { font-size: 25px; line-height: 1.08; }
+  .cm-heading p { margin-top: 4px; font-size: 12px; }
+  .cm-head-actions { gap: 7px; }
+  .cm-icon-button { width: 37px; height: 37px; border-radius: 13px; }
+  .cm-icon-button svg { width: 16px; height: 16px; }
+  .cm-content { gap: 11px; }
+  .cm-segment { gap: 5px; padding: 5px; border-radius: 24px; }
+  .cm-segment button { min-height: 39px; gap: 6px; padding: 7px 8px; font-size: 11px; }
+  .cm-segment button svg { width: 14px; height: 14px; }
+  .cm-segment button span { min-width: 17px; height: 17px; font-size: 9px; }
+  .cm-view { min-width: 0; }
+  .cm-search { height: 45px; gap: 8px; padding: 0 13px; }
+  .cm-search > svg { width: 17px; height: 17px; }
+  .cm-search input { font-size: 13px; }
+  .cm-filter-row { gap: 7px; margin-right: -12px; padding: 2px 12px 5px 1px; overscroll-behavior-x: contain; }
+  .cm-filter { min-height: 33px; padding: 0 13px; font-size: 11px; }
+  .cm-section-heading { gap: 8px; margin-top: 3px; }
+  .cm-section-heading h2 { font-size: 16px; letter-spacing: -.035em; }
+  .cm-section-heading p { max-width: 255px; margin-top: 3px; font-size: 11px; }
+  .cm-count { min-width: 27px; height: 27px; border-radius: 10px; font-size: 11px; }
+  .cm-brief-list { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .cm-brief { padding: 13px; border-radius: 21px; }
+  .cm-brief-top { align-items: center; gap: 9px; }
+  .cm-brief-icon { flex: 0 0 39px; width: 39px; height: 39px; border-radius: 13px; }
+  .cm-brief-icon svg { width: 18px; height: 18px; }
+  .cm-brief-main h3 { font-size: 13px; line-height: 1.3; letter-spacing: -.018em; }
+  .cm-brief-main p { margin-top: 3px; font-size: 9px; line-height: 1.35; }
+  .cm-budget > span { font-size: 9px; }
+  .cm-budget strong { margin-top: 2px; font-size: 15px; letter-spacing: -.035em; }
+  .cm-description { margin-top: 10px; font-size: 11px; line-height: 1.5; -webkit-line-clamp: 2; }
+  .cm-tags { gap: 5px; margin-top: 10px; }
+  .cm-tag { gap: 4px; padding: 5px 8px; border-radius: 10px; font-size: 9px; }
+  .cm-tag svg { width: 10px; height: 10px; }
+  .cm-brief-cta { min-height: 39px; gap: 7px; margin-top: 11px; padding: 8px 11px; font-size: 11px; }
+  .cm-brief-cta svg { width: 14px; height: 14px; }
+  .cm-empty { padding: 26px 17px; border-radius: 22px; }
+  .cm-empty-icon { width: 54px; height: 54px; border-radius: 18px; }
+  .cm-empty-icon svg { width: 23px; height: 23px; }
+  .cm-empty h3 { margin-top: 12px; font-size: 17px; }
+  .cm-empty p { margin-top: 5px; font-size: 11px; }
+  .cm-button { min-height: 40px; padding: 0 17px; }
+  .cm-button-dark, .cm-button-light { margin-top: 14px; }
+  .cm-offer-price { gap: 7px; margin-top: 11px; padding-top: 11px; }
+  .cm-offer-price > span:first-child { font-size: 10px; }
+  .cm-offer-price > strong { font-size: 17px; }
+  .cm-timeline { padding: 5px 7px; font-size: 10px; }
+  .cm-pitch { margin-top: 9px; font-size: 11px; }
+  .cm-status { padding: 5px 7px; font-size: 9px; }
+  .cm-withdraw { margin-top: 9px; font-size: 11px; }
+  .cm-overlay { padding: 0; }
+  .cm-sheet {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    padding: 9px 15px calc(17px + env(safe-area-inset-bottom));
+    border-radius: 25px 25px 0 0;
+  }
+  .cm-sheet-grab { width: 34px; height: 4px; margin-bottom: 13px; }
+  .cm-sheet-close { top: 11px; right: 12px; width: 30px; height: 30px; }
+  .cm-sheet-head { gap: 8px; padding-right: 20px; }
+  .cm-sheet-title h2 { font-size: 16px; line-height: 1.25; }
+  .cm-sheet-title p { font-size: 10px; line-height: 1.35; }
+  .cm-sheet-head .cm-brief-icon { flex: 0 0 37px; width: 37px; height: 37px; border-radius: 12px; }
+  .cm-sheet-head .cm-budget strong { font-size: 15px; }
+  .cm-sheet-tags { margin-top: 10px; }
+  .cm-sheet-description { margin-top: 10px; font-size: 12px; line-height: 1.55; }
+  .cm-media-links { gap: 6px; margin-top: 9px; }
+  .cm-media-links a { gap: 5px; padding: 7px 9px; border-radius: 10px; font-size: 10px; }
+  .cm-divider { margin: 13px 0; }
+  .cm-form-title { margin-bottom: 11px; }
+  .cm-form-title h3 { font-size: 17px; }
+  .cm-form-title p { font-size: 11px; }
+  .cm-form-title > svg { width: 19px; height: 19px; }
+  .cm-field { margin-bottom: 10px; font-size: 11px; }
+  .cm-field > span { margin-bottom: 5px; }
+  .cm-field input { height: 42px; padding: 0 12px; }
+  .cm-field textarea { min-height: 82px; padding: 10px 12px; }
+  .cm-field input, .cm-field textarea, .cm-input-icon { border-radius: 14px; font-size: 13px; }
+  .cm-field small { margin-top: 4px; font-size: 9px; }
+  .cm-input-icon { padding-left: 11px; }
+  .cm-input-icon svg { width: 15px; height: 15px; }
+  .cm-submit { min-height: 45px; margin-top: 3px; font-size: 12px; }
+  .cm-note { gap: 5px; margin: 9px 3px 0; font-size: 9px; }
+  .cm-already { gap: 8px; padding: 11px; border-radius: 14px; }
+  .cm-already > svg { width: 18px; height: 18px; }
+  .cm-already strong { font-size: 12px; }
+  .cm-already p { font-size: 10px; }
+}
+@media (max-width: 360px) {
+  .cm-page { padding-right: 10px; padding-left: 10px; }
+  .cm-heading h1 { font-size: 23px; }
+  .cm-heading p { font-size: 11px; }
+  .cm-icon-button { width: 34px; height: 34px; border-radius: 12px; }
+  .cm-segment button { gap: 4px; padding-right: 5px; padding-left: 5px; font-size: 10px; }
+  .cm-filter-row { margin-right: -10px; padding-right: 10px; }
+  .cm-brief { padding: 11px; }
+  .cm-brief-top { gap: 7px; }
+  .cm-brief-icon { flex-basis: 35px; width: 35px; height: 35px; border-radius: 11px; }
+  .cm-brief-main h3 { font-size: 12px; }
+  .cm-budget strong { font-size: 14px; }
+  .cm-sheet { padding-right: 12px; padding-left: 12px; }
+  .cm-sheet-title h2 { font-size: 15px; }
+}
