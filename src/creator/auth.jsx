@@ -210,8 +210,29 @@ export default function CreatorAuthScreen() {
 
   return (
     <Page pageKey="creator-auth">
-      <div className="cl-container" style={{ maxWidth: 460, paddingTop: 36, paddingBottom: 40 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }} className="cl-fade">
+      <style>{`
+        .collancer-liquid-auth{max-width:460px!important;padding:28px 20px 36px!important;min-height:100dvh;display:flex;flex-direction:column;justify-content:center}
+        .collancer-liquid-auth:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse at 15% 10%,rgba(34,211,238,.13),transparent 38%),radial-gradient(ellipse at 90% 35%,rgba(125,211,252,.16),transparent 35%),linear-gradient(160deg,#f9fcff,#edf7fb 55%,#fff)}
+        .collancer-liquid-auth>*{position:relative;z-index:1}
+        .collancer-liquid-auth .collancer-brand{margin-bottom:25px!important}
+        .collancer-liquid-auth .collancer-brand .brand-mark{width:76px;height:76px;margin:0 auto 17px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(224,246,252,.58));border:1px solid rgba(255,255,255,.98);box-shadow:0 18px 36px -18px rgba(8,145,178,.42),inset 0 1px 1px #fff}
+        .collancer-liquid-auth .collancer-brand h1{font-size:29px!important;letter-spacing:-.8px;color:#080d12}
+        .collancer-liquid-auth .collancer-brand .cl-small{line-height:1.55}
+        .collancer-liquid-auth .collancer-auth-card{padding:20px!important;border-radius:32px!important;background:linear-gradient(155deg,rgba(255,255,255,.88),rgba(238,248,252,.68))!important;backdrop-filter:blur(28px) saturate(175%);-webkit-backdrop-filter:blur(28px) saturate(175%);border:1px solid rgba(255,255,255,.98)!important;box-shadow:0 0 0 1px rgba(15,40,60,.06),0 28px 50px -25px rgba(15,50,80,.25),inset 0 1px 1px #fff!important}
+        .collancer-liquid-auth .cl-tabs{display:flex;gap:8px;padding:5px;border-radius:26px;background:rgba(222,239,247,.62);border:1px solid rgba(255,255,255,.9)}
+        .collancer-liquid-auth .cl-tab{flex:1;border-radius:22px!important;min-height:44px;font-weight:750;transition:all .25s ease}
+        .collancer-liquid-auth .cl-tab.on{background:linear-gradient(180deg,#383c43,#050608)!important;color:#fff!important;box-shadow:0 8px 18px -9px rgba(0,0,0,.55),inset 0 1px 1px rgba(255,255,255,.4)!important}
+        .collancer-liquid-auth input{border-radius:17px!important;background:linear-gradient(180deg,rgba(220,234,242,.56),rgba(255,255,255,.92))!important;box-shadow:inset 0 2px 4px rgba(15,50,80,.09),0 0 0 1px rgba(15,40,60,.07)!important}
+        .collancer-liquid-auth input:focus{outline:0!important;box-shadow:0 0 0 4px rgba(34,211,238,.18),0 8px 18px -10px rgba(8,145,178,.35)!important}
+        .collancer-liquid-auth button{transition:transform .25s ease,box-shadow .25s ease}
+        .collancer-liquid-auth form>button:first-of-type{border-radius:26px!important}
+        .collancer-liquid-auth .cl-auth-foot{font-size:12px;text-align:center;color:#60707d;margin-top:17px;line-height:1.5}
+        @media(max-width:420px){.collancer-liquid-auth{padding:20px 14px 28px!important}.collancer-liquid-auth .collancer-auth-card{padding:17px!important}.collancer-liquid-auth .collancer-brand h1{font-size:26px!important}}
+        @media(prefers-reduced-motion:no-preference){.collancer-liquid-auth .collancer-brand{animation:collancerFloat 6s ease-in-out infinite}.collancer-liquid-auth .collancer-auth-card{animation:collancerRise .65s cubic-bezier(.2,.9,.3,1) both}}
+        @keyframes collancerFloat{50%{transform:translateY(-5px)}}@keyframes collancerRise{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:none}}
+      `}</style>
+      <div className="cl-container collancer-liquid-auth" style={{ maxWidth: 460, paddingTop: 36, paddingBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }} className="cl-fade collancer-brand">
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
             <Logo size={60} />
           </div>
@@ -220,7 +241,7 @@ export default function CreatorAuthScreen() {
           <p className="cl-small cl-muted" style={{ marginTop: 8 }}>Get discovered by brands, manage bookings and track earnings.</p>
         </div>
 
-        <Card className="cl-fade">
+        <Card className="cl-fade collancer-auth-card">
           {!googlePending && (
             <div className="cl-tabs" style={{ marginBottom: 18 }} role="tablist">
               {['login', 'register'].map((m) => (
