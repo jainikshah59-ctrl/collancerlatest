@@ -1519,3 +1519,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .cl-page-anim { animation: none !important; }
   .cl-btn, .cl-icon-btn, .cl-bottomnav button .cl-nav-icon { transition: none !important; }
 }
+
+
+/* Icon migration compatibility: retire older per-screen icon paint rules. */
+.cl-creator-shell .cl-bottomnav button .cl-nav-icon .lucide,
+.cl-bottomnav button .cl-nav-icon .lucide {
+  width: 19px !important; height: 19px !important;
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important;
+  color: inherit !important; filter: none !important;
+}
+.cl-creator-shell .cl-bottomnav button .cl-nav-icon { padding: 0 !important; }
+.cl-creator-shell .cl-bottomnav button.on .cl-nav-icon { color: #087e98; }
+.cl-creator-shell .cl-dashboard-shortcut-grid .cl-card > .lucide,
+.cl-creator-shell .cl-dashboard-shortcut-icon .lucide,
+.cl-creator-shell .cl-tile .lucide,
+.cl-business-shell .cl-tile .lucide {
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.7));
+  stroke-width: 2.05;
+}
+.cl-creator-shell .cl-dashboard-shortcut-icon,
+.cl-creator-shell .cl-tile,
+.cl-business-shell .cl-tile {
+  border: 1px solid var(--cl-icon-edge);
+  box-shadow: var(--cl-icon-shadow);
+  border-radius: 14px;
+}
+.cl-page-anim svg.lucide { stroke-width: 1.95; }
+.cl-btn svg.lucide, .cl-icon-btn svg.lucide { stroke-width: 2.1; }
+.cl-spin, .lucide.spin { animation: cl-spin 850ms linear infinite; }
+@keyframes cl-spin { to { transform: rotate(360deg); } }
+[data-theme="dark"] .cl-creator-shell .cl-bottomnav button.on .cl-nav-icon { color: #67e8f9; }
+[data-theme="gold"] .cl-creator-shell .cl-bottomnav button.on .cl-nav-icon { color: #e7c86e; }
