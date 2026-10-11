@@ -300,7 +300,13 @@ service cloud.firestore {
           && resource.data.status == 'matched'
           && request.resource.data.status == 'open'
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'acceptedOfferId', 'matchedAt', 'updatedAt']));
+            .hasOnly(['status', 'acceptedOfferId', 'matchedAt', 'updatedAt']))
+        // creator proposal submission updates only the visible proposal counter by one
+        || (isAuthed()
+          && exists(/databases/$(database)/documents/creators/$(request.auth.uid))
+          && resource.data.status in ['open', 'matched']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['offerCount'])
+          && docVal(request.resource.data, 'offerCount', 0) == docVal(resource.data, 'offerCount', 0) + 1);
 
       allow delete: if isAuthed() && resource.data.bizId == request.auth.uid;
     }
