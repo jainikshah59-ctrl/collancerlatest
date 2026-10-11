@@ -206,7 +206,7 @@ export function Button({ variant = 'dark', size, block, loading, icon: Icon, chi
   const hasLabel = children !== undefined && children !== null && children !== false && children !== '';
   return (
     <button type={type} className={cls.join(' ')} disabled={loading || rest.disabled} {...rest}>
-      {loading ? <Loader2 className="lucide spin" /> : Icon ? <Icon /> : null}
+      {loading ? <Loader2 className="lucide cl-btn-icon spin" /> : Icon ? <Icon className="cl-btn-icon" aria-hidden="true" /> : null}
       {hasLabel ? <span className="cl-btn-label">{children}</span> : children}
     </button>
   );
@@ -227,7 +227,7 @@ export function IconBtn({ icon: Icon, label, type = 'button', ...rest }) {
         ...rest.style,
       }}
     >
-      <Icon style={{ width: 18, height: 18 }} />
+      <span className="cl-icon-well cl-icon-well-compact"><Icon aria-hidden="true" /></span>
     </button>
   );
 }
@@ -524,7 +524,7 @@ export function Avatar({ src, name, size = 48, className = '', pro = false, styl
 export function EmptyState({ icon: Icon, title, body, action }) {
   return (
     <div className="cl-empty">
-      {Icon && <div className="cl-empty-icon"><Icon /></div>}
+      {Icon && <div className="cl-empty-icon"><span className="cl-icon-well cl-icon-well-large"><Icon aria-hidden="true" /></span></div>}
       <h4>{title}</h4>
       <p>{body}</p>
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
@@ -629,7 +629,7 @@ export function BottomNav({ items, value, onChange }) {
     <nav className="cl-bottomnav" aria-label="Primary">
       {items.map((it) => (
         <button key={it.key} className={value === it.key ? 'on' : ''} onClick={() => onChange(it.key)} aria-label={it.label}>
-          <it.icon />
+          <span className="cl-nav-icon"><it.icon aria-hidden="true" /></span>
           <span>{it.label}</span>
         </button>
       ))}
