@@ -2,9 +2,9 @@
    Keeps live creator data, setup actions, verification flow, booking navigation and AI navigation. */
 import React, { useMemo, useState } from 'react';
 import {
-  ShieldCheck, BadgeCheck, Rocket, Star, CalendarCheck, ChevronRight,
+  ShieldCheck, Rocket, Star, CalendarCheck, ChevronRight,
   AlertCircle, Clock3, CheckCircle2, MessageCircle, Bell, Menu, X,
-  Sparkles, FileText, CircleHelp, LayoutDashboard, Store, IndianRupee, User, Wrench,
+  Sparkles, FileText,
 } from 'lucide-react';
 import { Page } from '../components/ui.jsx';
 import { timeAgo } from '../lib/format.js';
@@ -62,7 +62,7 @@ const HomeStyles = () => (
     .cl-home-dashboard .home-check-row.done .home-check-label{font-weight:500;color:#667380}
     .cl-home-dashboard .home-chevron{width:17px;height:17px;stroke:#8793a0;flex-shrink:0}
     .cl-home-dashboard .home-badge{max-width:48%;font-size:9.5px;letter-spacing:.08em;font-weight:850;padding:8px 9px;border-radius:11px;border:1px solid rgba(15,40,60,.08);background:rgba(240,248,252,.8);color:var(--home-muted);text-align:center}
-    .cl-home-dashboard .home-button{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 16px;border-radius:25px;border:1px solid #000;color:#fff;background:linear-gradient(180deg,#3a3d44 0,#16181c 46%,#000 100%);font:800 14px inherit;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 2px rgba(0,0,0,.8),0 12px 20px -10px rgba(0,0,0,.42),inset 0 1.5px 0 rgba(255,255,255,.35);transition:transform .22s ease}
+    .cl-home-dashboard .home-button{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 16px;border-radius:25px;border:1px solid #000;color:#fff;background:linear-gradient(180deg,#3a3d44 0,#16181c 46%,#000 100%);font:800 14px -apple-system,BlinkMacSystemFont,'Inter',sans-serif;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 2px rgba(0,0,0,.8),0 12px 20px -10px rgba(0,0,0,.42),inset 0 1.5px 0 rgba(255,255,255,.35);transition:transform .22s ease}
     .cl-home-dashboard .home-button:active{transform:scale(.985)}
     .cl-home-dashboard .home-button svg{width:19px;height:19px;flex-shrink:0}
     .cl-home-dashboard .home-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
@@ -78,7 +78,7 @@ const HomeStyles = () => (
     .cl-home-dashboard .home-ai-eyebrow{font-size:9.5px;font-weight:850;letter-spacing:1.4px;color:var(--home-muted)}
     .cl-home-dashboard .home-link-button{border:0;padding:4px 0;background:none;color:#0e7490;font-size:12px;font-weight:800;cursor:pointer}
     .cl-home-dashboard .home-menu{position:absolute;top:46px;right:0;z-index:120;width:218px;padding:7px;border:1px solid rgba(255,255,255,.9);border-radius:19px;background:rgba(255,255,255,.94);box-shadow:0 18px 44px rgba(15,23,42,.2);backdrop-filter:blur(20px)}
-    .cl-home-dashboard .home-menu-item{width:100%;display:flex;align-items:center;gap:10px;padding:12px 10px;border:0;border-radius:12px;background:transparent;color:#0b1217;text-align:left;font:500 13px inherit;cursor:pointer}
+    .cl-home-dashboard .home-menu-item{width:100%;display:flex;align-items:center;gap:10px;padding:12px 10px;border:0;border-radius:12px;background:transparent;color:#0b1217;text-align:left;font:500 13px -apple-system,BlinkMacSystemFont,'Inter',sans-serif;cursor:pointer}
     .cl-home-dashboard .home-menu-item:hover{background:rgba(34,211,238,.12)}
     .cl-home-dashboard .home-menu-item svg{width:17px;height:17px;color:#0e7490}
     .cl-home-dashboard .home-review-stars{display:flex;align-items:center;gap:4px;margin-bottom:8px}
