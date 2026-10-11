@@ -211,33 +211,60 @@ export default function CreatorAuthScreen() {
   return (
     <Page pageKey="creator-auth">
       <style>{`
-        .collancer-liquid-auth{max-width:460px!important;padding:28px 20px 36px!important;min-height:100dvh;display:flex;flex-direction:column;justify-content:center}
-        .collancer-liquid-auth:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse at 15% 10%,rgba(34,211,238,.13),transparent 38%),radial-gradient(ellipse at 90% 35%,rgba(125,211,252,.16),transparent 35%),linear-gradient(160deg,#f9fcff,#edf7fb 55%,#fff)}
-        .collancer-liquid-auth>*{position:relative;z-index:1}
-        .collancer-liquid-auth .collancer-brand{margin-bottom:25px!important}
-        .collancer-liquid-auth .collancer-brand .brand-mark{width:76px;height:76px;margin:0 auto 17px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(224,246,252,.58));border:1px solid rgba(255,255,255,.98);box-shadow:0 18px 36px -18px rgba(8,145,178,.42),inset 0 1px 1px #fff}
-        .collancer-liquid-auth .collancer-brand h1{font-size:29px!important;letter-spacing:-.8px;color:#080d12}
-        .collancer-liquid-auth .collancer-brand .cl-small{line-height:1.55}
-        .collancer-liquid-auth .collancer-auth-card{padding:20px!important;border-radius:32px!important;background:linear-gradient(155deg,rgba(255,255,255,.88),rgba(238,248,252,.68))!important;backdrop-filter:blur(28px) saturate(175%);-webkit-backdrop-filter:blur(28px) saturate(175%);border:1px solid rgba(255,255,255,.98)!important;box-shadow:0 0 0 1px rgba(15,40,60,.06),0 28px 50px -25px rgba(15,50,80,.25),inset 0 1px 1px #fff!important}
-        .collancer-liquid-auth .cl-tabs{display:flex;gap:8px;padding:5px;border-radius:26px;background:rgba(222,239,247,.62);border:1px solid rgba(255,255,255,.9)}
-        .collancer-liquid-auth .cl-tab{flex:1;border-radius:22px!important;min-height:44px;font-weight:750;transition:all .25s ease}
-        .collancer-liquid-auth .cl-tab.on{background:linear-gradient(180deg,#383c43,#050608)!important;color:#fff!important;box-shadow:0 8px 18px -9px rgba(0,0,0,.55),inset 0 1px 1px rgba(255,255,255,.4)!important}
-        .collancer-liquid-auth input{border-radius:17px!important;background:linear-gradient(180deg,rgba(220,234,242,.56),rgba(255,255,255,.92))!important;box-shadow:inset 0 2px 4px rgba(15,50,80,.09),0 0 0 1px rgba(15,40,60,.07)!important}
-        .collancer-liquid-auth input:focus{outline:0!important;box-shadow:0 0 0 4px rgba(34,211,238,.18),0 8px 18px -10px rgba(8,145,178,.35)!important}
-        .collancer-liquid-auth button{transition:transform .25s ease,box-shadow .25s ease}
-        .collancer-liquid-auth form>button:first-of-type{border-radius:26px!important}
-        .collancer-liquid-auth .cl-auth-foot{font-size:12px;text-align:center;color:#60707d;margin-top:17px;line-height:1.5}
-        @media(max-width:420px){.collancer-liquid-auth{padding:20px 14px 28px!important}.collancer-liquid-auth .collancer-auth-card{padding:17px!important}.collancer-liquid-auth .collancer-brand h1{font-size:26px!important}}
-        @media(prefers-reduced-motion:no-preference){.collancer-liquid-auth .collancer-brand{animation:collancerFloat 6s ease-in-out infinite}.collancer-liquid-auth .collancer-auth-card{animation:collancerRise .65s cubic-bezier(.2,.9,.3,1) both}}
-        @keyframes collancerFloat{50%{transform:translateY(-5px)}}@keyframes collancerRise{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:none}}
+        .collancer-liquid-auth{width:100%;max-width:430px!important;padding:0 20px 30px!important;min-height:100dvh;display:flex;flex-direction:column;justify-content:flex-start;position:relative;isolation:isolate;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif;letter-spacing:-.011em;color:#0b1217}
+        .collancer-liquid-auth:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 12% 10%,rgba(34,211,238,.10),transparent 34%),radial-gradient(ellipse at 92% 32%,rgba(125,211,252,.15),transparent 36%),linear-gradient(160deg,#fff,#f5fbfe 58%,#fff)}
+        .collancer-liquid-auth .collancer-brand{margin:0 0 23px!important;padding-top:48px!important;position:relative}
+        .collancer-liquid-auth .collancer-brand .cl-brand-icon{width:76px;height:76px;margin:0 auto 17px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(155deg,rgba(255,255,255,.96),rgba(240,248,252,.55));backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%);border:1px solid rgba(255,255,255,.98);box-shadow:0 0 0 1px rgba(15,40,60,.07),0 20px 35px -20px rgba(15,50,80,.34),inset 0 1.5px 1px #fff}
+        .collancer-liquid-auth .cl-brand-core{width:56px;height:56px;border-radius:17px;background:linear-gradient(180deg,#3a3d44,#000);box-shadow:0 0 0 1px #000,inset 0 1.5px 0 rgba(255,255,255,.45);display:grid;place-items:center}
+        .collancer-liquid-auth .collancer-brand h1{font-size:29px!important;line-height:1.15;font-weight:800!important;letter-spacing:-.8px!important;color:#07090c;margin:20px 0 0!important}
+        .collancer-liquid-auth .collancer-brand .cl-small{line-height:1.45}
+        .collancer-liquid-auth .collancer-brand .cl-tagline{margin-top:8px;font-size:11.5px;font-weight:800;letter-spacing:2.2px;color:#0e7490}
+        .collancer-liquid-auth .collancer-brand .cl-muted{margin:10px 8px 0!important;font-size:14px;line-height:1.45;color:#55616d}
+        .collancer-liquid-auth .collancer-auth-card{padding:18px!important;border-radius:34px!important;position:relative;overflow:visible;background:linear-gradient(155deg,rgba(255,255,255,.82),rgba(240,248,252,.48))!important;backdrop-filter:blur(28px) saturate(190%);-webkit-backdrop-filter:blur(28px) saturate(190%);border:1px solid rgba(255,255,255,.98)!important;box-shadow:0 0 0 1px rgba(15,40,60,.07),0 28px 50px -26px rgba(15,50,80,.34),0 8px 18px -10px rgba(15,50,80,.14),inset 0 1.5px 1px #fff,inset 0 -2px 6px rgba(14,116,144,.09),inset 0 0 20px rgba(255,255,255,.7)!important}
+        .collancer-liquid-auth .collancer-auth-card:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.85),rgba(255,255,255,0) 26%,rgba(34,211,238,.09) 64%,rgba(255,255,255,.5));mix-blend-mode:soft-light}
+        .collancer-liquid-auth .collancer-auth-card>*{position:relative;z-index:1}
+        .collancer-liquid-auth .cl-tabs{display:flex;gap:8px;padding:5px;border-radius:28px;background:linear-gradient(155deg,rgba(255,255,255,.82),rgba(240,248,252,.52));border:1px solid rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(15,40,60,.07),0 8px 14px -10px rgba(15,50,80,.3),inset 0 1.5px 1px #fff;margin-bottom:18px!important}
+        .collancer-liquid-auth .cl-tab{flex:1;min-height:44px;padding:12px 0;border-radius:24px!important;border:1px solid rgba(255,255,255,.95)!important;background:linear-gradient(155deg,rgba(255,255,255,.9),rgba(240,248,252,.55))!important;color:#55616d!important;font-size:15px;font-weight:700!important;box-shadow:0 0 0 1px rgba(15,40,60,.07),0 8px 14px -10px rgba(15,50,80,.3),inset 0 1.5px 1px #fff!important}
+        .collancer-liquid-auth .cl-tab.on{color:#fff!important;font-weight:800!important;border:1px solid #000!important;background:linear-gradient(180deg,#3a3d44 0,#16181c 46%,#000 100%)!important;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 2px rgba(0,0,0,.9),0 10px 16px -8px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.45),inset 0 -2px 4px rgba(255,255,255,.08)!important}
+        .collancer-liquid-auth .cl-field{margin:0 0 14px!important}
+        .collancer-liquid-auth .cl-label{display:block;font-size:13.5px!important;font-weight:700!important;margin:0 0 8px 2px!important;color:#1c242c!important}
+        .collancer-liquid-auth .cl-input{height:52px!important;min-height:52px;padding:0 14px!important;border-radius:18px!important;border:1px solid rgba(255,255,255,.98)!important;background:linear-gradient(180deg,rgba(228,238,245,.66),rgba(255,255,255,.9))!important;color:#0b1217!important;font:500 15px -apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif!important;box-shadow:0 0 0 1px rgba(15,40,60,.09),inset 0 2px 4px rgba(15,50,80,.10),inset 0 -1px 1px #fff!important;transition:box-shadow .3s ease,transform .3s ease}
+        .collancer-liquid-auth .cl-input::placeholder{color:#7a8794!important}
+        .collancer-liquid-auth .cl-input:focus{outline:0!important;transform:translateY(-1px) scale(1.005);box-shadow:0 0 0 5px rgba(34,211,238,.22),0 10px 20px -8px rgba(8,145,178,.28),inset 0 1px 1px #fff!important}
+        .collancer-liquid-auth .cl-btn{min-height:52px;border-radius:26px!important;font:700 15px -apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Inter',system-ui,sans-serif!important;display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .3s cubic-bezier(.3,1.5,.5,1),box-shadow .3s ease!important}
+        .collancer-liquid-auth .cl-btn:hover{transform:translateY(-1px)}
+        .collancer-liquid-auth .cl-btn:active{transform:scale(.98)}
+        .collancer-liquid-auth .cl-btn-dark{color:#fff!important;border:1px solid #000!important;background:linear-gradient(180deg,#3a3d44 0,#16181c 46%,#000 100%)!important;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 2px rgba(0,0,0,.9),0 16px 24px -10px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.45),inset 0 -2px 4px rgba(255,255,255,.08)!important}
+        .collancer-liquid-auth .cl-btn-light{color:#0b1217!important;border:1px solid rgba(255,255,255,.95)!important;background:linear-gradient(155deg,rgba(255,255,255,.86),rgba(240,248,252,.58))!important;box-shadow:0 0 0 1px rgba(15,40,60,.07),0 10px 18px -12px rgba(15,50,80,.3),inset 0 1.5px 1px #fff!important}
+        .collancer-liquid-auth .cl-row{font-size:13px;font-weight:600;color:#6a7580}
+        .collancer-liquid-auth .cl-divider{background:linear-gradient(90deg,transparent,rgba(15,40,60,.18))!important;height:1px!important}
+        .collancer-liquid-auth .cl-error-text{position:relative;z-index:2;border-radius:12px;padding:10px 12px;background:rgba(225,29,72,.08)}
+        .collancer-liquid-auth .cl-auth-foot{font-size:12.5px;text-align:center;color:#5b6874;margin:16px 8px 2px;line-height:1.45}
+        .collancer-liquid-auth .cl-btn-label{white-space:normal}
+        @media(max-width:420px){.collancer-liquid-auth{padding:0 14px 28px!important}.collancer-liquid-auth .collancer-auth-card{padding:17px!important}.collancer-liquid-auth .collancer-brand h1{font-size:27px!important}.collancer-liquid-auth .collancer-brand .cl-tagline{font-size:10px;letter-spacing:1.8px}}
+        @media(prefers-reduced-motion:no-preference){.collancer-liquid-auth .collancer-brand{animation:collancerFloat 7s ease-in-out infinite}.collancer-liquid-auth .collancer-auth-card{animation:collancerRise .8s cubic-bezier(.2,.9,.3,1) both}}
+        @keyframes collancerFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}@keyframes collancerRise{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+        @media(prefers-reduced-motion:reduce){.collancer-liquid-auth *{animation:none!important;transition:none!important}}
       `}</style>
       <div className="cl-container collancer-liquid-auth" style={{ maxWidth: 460, paddingTop: 36, paddingBottom: 40 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }} className="cl-fade collancer-brand">
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-            <Logo size={60} />
+            <div className="cl-brand-icon" aria-hidden="true">
+              <div className="cl-brand-core">
+                <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+                  <g stroke="#fff" strokeWidth="3.4" strokeLinecap="round">
+                    <path d="M20 9v22M9 20h22M12 12l16 16M28 12L12 28" />
+                  </g>
+                  <g fill="#22d3ee">
+                    <circle cx="20" cy="6" r="2.8" /><circle cx="20" cy="34" r="2.8" />
+                    <circle cx="6" cy="20" r="2.8" /><circle cx="34" cy="20" r="2.8" />
+                  </g>
+                </svg>
+              </div>
+            </div>
           </div>
           <h1 style={{ fontSize: 26, marginBottom: 4 }}>Collancer for Creators</h1>
-          <p className="cl-small" style={{ letterSpacing: '.12em', fontWeight: 700, color: 'var(--cyan-deep)' }}>{TAGLINE}</p>
+          <p className="cl-small cl-tagline">{TAGLINE || 'WHERE INFLUENCE MEETS INDUSTRY'}</p>
           <p className="cl-small cl-muted" style={{ marginTop: 8 }}>Get discovered by brands, manage bookings and track earnings.</p>
         </div>
 
@@ -385,9 +412,7 @@ export default function CreatorAuthScreen() {
             </form>
           )}
         </Card>
-        <p className="cl-small cl-muted" style={{ textAlign: 'center', marginTop: 18 }}>
-          <MapPin style={{ width: 13, height: 13, verticalAlign: -2 }} /> Built for creators across India
-        </p>
+        <p className="cl-small cl-muted" style={{ textAlign: 'center', marginTop: 14, fontSize: 12 }}> <MapPin style={{ width: 13, height: 13, verticalAlign: -2 }} /> Built for creators across India </p>
       </div>
     </Page>
   );
